@@ -1,0 +1,13 @@
+# NUGUNA Global - Vercel Serverless Dependencies
+Flask==2.3.3
+Flask-SQLAlchemy==3.1.1
+Flask-CORS==4.0.0
+Flask-WTF==1.2.1
+PyJWT==2.8.0
+Werkzeug==2.3.7
+psycopg2-binary==2.9.9
+boto3==1.35.0
+python-dotenv==1.0.0
+beautifulsoup4==4.12.2
+openpyxl==3.1.2
+pandas==2.1.0
