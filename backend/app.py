@@ -23,16 +23,25 @@ CORS(app,
      expose_headers=["Content-Type"],
      max_age=3600)
 
-# Ensure upload directory exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# Ensure upload directory exists (skip on read-only filesystem like Vercel)
+try:
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+except OSError:
+    pass
 
 # Initialize database
 from models import db
 db.init_app(app)
 
-# Create tables on startup
-with app.app_context():
-    db.create_all()
+# Create tables (lazy - 첫 요청 시 실행)
+_tables_created = False
+
+@app.before_request
+def ensure_tables():
+    global _tables_created
+    if not _tables_created:
+        db.create_all()
+        _tables_created = True
 
 # Register blueprints (API routes)
 from routes.auth import auth_bp
