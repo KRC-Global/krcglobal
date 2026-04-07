@@ -60,6 +60,12 @@ def verify_token(token):
             db.session.add(current_user)
             db.session.commit()
 
+        # 기존 사용자가 ADMIN_EMAILS에 포함되면 자동 승격
+        if email in ADMIN_EMAILS and (current_user.role != 'admin' or current_user.permission_scope != 'all'):
+            current_user.role = 'admin'
+            current_user.permission_scope = 'all'
+            db.session.commit()
+
         if not current_user.is_active:
             return None
 
