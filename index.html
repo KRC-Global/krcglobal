@@ -96,36 +96,39 @@
     <script src="assets/js/common.js"></script>
     <script src="assets/js/api.js"></script>
     <script>
+        function saveSessionAndRedirect(session) {
+            const user = session.user;
+            const userInfo = {
+                id: user.id,
+                userId: user.email,
+                name: user.user_metadata?.full_name || user.email.split('@')[0],
+                email: user.email,
+                department: '',
+                role: 'user',
+                permissionScope: 'readonly',
+                permission_scope: 'readonly'
+            };
+
+            localStorage.setItem('gbms_token', session.access_token);
+            localStorage.setItem('gbms_user', JSON.stringify(userInfo));
+
+            window.location.href = 'dashboard.html';
+        }
+
         document.addEventListener('DOMContentLoaded', async function () {
+            // OAuth 콜백 처리 (onAuthStateChange를 먼저 등록)
+            window.supabaseClient.auth.onAuthStateChange((event, session) => {
+                if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+                    saveSessionAndRedirect(session);
+                }
+            });
+
             // 이미 로그인된 경우 대시보드로 이동
             const { data: { session } } = await window.supabaseClient.auth.getSession();
             if (session) {
-                window.location.href = 'dashboard.html';
+                saveSessionAndRedirect(session);
                 return;
             }
-
-            // OAuth 콜백 처리 (리다이렉트 후)
-            window.supabaseClient.auth.onAuthStateChange(async (event, session) => {
-                if (event === 'SIGNED_IN' && session) {
-                    // 사용자 정보를 localStorage에 저장 (기존 호환성)
-                    const user = session.user;
-                    const userInfo = {
-                        id: user.id,
-                        userId: user.email,
-                        name: user.user_metadata?.full_name || user.email.split('@')[0],
-                        email: user.email,
-                        department: '',
-                        role: 'user',
-                        permissionScope: 'readonly',
-                        permission_scope: 'readonly'
-                    };
-
-                    localStorage.setItem('gbms_token', session.access_token);
-                    localStorage.setItem('gbms_user', JSON.stringify(userInfo));
-
-                    window.location.href = 'dashboard.html';
-                }
-            });
         });
 
         async function loginWithGoogle() {
@@ -143,7 +146,7 @@
                 const { data, error } = await window.supabaseClient.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        redirectTo: window.location.origin + '/dashboard.html'
+                        redirectTo: window.location.origin + '/index.html'
                     }
                 });
 
