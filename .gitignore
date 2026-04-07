@@ -72,6 +72,9 @@ test_*.py
 migrate_*.py
 add_*.py
 
+# Docs - internal documents
+docs/조지아_실적모음/
+
 # Claude/AI config
 .claude/
 .playwright-mcp/
