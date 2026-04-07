@@ -697,6 +697,19 @@
     background: var(--color-primary-600);
     color: #fff;
 }
+@media (max-width: 768px) {
+    .analysis-btn {
+        padding: 6px 8px;
+        font-size: 0;
+    }
+    .analysis-btn::before {
+        content: '📊';
+        font-size: 18px;
+    }
+    .analysis-btn > * {
+        display: none;
+    }
+}
 .analysis-dropdown {
     display: none;
     position: absolute;
