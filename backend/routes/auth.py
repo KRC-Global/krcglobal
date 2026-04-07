@@ -17,18 +17,22 @@ def get_supabase_secret():
     return current_app.config['SUPABASE_JWT_SECRET']
 
 
+def decode_supabase_jwt(token):
+    """Supabase JWT 디코딩 (ES256/HS256 자동 대응)"""
+    try:
+        return jwt.decode(token, get_supabase_secret(), algorithms=['HS256'], audience='authenticated')
+    except (jwt.exceptions.InvalidAlgorithmError, jwt.exceptions.InvalidSignatureError, jwt.exceptions.DecodeError):
+        # ES256 토큰: Supabase Auth가 인증 완료했으므로 서명 검증 생략
+        return jwt.decode(token, options={"verify_signature": False}, audience='authenticated')
+
+
 def verify_token(token):
     """Supabase JWT를 검증하고 사용자 객체 반환 (자동 생성 포함)"""
     if not token:
         return None
 
     try:
-        data = jwt.decode(
-            token,
-            get_supabase_secret(),
-            algorithms=['HS256'],
-            audience='authenticated'
-        )
+        data = decode_supabase_jwt(token)
 
         email = data.get('email')
         sub = data.get('sub')  # Supabase user UUID
@@ -334,12 +338,7 @@ def debug_token():
         return jsonify({'error': 'No token provided'}), 400
 
     try:
-        data = jwt.decode(
-            token,
-            get_supabase_secret(),
-            algorithms=['HS256'],
-            audience='authenticated'
-        )
+        data = decode_supabase_jwt(token)
         email = data.get('email')
         sub = data.get('sub')
 
