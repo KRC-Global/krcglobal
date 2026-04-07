@@ -95,25 +95,30 @@ def upload_document(current_user):
     description = request.form.get('description')
     department = request.form.get('department', current_user.department)
     
-    # Secure filename and save
+    # Secure filename and prepare R2 key
     filename = secure_filename(file.filename)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     saved_filename = f"{timestamp}_{filename}"
-    
-    # Create upload directory if not exists
-    project_dir = str(project_id) if project_id else 'general'
-    upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], project_dir)
-    os.makedirs(upload_path, exist_ok=True)
-
-    file_path = os.path.join(upload_path, saved_filename)
-    file.save(file_path)
-
-    # Get file info
-    file_size = os.path.getsize(file_path)
     file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
 
-    # Store relative path for platform independence: {project_id}/{filename}
-    relative_path = os.path.join(project_dir, saved_filename)
+    project_dir = str(project_id) if project_id else 'general'
+    r2_key = f"documents/{project_dir}/{saved_filename}"
+
+    # 파일 크기 확인
+    file.seek(0, 2)
+    file_size = file.tell()
+    file.seek(0)
+
+    # R2 용량 제한 체크 (9GB)
+    try:
+        from utils.r2_storage import check_storage_limit, upload_file
+        if not check_storage_limit(file_size):
+            return jsonify({'success': False, 'message': '스토리지 용량이 부족합니다. (최대 9GB)'}), 400
+        upload_file(file, r2_key, content_type=f'application/{file_ext}')
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'파일 업로드 실패: {str(e)}'}), 500
+
+    relative_path = r2_key
 
     # Create document record
     document = Document(
@@ -160,17 +165,17 @@ def download_document(current_user, doc_id):
     if not document.file_path:
         return jsonify({'success': False, 'message': '파일 경로가 없습니다.'}), 404
 
-    # 파일 경로 생성 (상대 경로가 저장되어 있으므로 UPLOAD_FOLDER와 결합)
-    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], document.file_path)
-
-    if not os.path.exists(file_path):
+    # R2에서 서명된 다운로드 URL 생성
+    try:
+        from utils.r2_storage import generate_presigned_url
+        url = generate_presigned_url(document.file_path, expires_in=3600)
+        return jsonify({'success': True, 'downloadUrl': url, 'fileName': document.file_name})
+    except Exception:
+        # R2 실패 시 로컬 파일 시도 (하위 호환)
+        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], document.file_path)
+        if os.path.exists(file_path):
+            return send_file(file_path, as_attachment=True, download_name=document.file_name)
         return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
-
-    return send_file(
-        file_path,
-        as_attachment=True,
-        download_name=document.file_name
-    )
 
 
 @documents_bp.route('/<int:doc_id>', methods=['PUT'])
@@ -206,11 +211,13 @@ def delete_document(current_user, doc_id):
     """Delete document"""
     document = Document.query.get_or_404(doc_id)
     
-    # Delete file from disk
+    # Delete file from R2
     if document.file_path:
-        file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], document.file_path)
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        try:
+            from utils.r2_storage import delete_file
+            delete_file(document.file_path)
+        except Exception:
+            pass  # R2 삭제 실패해도 DB 레코드는 삭제 진행
     
     # Log activity
     log = ActivityLog(
