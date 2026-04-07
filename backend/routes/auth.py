@@ -72,7 +72,13 @@ def verify_token(token):
         return current_user
 
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
-        print(f"Token verification error: {e}")
+        print(f"Token verification error (JWT): {e}")
+        return None
+    except Exception as e:
+        import traceback
+        print(f"Token verification error (General): {e}")
+        traceback.print_exc()
+        db.session.rollback()
         return None
 
 
@@ -312,6 +318,57 @@ def get_current_user(current_user):
         'success': True,
         'user': current_user.to_dict()
     })
+
+
+@auth_bp.route('/debug-token', methods=['GET'])
+def debug_token():
+    """디버그용: 토큰 검증 상세 정보 (배포 안정화 후 제거)"""
+    token = None
+    if 'Authorization' in request.headers:
+        try:
+            token = request.headers['Authorization'].split(" ")[1]
+        except IndexError:
+            return jsonify({'error': 'Invalid token format'}), 400
+
+    if not token:
+        return jsonify({'error': 'No token provided'}), 400
+
+    try:
+        data = jwt.decode(
+            token,
+            get_supabase_secret(),
+            algorithms=['HS256'],
+            audience='authenticated'
+        )
+        email = data.get('email')
+        sub = data.get('sub')
+
+        # DB 연결 테스트
+        try:
+            user = User.query.filter_by(email=email).first() if email else None
+            db_status = 'connected'
+            user_exists = user is not None
+            user_info = user.to_dict() if user else None
+        except Exception as db_err:
+            db_status = f'error: {str(db_err)}'
+            user_exists = False
+            user_info = None
+
+        return jsonify({
+            'jwt_valid': True,
+            'email': email,
+            'sub': sub,
+            'db_status': db_status,
+            'user_exists': user_exists,
+            'user': user_info
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'jwt_valid': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 
 @auth_bp.route('/change-password', methods=['POST'])

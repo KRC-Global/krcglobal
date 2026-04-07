@@ -546,6 +546,14 @@
         </div>
 
         <div class="page-content">
+            <!-- 승인 대기 사용자 -->
+            <section class="card" id="pendingSection" style="display: none; border-left: 4px solid #f59e0b; margin-bottom: var(--spacing-4);">
+                <header class="section-header">
+                    <h3 style="color: #f59e0b;">⏳ 승인 대기 중 (<span id="pendingCount">0</span>명)</h3>
+                </header>
+                <div id="pendingList" style="display: flex; flex-wrap: wrap; gap: 12px; padding: var(--spacing-3);"></div>
+            </section>
+
             <!-- 사용자 목록 -->
             <section class="card">
                 <header class="section-header">
@@ -864,11 +872,69 @@
                 const response = await apiCall('/users');
                 if (response.success) {
                     currentUsers = response.data;
+                    renderPendingUsers(currentUsers);
                     renderUsers(currentUsers);
                 }
             } catch (error) {
                 console.error('Failed to load users:', error);
                 alert('사용자 목록을 불러오는데 실패했습니다.');
+            }
+        }
+
+        function renderPendingUsers(users) {
+            const pending = users.filter(u => u.permissionScope === 'pending');
+            const section = document.getElementById('pendingSection');
+            const list = document.getElementById('pendingList');
+            const count = document.getElementById('pendingCount');
+
+            if (pending.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            count.textContent = pending.length;
+
+            list.innerHTML = pending.map(user => `
+                <div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; min-width: 280px;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">${user.name}</div>
+                        <div style="font-size: 12px; color: #92400e;">${user.userId || user.email || '-'}</div>
+                    </div>
+                    <select id="approveScope_${user.id}" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 12px;">
+                        <option value="readonly">승인(조회)</option>
+                        <option value="expansion">글로벌농업개발부</option>
+                        <option value="overseas_tech">글로벌사업부</option>
+                        <option value="oda">국제협력센터</option>
+                        <option value="all">관리자</option>
+                    </select>
+                    <button onclick="approveUser(${user.id})" style="padding: 6px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                        승인
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function approveUser(userId) {
+            const scopeSelect = document.getElementById('approveScope_' + userId);
+            const scope = scopeSelect ? scopeSelect.value : 'readonly';
+
+            try {
+                const response = await apiCall('/users/' + userId + '/approve', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ permissionScope: scope })
+                });
+
+                if (response.success) {
+                    showToast(response.message, 'success');
+                    loadUsers();
+                } else {
+                    showToast(response.message || '승인 실패', 'error');
+                }
+            } catch (error) {
+                console.error('Approve failed:', error);
+                showToast('승인 처리 중 오류가 발생했습니다.', 'error');
             }
         }
 
@@ -887,7 +953,7 @@
                     'expansion': { label: '글로벌농업개발부', class: 'badge-info' },
                     'oda': { label: '국제협력센터', class: 'badge-warning' },
                     'readonly': { label: '승인(조회)', class: 'badge-secondary' },
-                    'pending': { label: '대기', class: 'badge-secondary' }
+                    'pending': { label: '⏳ 대기', class: 'badge-warning' }
                 };
                 const perm = permissions[scope] || permissions['readonly'];
                 return `<span class="badge ${perm.class}">${perm.label}</span>`;

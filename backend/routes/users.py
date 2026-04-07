@@ -112,6 +112,32 @@ def update_user(current_user, user_id):
     })
 
 
+@users_bp.route('/<int:user_id>/approve', methods=['PUT'])
+@admin_required
+def approve_user(current_user, user_id):
+    """Approve pending user (admin only)"""
+    user = User.query.get_or_404(user_id)
+    data = request.get_json() or {}
+
+    # 권한 지정 (기본: readonly)
+    new_scope = data.get('permissionScope', 'readonly')
+    valid_scopes = ['readonly', 'overseas_tech', 'expansion', 'oda', 'all']
+    if new_scope not in valid_scopes:
+        new_scope = 'readonly'
+
+    user.permission_scope = new_scope
+    if new_scope == 'all':
+        user.role = 'admin'
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'{user.name}님이 승인되었습니다.',
+        'data': user.to_dict()
+    })
+
+
 @users_bp.route('/<int:user_id>/password', methods=['PUT'])
 @admin_required
 def reset_password(current_user, user_id):
