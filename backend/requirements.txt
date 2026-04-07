@@ -1,5 +1,5 @@
-# GBMS - 글로벌사업처 해외사업관리시스템
-# Python Dependencies (Flask + SQLite)
+# NUGUNA Global - 누구나글로벌 사업관리시스템
+# Python Dependencies (Flask + PostgreSQL)
 
 # Web Framework
 Flask==2.3.3
@@ -11,6 +11,9 @@ Flask-WTF==1.2.1
 PyJWT==2.8.0
 Werkzeug==2.3.7
 
+# PostgreSQL
+psycopg2-binary==2.9.9
+
 # Utilities
 python-dotenv==1.0.0
 beautifulsoup4==4.12.2
@@ -18,10 +21,3 @@ beautifulsoup4==4.12.2
 # Excel handling
 openpyxl==3.1.2
 pandas==2.1.0
-
-# PDF Processing (for utilities)
-pikepdf>=8.0.0
-Pillow>=10.0.0
-
-# Production Server (optional, for deployment)
-# gunicorn==21.2.0

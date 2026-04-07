@@ -79,8 +79,8 @@ docs/조지아_실적모음/
 .claude/
 .playwright-mcp/
 
-# Legacy app entry (root level)
-app.py
+# Legacy app entry (root level only)
+/app.py
 
 # Misc
 GEMINI.md

@@ -8,6 +8,9 @@ from datetime import timedelta
 # Base directory
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
+# Supabase PostgreSQL (Transaction Pooler)
+DEFAULT_DATABASE_URL = 'postgresql://postgres.zzypdvwdwgwocczpaaiu:gksshdrhdshddjchs1!@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres'
+
 
 class Config:
     """Base configuration"""
@@ -18,51 +21,43 @@ class Config:
 
     # Secret key for session management
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'gbms-secret-key-change-in-production'
-    
-    # Database configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        f'sqlite:///{os.path.join(BASE_DIR, "database", "gbms.db")}'
+
+    # Database configuration (Supabase PostgreSQL)
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or DEFAULT_DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
-    # SQLite optimization for 100 concurrent users
+
+    # PostgreSQL pool settings for serverless
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
-        'connect_args': {
-            'check_same_thread': False,
-            'timeout': 30
-        }
+        'pool_size': 5,
+        'max_overflow': 10,
     }
-    
+
     # JWT configuration
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'gbms-jwt-secret-change-in-production'
 
     # Supabase configuration
     SUPABASE_JWT_SECRET = os.environ.get('SUPABASE_JWT_SECRET') or 'C7SBYCSFxaj25E+StqlcBL4pCI11R5QefkSP/vu3u1VadlOUG+P2YQixNQJfKMFCYpQGDPUwzDxnxHGsuECovw=='
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)  # Token expires after 8 hours (work day)
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
-    
+
     # Upload configuration
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
     MAX_CONTENT_LENGTH = 500 * 1024 * 1024  # 500MB max file size
     ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'hwp', 'txt', 'jpg', 'jpeg', 'png', 'gif', 'zip'}
-    
+
     # Pagination defaults
     ITEMS_PER_PAGE = 20
 
-    # CORS settings (for internal network)
-    CORS_ORIGINS = ['*']  # Allow all origins in internal network
-
-    # CSRF Protection
-    WTF_CSRF_ENABLED = True
-    WTF_CSRF_TIME_LIMIT = None  # Token valid for session duration
-    WTF_CSRF_SSL_STRICT = False  # Set to True when using HTTPS
+    # CORS settings
+    CORS_ORIGINS = ['*']
 
 
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
-    SQLALCHEMY_ECHO = True  # Log SQL queries
+    SQLALCHEMY_ECHO = False
 
 
 class ProductionConfig(Config):
@@ -70,33 +65,12 @@ class ProductionConfig(Config):
     DEBUG = False
     SQLALCHEMY_ECHO = False
 
-    # 프로덕션 환경에서는 환경 변수 필수
-    @staticmethod
-    def init_app(app):
-        Config.init_app(app)
-
-        # 환경 변수 검증 (프로덕션 배포 시 필수)
-        import os
-        if not os.environ.get('SECRET_KEY'):
-            raise ValueError(
-                "프로덕션 환경에서는 SECRET_KEY 환경 변수가 필수입니다.\n"
-                "설정 방법: setx SECRET_KEY \"랜덤생성된32자이상의키\""
-            )
-        if not os.environ.get('JWT_SECRET_KEY'):
-            raise ValueError(
-                "프로덕션 환경에서는 JWT_SECRET_KEY 환경 변수가 필수입니다.\n"
-                "설정 방법: setx JWT_SECRET_KEY \"랜덤생성된32자이상의키\""
-            )
-
-    # 환경 변수에서 키 로드 (프로덕션 필수)
-    SECRET_KEY = os.environ.get('SECRET_KEY')
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
-
 
 class TestingConfig(Config):
     """Testing configuration"""
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_ENGINE_OPTIONS = {}
 
 
 # Configuration dictionary
