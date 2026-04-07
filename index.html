@@ -96,7 +96,50 @@
     <script src="assets/js/common.js"></script>
     <script src="assets/js/api.js"></script>
     <script>
-        function saveSessionAndRedirect(session) {
+        let isRedirecting = false;
+
+        async function saveSessionAndRedirect(session) {
+            if (isRedirecting) return;
+            isRedirecting = true;
+
+            // 1. Supabase 토큰 저장
+            localStorage.setItem('gbms_token', session.access_token);
+
+            // 2. 백엔드에서 실제 사용자 정보 가져오기 (자동 생성 포함)
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/me`, {
+                    headers: { 'Authorization': 'Bearer ' + session.access_token }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.user) {
+                        const userInfo = {
+                            id: data.user.id,
+                            userId: data.user.userId,
+                            name: data.user.name,
+                            email: data.user.email,
+                            department: data.user.department,
+                            role: data.user.role,
+                            permissionScope: data.user.permissionScope,
+                            permission_scope: data.user.permissionScope
+                        };
+                        localStorage.setItem('gbms_user', JSON.stringify(userInfo));
+
+                        // 3. 권한에 따라 분기
+                        if (data.user.permissionScope === 'pending') {
+                            window.location.href = 'pending.html';
+                        } else {
+                            window.location.href = 'dashboard.html';
+                        }
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('백엔드 사용자 정보 조회 실패:', e);
+            }
+
+            // 백엔드 연결 실패 시 기본값으로 진행
             const user = session.user;
             const userInfo = {
                 id: user.id,
@@ -105,14 +148,11 @@
                 email: user.email,
                 department: '',
                 role: 'user',
-                permissionScope: 'readonly',
-                permission_scope: 'readonly'
+                permissionScope: 'pending',
+                permission_scope: 'pending'
             };
-
-            localStorage.setItem('gbms_token', session.access_token);
             localStorage.setItem('gbms_user', JSON.stringify(userInfo));
-
-            window.location.href = 'dashboard.html';
+            window.location.href = 'pending.html';
         }
 
         document.addEventListener('DOMContentLoaded', async function () {
@@ -123,7 +163,7 @@
                 }
             });
 
-            // 이미 로그인된 경우 대시보드로 이동
+            // 이미 로그인된 경우
             const { data: { session } } = await window.supabaseClient.auth.getSession();
             if (session) {
                 saveSessionAndRedirect(session);

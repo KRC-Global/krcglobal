@@ -5,87 +5,68 @@ GBMS - Authentication Routes
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 import jwt
-import re
 from functools import wraps
 from models import db, User, ActivityLog, AccessLog
+from utils.permissions import ADMIN_EMAILS
 
 auth_bp = Blueprint('auth', __name__)
 
 
-def validate_password_strength(password):
-    """
-    국정원 권고 비밀번호 정책 검증
-    - 최소 10자 이상
-    - 대문자 1개 이상
-    - 소문자 1개 이상
-    - 숫자 1개 이상
-    - 특수문자 1개 이상
-    """
-    if len(password) < 10:
-        return False, '비밀번호는 10자 이상이어야 합니다.'
-
-    if not re.search(r'[A-Z]', password):
-        return False, '대문자를 1개 이상 포함해야 합니다.'
-
-    if not re.search(r'[a-z]', password):
-        return False, '소문자를 1개 이상 포함해야 합니다.'
-
-    if not re.search(r'\d', password):
-        return False, '숫자를 1개 이상 포함해야 합니다.'
-
-    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-        return False, '특수문자(!@#$%^&*(),.?":{}|<>)를 1개 이상 포함해야 합니다.'
-
-    return True, ''
-
-
-def get_secret_key():
+def get_supabase_secret():
     from flask import current_app
-    return current_app.config['JWT_SECRET_KEY']
+    return current_app.config['SUPABASE_JWT_SECRET']
 
 
 def verify_token(token):
-    """토큰을 검증하고 사용자 객체 반환"""
+    """Supabase JWT를 검증하고 사용자 객체 반환 (자동 생성 포함)"""
     if not token:
         return None
 
     try:
-        data = jwt.decode(token, get_secret_key(), algorithms=['HS256'])
+        data = jwt.decode(
+            token,
+            get_supabase_secret(),
+            algorithms=['HS256'],
+            audience='authenticated'
+        )
 
-        # Check if guest user
-        if data.get('user_id') == 'guest':
-            # Create a guest user object
-            class GuestUser:
-                id = 'guest'
-                user_id = 'guest'
-                name = '일반직원'
-                role = 'guest'
-                department = '조회 전용'
-                is_active = True
+        email = data.get('email')
+        sub = data.get('sub')  # Supabase user UUID
 
-                def to_dict(self):
-                    return {
-                        'id': self.id,
-                        'userId': self.user_id,
-                        'name': self.name,
-                        'role': self.role,
-                        'department': self.department,
-                        'isActive': self.is_active
-                    }
+        if not email:
+            return None
 
-            return GuestUser()
-        else:
-            current_user = User.query.get(data['user_id'])
+        # 이메일로 사용자 조회
+        current_user = User.query.filter_by(email=email).first()
 
-            if not current_user:
-                return None
+        if not current_user:
+            # 첫 로그인 — 사용자 자동 생성
+            user_metadata = data.get('user_metadata', {})
+            full_name = user_metadata.get('full_name', email.split('@')[0])
 
-            if not current_user.is_active:
-                return None
+            # 관리자 이메일 체크
+            is_admin = email in ADMIN_EMAILS
 
-            return current_user
+            current_user = User(
+                user_id=email,
+                name=full_name,
+                email=email,
+                department='',
+                role='admin' if is_admin else 'user',
+                permission_scope='all' if is_admin else 'pending',
+                is_active=True
+            )
+            current_user.set_password(sub)  # Supabase UUID를 임시 비밀번호로 설정
+            db.session.add(current_user)
+            db.session.commit()
 
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        if not current_user.is_active:
+            return None
+
+        return current_user
+
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError) as e:
+        print(f"Token verification error: {e}")
         return None
 
 

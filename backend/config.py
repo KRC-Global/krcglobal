@@ -36,6 +36,9 @@ class Config:
     
     # JWT configuration
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'gbms-jwt-secret-change-in-production'
+
+    # Supabase configuration
+    SUPABASE_JWT_SECRET = os.environ.get('SUPABASE_JWT_SECRET') or 'C7SBYCSFxaj25E+StqlcBL4pCI11R5QefkSP/vu3u1VadlOUG+P2YQixNQJfKMFCYpQGDPUwzDxnxHGsuECovw=='
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)  # Token expires after 8 hours (work day)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     

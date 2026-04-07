@@ -8,12 +8,16 @@ from flask import jsonify
 
 # 권한 범위 정의
 PERMISSION_SCOPES = {
-    'all': '전체',
-    'overseas_tech': '해외기술용역',
-    'expansion': '해외진출지원사업',
-    'oda': '국제협력사업',
-    'readonly': '조회만'
+    'all': '관리자',
+    'overseas_tech': '글로벌사업부',
+    'expansion': '글로벌농업개발부',
+    'oda': '국제협력센터',
+    'readonly': '승인(조회)',
+    'pending': '대기'
 }
+
+# 관리자 자동 지정 이메일
+ADMIN_EMAILS = ['chkomi95@gmail.com']
 
 
 def permission_required(required_scope):

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>승인 대기 | 글로벌사업관리시스템</title>
+    <link rel="stylesheet" href="assets/css/variables.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/pages.css">
+</head>
+
+<body>
+    <main class="login-container">
+        <div class="login-card card" style="text-align: center;">
+            <div class="login-header">
+                <div class="login-logo">
+                    <span style="font-size: 48px;">⏳</span>
+                </div>
+                <h1 class="login-title">승인 대기 중</h1>
+                <p class="login-subtitle" style="margin-top: var(--spacing-2);">한국농어촌공사 글로벌사업관리시스템</p>
+            </div>
+
+            <div style="margin-top: var(--spacing-6); padding: var(--spacing-4); background: var(--color-info-100, #e8f4fd); border-radius: var(--radius-md); text-align: left;">
+                <p style="font-size: var(--font-size-sm); color: var(--color-neutral-700); line-height: 1.6;">
+                    <strong id="pendingUserName"></strong>님, 로그인이 완료되었습니다.<br>
+                    관리자가 계정을 승인한 후 시스템을 이용할 수 있습니다.
+                </p>
+                <p style="font-size: var(--font-size-xs); color: var(--color-neutral-500); margin-top: var(--spacing-2);">
+                    계정: <strong id="pendingUserEmail"></strong>
+                </p>
+            </div>
+
+            <div style="margin-top: var(--spacing-6); display: flex; flex-direction: column; gap: var(--spacing-3);">
+                <button type="button" class="btn btn-primary" onclick="checkApproval()" style="width: 100%;">
+                    승인 여부 확인
+                </button>
+                <button type="button" class="btn btn-outline" onclick="logout()" style="width: 100%;">
+                    로그아웃
+                </button>
+            </div>
+
+            <div class="login-footer" style="margin-top: var(--spacing-6); text-align: center;">
+                <p style="font-size: var(--font-size-xs); color: var(--color-neutral-500);">
+                    © 2026 한국농어촌공사 글로벌사업관리시스템
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/supabase-config.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const userInfo = JSON.parse(localStorage.getItem('gbms_user') || '{}');
+            document.getElementById('pendingUserName').textContent = userInfo.name || '사용자';
+            document.getElementById('pendingUserEmail').textContent = userInfo.email || userInfo.userId || '';
+
+            // 이미 승인된 사용자가 이 페이지에 온 경우
+            if (userInfo.permissionScope && userInfo.permissionScope !== 'pending') {
+                window.location.href = 'dashboard.html';
+            }
+        });
+
+        async function checkApproval() {
+            const token = localStorage.getItem('gbms_token');
+            if (!token) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/me`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.user) {
+                        const userInfo = {
+                            id: data.user.id,
+                            userId: data.user.userId,
+                            name: data.user.name,
+                            email: data.user.email,
+                            department: data.user.department,
+                            role: data.user.role,
+                            permissionScope: data.user.permissionScope,
+                            permission_scope: data.user.permissionScope
+                        };
+                        localStorage.setItem('gbms_user', JSON.stringify(userInfo));
+
+                        if (data.user.permissionScope !== 'pending') {
+                            alert('승인되었습니다! 대시보드로 이동합니다.');
+                            window.location.href = 'dashboard.html';
+                        } else {
+                            alert('아직 승인 대기 중입니다. 관리자에게 문의해주세요.');
+                        }
+                        return;
+                    }
+                }
+                alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+            } catch (e) {
+                alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+            }
+        }
+
+        async function logout() {
+            localStorage.removeItem('gbms_token');
+            localStorage.removeItem('gbms_user');
+            sessionStorage.removeItem('gbms_token');
+            sessionStorage.removeItem('gbms_user');
+            await window.supabaseClient.auth.signOut();
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+
+</html>

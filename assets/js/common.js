@@ -260,12 +260,14 @@ function hasWritePermission(requiredPermission) {
  */
 function requireAuth(loginPath) {
     const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+    const path = window.location.pathname;
+
+    // 토큰 없으면 로그인으로
     if (!token) {
         if (loginPath) {
             window.location.href = loginPath;
             return;
         }
-        const path = window.location.pathname;
         if (path.includes('/pages/expansion/info/')) {
             window.location.href = '../../../index.html';
         } else if (path.includes('/pages/admin/') || path.includes('/pages/projects/') ||
@@ -275,6 +277,23 @@ function requireAuth(loginPath) {
             window.location.href = '../index.html';
         } else {
             window.location.href = 'index.html';
+        }
+        return;
+    }
+
+    // pending 사용자는 대기 페이지로
+    const userInfo = JSON.parse(localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user') || '{}');
+    const scope = userInfo.permissionScope || userInfo.permission_scope || 'pending';
+    if (scope === 'pending' && !path.includes('pending.html')) {
+        if (path.includes('/pages/expansion/info/')) {
+            window.location.href = '../../../pending.html';
+        } else if (path.includes('/pages/admin/') || path.includes('/pages/projects/') ||
+            path.includes('/pages/budget/') || path.includes('/pages/expansion/')) {
+            window.location.href = '../../pending.html';
+        } else if (path.includes('/pages/')) {
+            window.location.href = '../pending.html';
+        } else {
+            window.location.href = 'pending.html';
         }
     }
 }
