@@ -5,9 +5,13 @@ GBMS - ODA Projects Routes
 from flask import Blueprint, request, jsonify, send_file
 from datetime import datetime
 from io import BytesIO
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill
-import pandas as pd
+try:
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill
+    import pandas as pd
+except ImportError:
+    Workbook = None
+    pd = None
 from werkzeug.utils import secure_filename
 from models import db, OdaProject, ActivityLog, ProfitabilityData, OdaManualData
 from routes.auth import token_required, admin_required, permission_required

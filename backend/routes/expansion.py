@@ -5,7 +5,10 @@ from flask import Blueprint, request, jsonify, current_app
 from functools import wraps
 import jwt
 from datetime import datetime
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 import io
 
 from models import db

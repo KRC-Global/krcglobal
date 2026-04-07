@@ -4,7 +4,10 @@ GBMS - Profitability Routes
 """
 from flask import Blueprint, request, jsonify
 from datetime import datetime
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 import re
 from models import db, ProfitabilityData, ActivityLog
 from routes.auth import token_required, admin_required
