@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기타 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <style>
+        /* 중첩 서브메뉴 스타일 */
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .submenu-nested-level4 {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested-level4 li a {
+            font-size: 12px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        /* 필터 바 */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-bar input[type="text"] {
+            padding: 10px 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #333;
+            background: #fff;
+            outline: none;
+            height: 42px;
+        }
+
+        .filter-bar input[type="text"]:focus {
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px rgba(26, 75, 124, 0.1);
+        }
+
+        .filter-bar select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            padding: 10px 36px 10px 14px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #333;
+            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 12px center;
+            background-size: 12px;
+            cursor: pointer;
+            outline: none;
+            height: 42px;
+            min-width: 150px;
+        }
+
+        .filter-bar select:focus {
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px rgba(26, 75, 124, 0.1);
+        }
+
+        .filter-bar select:hover {
+            border-color: #999;
+        }
+
+        /* 구분 배지 */
+        .category-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            background: #E8F1F8;
+            color: #1A4B7C;
+            border: 1px solid #B8D1E8;
+            white-space: nowrap;
+        }
+
+        .category-badge.empty {
+            background: #F5F5F5;
+            color: #999;
+            border-color: #D9D9D9;
+        }
+
+        /* 커스텀 콤보박스 */
+        .combo-box {
+            position: relative;
+        }
+
+        .combo-box input {
+            width: 100%;
+            padding: 10px 36px 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #333;
+            background: #fff;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .combo-box input:focus {
+            border-color: #1A4B7C;
+            box-shadow: 0 0 0 3px rgba(26, 75, 124, 0.1);
+        }
+
+        .combo-box .combo-arrow {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #666;
+            border-radius: 4px;
+        }
+
+        .combo-box .combo-arrow:hover {
+            background: #f0f0f0;
+        }
+
+        .combo-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .combo-dropdown.show {
+            display: block;
+        }
+
+        .combo-dropdown .combo-option {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .combo-dropdown .combo-option:last-child {
+            border-bottom: none;
+        }
+
+        .combo-dropdown .combo-option:hover {
+            background: #E8F1F8;
+            color: #1A4B7C;
+        }
+
+        .combo-dropdown .combo-empty {
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #999;
+            text-align: center;
+        }
+
+        .filter-bar .btn-primary {
+            padding: 10px 20px;
+            margin-left: auto;
+            border-radius: var(--radius-lg);
+        }
+
+        /* 게시판 테이블 */
+        .board-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .board-table thead {
+            background: var(--color-primary-50);
+        }
+
+        .board-table th {
+            padding: 10px 12px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-neutral-700);
+            border-bottom: 2px solid var(--color-primary-200);
+            white-space: nowrap;
+        }
+
+        .board-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--color-neutral-100);
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .board-table tbody tr:hover {
+            background: var(--color-neutral-50);
+        }
+
+        .board-table .title-cell {
+            text-align: left;
+            max-width: 300px;
+        }
+
+        .board-table .title-cell a {
+            color: var(--color-neutral-900);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .board-table .title-cell a:hover {
+            color: var(--color-primary-600);
+            text-decoration: underline;
+        }
+
+        /* 모달 스타일 */
+        .modal {
+            display: none;
+            position: fixed !important;
+            inset: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            height: 100% !important;
+            max-height: none !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+            z-index: 10000 !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .modal.show {
+            display: flex !important;
+        }
+
+        .modal-content {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--color-neutral-900);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--color-neutral-500);
+            padding: 4px;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--color-neutral-700);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        /* 파일 업로드 */
+        .file-upload-area {
+            border: 2px dashed var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--color-neutral-500);
+            font-size: 14px;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--color-primary-400);
+            background: var(--color-primary-50);
+        }
+
+        .file-upload-area.has-file {
+            border-color: var(--color-primary-400);
+            background: var(--color-primary-50);
+            color: var(--color-primary-700);
+        }
+
+        /* 상세보기 */
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .detail-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+
+        .detail-table .label {
+            background: var(--color-neutral-50);
+            font-weight: 600;
+            width: 120px;
+            vertical-align: top;
+        }
+
+        .detail-table .value {
+            white-space: pre-wrap;
+        }
+
+        /* 통계 카드 */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: var(--color-neutral-0);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-primary-600);
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--color-neutral-600);
+            margin-top: 4px;
+        }
+
+        /* 페이지네이션 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 20px;
+        }
+
+        .page-btn {
+            padding: 8px 14px;
+            border: 1px solid var(--color-neutral-300);
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .page-btn.active {
+            background: var(--color-primary-600);
+            color: white;
+            border-color: var(--color-primary-600);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 유저 드롭다운 */
+        .user-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 260px;
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--color-neutral-50);
+        }
+
+        .user-dropdown-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--color-primary-600);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .user-dropdown-name {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .user-dropdown-role {
+            font-size: 13px;
+            color: var(--color-primary-600);
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-600);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-50);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../admin/users.html" class="user-dropdown-item"><span>👤</span> 사용자 관리</a>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="#" class="user-dropdown-item" onclick="logout()"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu active">
+                            <a href="#" class="submenu-toggle active" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="company-management.html">기업관리</a></li>
+                                <li><a href="loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="expansion-board.html" class="active">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="../projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="../projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../dashboard.html">홈</a></li>
+                    <li><a href="#">사업관리</a></li>
+                    <li><a href="company-management.html">해외진출지원사업</a></li>
+                    <li aria-current="page">기타</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">기타 게시판</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 필터 바 -->
+            <div class="filter-bar">
+                <input type="text" id="searchInput" placeholder="제목 검색" style="min-width: 200px;">
+                <select id="categoryFilter">
+                    <option value="">구분 전체</option>
+                </select>
+
+                <button class="btn btn-primary" id="btnAdd" style="display: none;">
+                    <span>✏️</span> 글쓰기
+                </button>
+            </div>
+
+            <!-- 게시판 테이블 -->
+            <table class="board-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">연번</th>
+                        <th style="width: 100px;">구분</th>
+                        <th>제목</th>
+                        <th style="width: 150px;">게시일</th>
+                        <th style="width: 80px;">게시자</th>
+                        <th style="width: 80px;">첨부</th>
+                    </tr>
+                </thead>
+                <tbody id="boardTableBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px;">
+                            데이터를 불러오는 중...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 페이지네이션 -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </main>
+
+    <!-- 게시글 등록/수정 모달 -->
+    <div class="modal" id="postModal">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">글쓰기</h3>
+                <button class="modal-close" onclick="closePostModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="postForm">
+                    <input type="hidden" id="postId">
+
+                    <div class="form-group">
+                        <label>구분</label>
+                        <div class="combo-box" id="categoryComboBox">
+                            <input type="text" id="postCategory" placeholder="구분을 입력하거나 선택하세요" autocomplete="off">
+                            <span class="combo-arrow" onclick="toggleCategoryDropdown()">&#9662;</span>
+                            <div class="combo-dropdown" id="categoryDropdown"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>제목 *</label>
+                        <input type="text" id="postTitle" placeholder="제목을 입력하세요" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>내용</label>
+                        <textarea id="postContent" placeholder="내용을 입력하세요"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>첨부파일</label>
+                        <div class="file-upload-area" id="fileUploadArea"
+                            onclick="document.getElementById('fileInput').click()">
+                            <div id="fileUploadText">클릭하여 파일 선택 (PDF, 문서, 이미지, ZIP 등)</div>
+                        </div>
+                        <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(this)">
+                    </div>
+
+                    <div
+                        style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-neutral-200);">
+                        <button type="button" class="btn btn-secondary btn-lg" onclick="closePostModal()">취소</button>
+                        <button type="submit" class="btn btn-primary btn-lg">저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 게시글 상세보기 모달 -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="detailTitle">게시글 상세</h3>
+                <button class="modal-close" onclick="closeDetailModal()">×</button>
+            </div>
+            <div class="modal-body" id="detailBody" style="max-height: 70vh; overflow-y: auto;"></div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid var(--color-neutral-200);">
+                <button class="btn btn-secondary" onclick="closeDetailModal()">닫기</button>
+                <button class="btn" id="btnEditFromDetail" style="display: none; background: #10B981; color: white;" onclick="editFromDetail()">수정</button>
+                <button class="btn btn-delete" id="btnDeleteFromDetail" style="display: none;" onclick="deleteFromDetail()">삭제</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../assets/js/common.js"></script>
+    <script src="../../assets/js/api.js"></script>
+    <script src="../../assets/js/components/toast.js"></script>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentEditId = null;
+        let currentDetailId = null;
+
+        // 페이지 초기화
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                window.location.href = '../../index.html';
+                return;
+            }
+
+            if (typeof checkPagePermission === 'function') {
+                if (!checkPagePermission('expansion')) return;
+            }
+
+            try {
+                const user = JSON.parse(userInfo);
+                document.getElementById('userName').textContent = user.name || '사용자';
+                document.getElementById('dropdownName').textContent = user.name || '사용자';
+                document.getElementById('dropdownRole').textContent = user.role === 'admin' ? '관리자' : user.role === 'manager' ? '매니저' : '사용자';
+                document.getElementById('dropdownDept').textContent = user.departmentName || user.department || '';
+
+                const initial = user.name ? user.name.charAt(0) : '사';
+                document.getElementById('userAvatar').textContent = initial;
+                document.getElementById('dropdownAvatar').textContent = initial;
+            } catch (e) {
+                console.error('사용자 정보 파싱 오류:', e);
+            }
+
+            if (typeof initCommonUI === 'function') {
+                initCommonUI();
+            }
+
+            await loadCategoryList();
+            await loadPosts();
+            setupEventListeners();
+            checkWritePermission();
+        });
+
+        function checkWritePermission() {
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+            if (userInfo) {
+                try {
+                    const user = JSON.parse(userInfo);
+                    if (typeof hasWritePermission === 'function' && hasWritePermission('expansion')) {
+                        document.getElementById('btnAdd').style.display = 'inline-flex';
+                    }
+                    if (user && user.role === 'admin') {
+                        const adminMenu = document.getElementById('adminMenuUser');
+                        if (adminMenu) adminMenu.style.display = 'block';
+                    }
+                } catch (e) {}
+            }
+        }
+
+        function hasWritePerm() {
+            return typeof hasWritePermission === 'function' && hasWritePermission('expansion');
+        }
+
+        function isAdmin() {
+            try {
+                const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+                if (userInfo) {
+                    const user = JSON.parse(userInfo);
+                    return user && user.role === 'admin';
+                }
+            } catch (e) {}
+            return false;
+        }
+
+        function getCurrentUserId() {
+            try {
+                const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+                if (userInfo) {
+                    const user = JSON.parse(userInfo);
+                    return user ? user.id : null;
+                }
+            } catch (e) {}
+            return null;
+        }
+
+        // 게시글 목록 로드
+        async function loadPosts() {
+            try {
+                const search = document.getElementById('searchInput').value;
+                const category = document.getElementById('categoryFilter').value;
+                const params = new URLSearchParams({ page: currentPage, per_page: 20, board_type: 'expansion' });
+                if (search) params.append('search', search);
+                if (category) params.append('category', category);
+
+                const response = await apiCall(`/board?${params}`, 'GET');
+                if (response.success) {
+                    renderTable(response.data, response.total);
+                    renderPagination(response.currentPage, response.pages);
+                } else {
+                    Toast.error(response.message);
+                }
+            } catch (error) {
+                console.error('목록 로드 실패:', error);
+                Toast.error('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // 테이블 렌더링
+        function renderTable(data, total) {
+            const tbody = document.getElementById('boardTableBody');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px;">등록된 게시글이 없습니다.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.map((post, index) => {
+                const rowNum = total - ((currentPage - 1) * 20 + index);
+                const fileBtn = post.filePath
+                    ? `<button class="btn" style="padding: 4px 10px; font-size: 12px; background: var(--color-primary-600); color: white;" onclick="event.stopPropagation(); downloadFile(${post.id})">📎 다운</button>`
+                    : '<span style="color: var(--color-neutral-400);">-</span>';
+
+                return `
+                    <tr>
+                        <td>${rowNum}</td>
+                        <td><span class="category-badge ${post.category ? '' : 'empty'}">${post.category || '-'}</span></td>
+                        <td class="title-cell">
+                            <a href="#" onclick="showDetail(${post.id}); return false;">${post.title}</a>
+                        </td>
+                        <td>${post.createdAt || '-'}</td>
+                        <td>${post.createdBy || '-'}</td>
+                        <td>${fileBtn}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 상세보기
+        async function showDetail(id) {
+            try {
+                const response = await apiCall(`/board/${id}`, 'GET');
+                if (!response.success) {
+                    Toast.error(response.message);
+                    return;
+                }
+                const post = response.data;
+                currentDetailId = id;
+
+                document.getElementById('detailTitle').textContent = post.title;
+
+                const fileRow = post.filePath
+                    ? `<a href="#" onclick="downloadFile(${post.id}); return false;" style="color: var(--color-primary-600);">📎 ${post.fileName}</a>`
+                    : '-';
+
+                document.getElementById('detailBody').innerHTML = `
+                    <table class="detail-table">
+                        <tr><td class="label">구분</td><td class="value">${post.category ? `<span class="category-badge">${post.category}</span>` : '-'}</td></tr>
+                        <tr><td class="label">제목</td><td class="value">${post.title}</td></tr>
+                        <tr><td class="label">내용</td><td class="value">${post.content || '-'}</td></tr>
+                        <tr><td class="label">첨부파일</td><td class="value">${fileRow}</td></tr>
+                        <tr><td class="label">게시일</td><td class="value">${post.createdAt || '-'}</td></tr>
+                        <tr><td class="label">게시자</td><td class="value">${post.createdBy || '-'}</td></tr>
+                    </table>
+                `;
+
+                // 수정 버튼: 작성자 본인 또는 관리자만
+                if (post.createdById === getCurrentUserId() || isAdmin()) {
+                    document.getElementById('btnEditFromDetail').style.display = 'inline-flex';
+                }
+                // 삭제 버튼: 작성자 본인 또는 관리자
+                if (post.createdById === getCurrentUserId() || isAdmin()) {
+                    document.getElementById('btnDeleteFromDetail').style.display = 'inline-flex';
+                }
+
+                document.getElementById('detailModal').classList.add('show');
+            } catch (error) {
+                Toast.error('게시글을 불러올 수 없습니다.');
+            }
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.remove('show');
+            currentDetailId = null;
+            document.getElementById('btnEditFromDetail').style.display = 'none';
+            document.getElementById('btnDeleteFromDetail').style.display = 'none';
+        }
+
+        async function editFromDetail() {
+            const id = currentDetailId;
+            closeDetailModal();
+            await editPost(id);
+        }
+
+        async function deleteFromDetail() {
+            if (!confirm('이 게시글을 삭제하시겠습니까?')) return;
+            try {
+                const response = await apiCall(`/board/${currentDetailId}`, 'DELETE');
+                if (response.success) {
+                    Toast.success(response.message);
+                    closeDetailModal();
+                    await loadPosts();
+                } else {
+                    Toast.error(response.message);
+                }
+            } catch (error) {
+                Toast.error('삭제에 실패했습니다.');
+            }
+        }
+
+        // 파일 다운로드
+        function downloadFile(id) {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const baseUrl = `${window.location.protocol}//${window.location.host}`;
+            window.location.href = `${baseUrl}/api/board/${id}/download?token=${token}`;
+        }
+
+        // 등록 모달 열기
+        async function openPostModal() {
+            currentEditId = null;
+            document.getElementById('modalTitle').textContent = '글쓰기';
+            document.getElementById('postForm').reset();
+            document.getElementById('postId').value = '';
+            document.getElementById('fileUploadText').textContent = '클릭하여 파일 선택 (PDF, 문서, 이미지, ZIP 등)';
+            document.getElementById('fileUploadArea').classList.remove('has-file');
+
+            await loadCategoryList();
+            document.getElementById('postModal').classList.add('show');
+        }
+
+        // 수정 모달 열기
+        async function editPost(id) {
+            try {
+                const response = await apiCall(`/board/${id}`, 'GET');
+                if (!response.success) {
+                    Toast.error(response.message);
+                    return;
+                }
+                const post = response.data;
+                currentEditId = id;
+
+                document.getElementById('modalTitle').textContent = '게시글 수정';
+                document.getElementById('postId').value = id;
+                document.getElementById('postTitle').value = post.title || '';
+                document.getElementById('postContent').value = post.content || '';
+                document.getElementById('postCategory').value = post.category || '';
+
+                await loadCategoryList();
+
+                if (post.fileName) {
+                    document.getElementById('fileUploadText').textContent = `현재 파일: ${post.fileName}`;
+                    document.getElementById('fileUploadArea').classList.add('has-file');
+                } else {
+                    document.getElementById('fileUploadText').textContent = '클릭하여 파일 선택 (PDF, 문서, 이미지, ZIP 등)';
+                    document.getElementById('fileUploadArea').classList.remove('has-file');
+                }
+
+                document.getElementById('postModal').classList.add('show');
+            } catch (error) {
+                Toast.error('게시글 정보를 불러올 수 없습니다.');
+            }
+        }
+
+        function closePostModal() {
+            document.getElementById('postModal').classList.remove('show');
+            document.getElementById('postForm').reset();
+            currentEditId = null;
+        }
+
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            const uploadArea = document.getElementById('fileUploadArea');
+            const uploadText = document.getElementById('fileUploadText');
+            const maxSize = 500 * 1024 * 1024;
+
+            if (file) {
+                if (file.size > maxSize) {
+                    alert('파일 크기는 500MB를 초과할 수 없습니다.');
+                    input.value = '';
+                    uploadText.textContent = '클릭하여 파일 선택 (PDF, 문서, 이미지, ZIP 등)';
+                    uploadArea.classList.remove('has-file');
+                    return;
+                }
+                uploadText.textContent = `선택됨: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                uploadArea.classList.add('has-file');
+            } else {
+                uploadText.textContent = '클릭하여 파일 선택 (PDF, 문서, 이미지, ZIP 등)';
+                uploadArea.classList.remove('has-file');
+            }
+        }
+
+        // 구분 목록 데이터
+        let categoryItems = [];
+
+        // 구분 목록 로드 (콤보박스 + 필터)
+        async function loadCategoryList() {
+            try {
+                const response = await apiCall('/board/categories?board_type=expansion', 'GET');
+                if (response.success) {
+                    categoryItems = response.data;
+
+                    const filter = document.getElementById('categoryFilter');
+                    const currentVal = filter.value;
+                    filter.innerHTML = '<option value="">구분 전체</option>';
+                    response.data.forEach(c => {
+                        filter.innerHTML += `<option value="${c}">${c}</option>`;
+                    });
+                    filter.value = currentVal;
+                }
+            } catch (error) {
+                console.error('구분 목록 로드 실패:', error);
+            }
+        }
+
+        function renderCategoryDropdown(filterText) {
+            const dropdown = document.getElementById('categoryDropdown');
+            const filtered = filterText
+                ? categoryItems.filter(c => c.toLowerCase().includes(filterText.toLowerCase()))
+                : categoryItems;
+
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div class="combo-empty">등록된 구분이 없습니다</div>';
+            } else {
+                dropdown.innerHTML = filtered.map(c =>
+                    `<div class="combo-option" onmousedown="selectCategory('${c.replace(/'/g, "\\'")}')">${c}</div>`
+                ).join('');
+            }
+        }
+
+        function toggleCategoryDropdown() {
+            const dropdown = document.getElementById('categoryDropdown');
+            const isOpen = dropdown.classList.contains('show');
+            if (isOpen) {
+                dropdown.classList.remove('show');
+            } else {
+                renderCategoryDropdown(document.getElementById('postCategory').value);
+                dropdown.classList.add('show');
+            }
+        }
+
+        function selectCategory(value) {
+            document.getElementById('postCategory').value = value;
+            document.getElementById('categoryDropdown').classList.remove('show');
+        }
+
+        document.addEventListener('click', (e) => {
+            const comboBox = document.getElementById('categoryComboBox');
+            if (comboBox && !comboBox.contains(e.target)) {
+                document.getElementById('categoryDropdown').classList.remove('show');
+            }
+        });
+
+        // 이벤트 리스너
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', debounce(() => {
+                currentPage = 1;
+                loadPosts();
+            }, 500));
+
+            document.getElementById('categoryFilter').addEventListener('change', () => {
+                currentPage = 1;
+                loadPosts();
+            });
+
+            const catInput = document.getElementById('postCategory');
+            if (catInput) {
+                catInput.addEventListener('focus', () => {
+                    renderCategoryDropdown(catInput.value);
+                    document.getElementById('categoryDropdown').classList.add('show');
+                });
+                catInput.addEventListener('input', () => {
+                    renderCategoryDropdown(catInput.value);
+                    document.getElementById('categoryDropdown').classList.add('show');
+                });
+            }
+
+            document.getElementById('btnAdd').addEventListener('click', openPostModal);
+
+            document.getElementById('postForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const title = document.getElementById('postTitle').value.trim();
+                if (!title) {
+                    Toast.error('제목을 입력해주세요.');
+                    return;
+                }
+
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const baseUrl = `${window.location.protocol}//${window.location.host}`;
+
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('content', document.getElementById('postContent').value);
+                formData.append('boardType', 'expansion');
+                formData.append('category', document.getElementById('postCategory').value);
+
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput.files.length > 0) {
+                    formData.append('file', fileInput.files[0]);
+                }
+
+                try {
+                    Toast.info(currentEditId ? '수정 중...' : '등록 중...');
+
+                    const url = currentEditId ? `${baseUrl}/api/board/${currentEditId}` : `${baseUrl}/api/board`;
+                    const method = currentEditId ? 'PUT' : 'POST';
+
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        Toast.success(result.message);
+                        closePostModal();
+                        await loadCategoryList();
+                        await loadPosts();
+                    } else {
+                        Toast.error(result.message || '저장에 실패했습니다.');
+                    }
+                } catch (error) {
+                    console.error('저장 실패:', error);
+                    Toast.error('저장 중 오류가 발생했습니다.');
+                }
+            });
+        }
+
+        // 페이지네이션 (10페이지 그룹)
+        function renderPagination(current, total) {
+            totalPages = total;
+            const pagination = document.getElementById('pagination');
+
+            if (total <= 1) { pagination.innerHTML = ''; return; }
+
+            const groupSize = 10;
+            const currentGroup = Math.ceil(current / groupSize);
+            const startPage = (currentGroup - 1) * groupSize + 1;
+            const endPage = Math.min(currentGroup * groupSize, total);
+
+            let html = '';
+            html += `<button class="page-btn" ${current === 1 ? 'disabled' : ''} onclick="goToPage(1)">«</button>`;
+            html += `<button class="page-btn" ${startPage === 1 ? 'disabled' : ''} onclick="goToPage(${startPage - 1})">‹</button>`;
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            html += `<button class="page-btn" ${endPage >= total ? 'disabled' : ''} onclick="goToPage(${endPage + 1})">›</button>`;
+            html += `<button class="page-btn" ${current === total ? 'disabled' : ''} onclick="goToPage(${total})">»</button>`;
+            pagination.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            loadPosts();
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func(...args), wait);
+            };
+        }
+    </script>
+</body>
+
+</html>

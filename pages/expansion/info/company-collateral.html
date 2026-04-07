@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기업별 담보 현황 - KRC Global</title>
+    <link rel="stylesheet" href="../../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../../assets/css/base.css">
+    <link rel="stylesheet" href="../../../assets/css/components.css">
+    <link rel="stylesheet" href="../../../assets/css/pages.css">
+    <style>
+        /* 중첩 서브메뉴 스타일 */
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-nested-level4 {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested-level4 li {
+            list-style: none;
+        }
+
+        .submenu-nested-level4 li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested-level4 li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested-level4 li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 500;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        /* 담보 현황 테이블 스타일 */
+        .collateral-table-container {
+            overflow-x: auto;
+            margin-top: var(--spacing-4);
+        }
+
+        .collateral-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--color-neutral-0);
+            font-size: var(--font-size-sm);
+        }
+
+        .collateral-table th,
+        .collateral-table td {
+            padding: var(--spacing-3);
+            text-align: center;
+            border: 1px solid var(--color-neutral-300);
+        }
+
+        .collateral-table thead th {
+            background: var(--color-secondary-100);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-neutral-700);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .collateral-table thead th.group-header {
+            background: var(--color-primary-100);
+            color: var(--color-primary-700);
+            font-weight: var(--font-weight-bold);
+        }
+
+        .collateral-table tbody tr:hover {
+            background: var(--color-secondary-50);
+        }
+
+        .collateral-table tfoot td {
+            background: var(--color-secondary-200);
+            font-weight: var(--font-weight-bold);
+        }
+
+        .company-name {
+            text-align: left;
+            min-width: 200px;
+        }
+
+        .amount {
+            text-align: right;
+            min-width: 100px;
+        }
+
+        /* 필터 영역 일관성 스타일 */
+        .search-form {
+            display: flex;
+            gap: var(--spacing-4);
+            align-items: flex-end;
+            flex-wrap: wrap;
+            padding: var(--spacing-4);
+            background: var(--color-neutral-50);
+            border-radius: 8px;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .search-form .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 180px;
+            flex: 0 0 auto;
+        }
+
+        .search-form .form-group label {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--color-neutral-700);
+        }
+
+        .search-form .form-group input,
+        .search-form .form-group select {
+            padding: 8px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 6px;
+            font-size: var(--font-size-sm);
+            min-height: 38px;
+            background: white;
+        }
+
+        .search-form .form-group input::placeholder {
+            color: var(--color-neutral-400);
+        }
+
+        .search-form .form-actions {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            margin-left: auto;
+        }
+
+        .search-form .form-actions .btn {
+            min-height: 38px;
+            padding: 8px 16px;
+            font-size: var(--font-size-sm);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../../admin/users.html" class="user-dropdown-item"><span>👤</span> 사용자 관리</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle active" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../company-management.html">기업관리</a></li>
+                                <li><a href="../loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle active" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="company-collateral.html" class="active">기업별 담보 현황</a></li>
+                                        <li><a href="post-management.html">사후관리대장</a></li>
+                                        <li><a href="mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../../projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="../../projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="../../projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../../admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../../gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="app-main" id="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">기업별 담보 현황</h1>
+        </div>
+
+        <!-- Page Content -->
+        <div class="page-content">
+            <!-- 요약 통계 -->
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="stat-label">총 융자액</div>
+                    <div class="stat-value" id="totalLoan">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">총 잔액</div>
+                    <div class="stat-value" id="totalBalance">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">총 담보금액</div>
+                    <div class="stat-value" id="totalCollateral">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">대상 기업</div>
+                    <div class="stat-value" id="totalCompanies">-</div>
+                </div>
+            </div>
+
+            <!-- 액션 버튼 -->
+            <div class="page-actions">
+                <button class="btn btn-primary" id="uploadBtn" onclick="openUploadModal()" style="display:none;">📁
+                    Excel 업로드</button>
+                <button class="btn btn-primary" onclick="downloadExcel()">
+                    Excel 다운로드
+                </button>
+            </div>
+
+            <!-- 담보 현황 테이블 -->
+            <div class="collateral-table-container">
+                <table class="collateral-table">
+                    <thead>
+                        <tr>
+                            <th rowspan="2">번호</th>
+                            <th rowspan="2" class="company-name">기업명</th>
+                            <th rowspan="2" class="amount">융자액<br>(천원)</th>
+                            <th rowspan="2" class="amount">잔액<br>(천원)</th>
+                            <th colspan="5" class="group-header">담보현황 (천원)</th>
+                            <th colspan="5" class="group-header">채권 (천원)</th>
+                        </tr>
+                        <tr>
+                            <!-- 담보현황 -->
+                            <th>예금질권</th>
+                            <th>지급보증</th>
+                            <th>보증보험</th>
+                            <th>부동산</th>
+                            <th>계</th>
+                            <!-- 채권 -->
+                            <th>예금질권</th>
+                            <th>지급보증</th>
+                            <th>보증보험</th>
+                            <th>부동산</th>
+                            <th>계</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="14" style="text-align: center; padding: var(--spacing-6);">
+                                데이터를 불러오는 중...
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot id="tableFoot">
+                        <!-- 합계 행이 여기에 추가됩니다 -->
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- 업로드 모달 -->
+    <div class="modal-overlay" id="uploadModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="modal" style="background: white; padding: 24px; border-radius: 12px; max-width: 500px; width: 90%;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                <h3 style="margin: 0;">📁 Excel 파일 업로드</h3>
+                <button onclick="closeUploadModal()"
+                    style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Excel 파일 선택</label>
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" style="padding: 8px; width: 100%;">
+                    <small style="color: var(--color-neutral-600); margin-top: 8px; display: block;">* 기업별 담보 현황 양식에 맞는
+                        Excel 파일을 업로드하세요</small>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+                <button class="btn btn-secondary" onclick="closeUploadModal()">취소</button>
+                <button class="btn btn-primary" onclick="uploadExcel()">업로드</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../assets/js/api.js"></script>
+    <script src="../../../assets/js/common.js"></script>
+    <script>
+        let allData = [];
+
+        // 페이지 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+            if (userInfo) {
+                const currentUser = JSON.parse(userInfo);
+                const userPermission = currentUser.permissionScope || currentUser.permission_scope || 'readonly';
+                const canEdit = currentUser.role === 'admin' || userPermission === 'expansion' || userPermission === 'all';
+                if (canEdit) {
+                    document.getElementById('uploadBtn').style.display = 'inline-flex';
+                }
+            }
+
+            initCommonUI();
+            loadData();
+        });
+
+        // 데이터 로드
+        async function loadData() {
+            try {
+                const response = await apiCall('/expansion/collateral', 'GET');
+                if (response.success) {
+                    allData = response.data;
+                    renderTable();
+                    updateSummary();
+                } else {
+                    Toast.error(response.message || '데이터를 불러오는데 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+                Toast.error('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // 테이블 렌더링
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            const tfoot = document.getElementById('tableFoot');
+
+            if (allData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="14" style="text-align: center; padding: var(--spacing-6);">
+                            데이터가 없습니다.
+                        </td>
+                    </tr>
+                `;
+                tfoot.innerHTML = '';
+                return;
+            }
+
+            // 데이터 행 렌더링
+            tbody.innerHTML = allData.map((item, index) => {
+                const collateralTotal = (item.depositPledge || 0) +
+                    (item.paymentGuarantee || 0) +
+                    (item.guaranteeInsurance || 0) +
+                    (item.realEstate || 0);
+
+                const bondTotal = (item.bondDeposit || 0) +
+                    (item.bondPaymentGuarantee || 0) +
+                    (item.bondInsurance || 0) +
+                    (item.bondRealEstate || 0);
+
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td class="company-name">${item.companyName || '-'}</td>
+                        <td class="amount">${formatNumber(item.loanAmount || 0)}</td>
+                        <td class="amount">${formatNumber(item.balance || 0)}</td>
+                        <td class="amount">${formatNumber(item.depositPledge || 0)}</td>
+                        <td class="amount">${formatNumber(item.paymentGuarantee || 0)}</td>
+                        <td class="amount">${formatNumber(item.guaranteeInsurance || 0)}</td>
+                        <td class="amount">${formatNumber(item.realEstate || 0)}</td>
+                        <td class="amount" style="background: var(--color-secondary-100); font-weight: var(--font-weight-semibold);">${formatNumber(collateralTotal)}</td>
+                        <td class="amount">${formatNumber(item.bondDeposit || 0)}</td>
+                        <td class="amount">${formatNumber(item.bondPaymentGuarantee || 0)}</td>
+                        <td class="amount">${formatNumber(item.bondInsurance || 0)}</td>
+                        <td class="amount">${formatNumber(item.bondRealEstate || 0)}</td>
+                        <td class="amount" style="background: var(--color-secondary-100); font-weight: var(--font-weight-semibold);">${formatNumber(bondTotal)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 합계 행 렌더링
+            const totals = calculateTotals();
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="2">합계</td>
+                    <td class="amount">${formatNumber(totals.loanAmount)}</td>
+                    <td class="amount">${formatNumber(totals.balance)}</td>
+                    <td class="amount">${formatNumber(totals.depositPledge)}</td>
+                    <td class="amount">${formatNumber(totals.paymentGuarantee)}</td>
+                    <td class="amount">${formatNumber(totals.guaranteeInsurance)}</td>
+                    <td class="amount">${formatNumber(totals.realEstate)}</td>
+                    <td class="amount">${formatNumber(totals.collateralTotal)}</td>
+                    <td class="amount">${formatNumber(totals.bondDeposit)}</td>
+                    <td class="amount">${formatNumber(totals.bondPaymentGuarantee)}</td>
+                    <td class="amount">${formatNumber(totals.bondInsurance)}</td>
+                    <td class="amount">${formatNumber(totals.bondRealEstate)}</td>
+                    <td class="amount">${formatNumber(totals.bondTotal)}</td>
+                </tr>
+            `;
+        }
+
+        // 합계 계산
+        function calculateTotals() {
+            return allData.reduce((acc, item) => {
+                acc.loanAmount += item.loanAmount || 0;
+                acc.balance += item.balance || 0;
+                acc.depositPledge += item.depositPledge || 0;
+                acc.paymentGuarantee += item.paymentGuarantee || 0;
+                acc.guaranteeInsurance += item.guaranteeInsurance || 0;
+                acc.realEstate += item.realEstate || 0;
+                acc.collateralTotal += (item.depositPledge || 0) + (item.paymentGuarantee || 0) +
+                    (item.guaranteeInsurance || 0) + (item.realEstate || 0);
+                acc.bondDeposit += item.bondDeposit || 0;
+                acc.bondPaymentGuarantee += item.bondPaymentGuarantee || 0;
+                acc.bondInsurance += item.bondInsurance || 0;
+                acc.bondRealEstate += item.bondRealEstate || 0;
+                acc.bondTotal += (item.bondDeposit || 0) + (item.bondPaymentGuarantee || 0) +
+                    (item.bondInsurance || 0) + (item.bondRealEstate || 0);
+                return acc;
+            }, {
+                loanAmount: 0, balance: 0, depositPledge: 0, paymentGuarantee: 0,
+                guaranteeInsurance: 0, realEstate: 0, collateralTotal: 0,
+                bondDeposit: 0, bondPaymentGuarantee: 0, bondInsurance: 0,
+                bondRealEstate: 0, bondTotal: 0
+            });
+        }
+
+        // 요약 통계 업데이트
+        function updateSummary() {
+            const totals = calculateTotals();
+            document.getElementById('totalLoan').textContent = formatNumber(totals.loanAmount) + ' 천원';
+            document.getElementById('totalBalance').textContent = formatNumber(totals.balance) + ' 천원';
+            document.getElementById('totalCollateral').textContent = formatNumber(totals.collateralTotal) + ' 천원';
+            document.getElementById('totalCompanies').textContent = allData.length + ' 개';
+        }
+
+        // 숫자 포맷팅
+        function formatNumber(num) {
+            if (!num && num !== 0) return '-';
+            return num.toLocaleString('ko-KR');
+        }
+
+        // Excel 다운로드
+        function downloadExcel() {
+            if (allData.length === 0) {
+                Toast.warning('다운로드할 데이터가 없습니다.');
+                return;
+            }
+
+            const totals = calculateTotals();
+            const headers = [
+                '번호', '기업명', '융자액(천원)', '잔액(천원)',
+                '담보현황_예금질권', '담보현황_지급보증', '담보현황_보증보험', '담보현황_부동산', '담보현황_계',
+                '채권_예금질권', '채권_지급보증', '채권_보증보험', '채권_부동산', '채권_계'
+            ];
+
+            const rows = allData.map((item, index) => {
+                const collateralTotal = (item.depositPledge || 0) + (item.paymentGuarantee || 0) +
+                    (item.guaranteeInsurance || 0) + (item.realEstate || 0);
+                const bondTotal = (item.bondDeposit || 0) + (item.bondPaymentGuarantee || 0) +
+                    (item.bondInsurance || 0) + (item.bondRealEstate || 0);
+
+                return [
+                    index + 1,
+                    item.companyName || '',
+                    item.loanAmount || 0,
+                    item.balance || 0,
+                    item.depositPledge || 0,
+                    item.paymentGuarantee || 0,
+                    item.guaranteeInsurance || 0,
+                    item.realEstate || 0,
+                    collateralTotal,
+                    item.bondDeposit || 0,
+                    item.bondPaymentGuarantee || 0,
+                    item.bondInsurance || 0,
+                    item.bondRealEstate || 0,
+                    bondTotal
+                ];
+            });
+
+            // 합계 행 추가
+            rows.push([
+                '',
+                '합계',
+                totals.loanAmount,
+                totals.balance,
+                totals.depositPledge,
+                totals.paymentGuarantee,
+                totals.guaranteeInsurance,
+                totals.realEstate,
+                totals.collateralTotal,
+                totals.bondDeposit,
+                totals.bondPaymentGuarantee,
+                totals.bondInsurance,
+                totals.bondRealEstate,
+                totals.bondTotal
+            ]);
+
+            const csv = [
+                '\uFEFF' + headers.join(','),
+                ...rows.map(row => row.join(','))
+            ].join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `기업별_담보_현황_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            Toast.success('Excel 파일이 다운로드되었습니다.');
+        }
+
+        // 업로드 모달
+        function openUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('excelFile').value = '';
+        }
+
+        async function uploadExcel() {
+            const fileInput = document.getElementById('excelFile');
+            if (!fileInput.files.length) {
+                alert('파일을 선택해주세요.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await apiCallFormData('/expansion/collateral/upload', formData);
+                if (response.success) {
+                    alert(response.message || '업로드 완료!');
+                    closeUploadModal();
+                    loadData();
+                } else {
+                    alert(response.message || '업로드 실패');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('업로드 중 오류가 발생했습니다.');
+            }
+        }
+    </script>
+</body>
+
+</html>

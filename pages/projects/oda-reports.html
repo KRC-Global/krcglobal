@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>보고서관리 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <style>
+        /* 중첩 서브메뉴 스타일 */
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* Level 4 중첩 서브메뉴 스타일 */
+        .submenu-nested-level4 {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested-level4 li a {
+            font-size: 12px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested-level4 li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        /* 보고서 테이블 스타일 */
+        .reports-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            overflow: visible;
+            box-shadow: var(--shadow-sm);
+            margin-top: 20px;
+        }
+
+        .reports-table thead {
+            background: var(--color-primary-50);
+        }
+
+        .reports-table th {
+            padding: 16px 12px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-neutral-800);
+            border-bottom: 2px solid var(--color-neutral-200);
+        }
+
+        .reports-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--color-neutral-100);
+            font-size: 14px;
+            text-align: center;
+        }
+
+        /* 사업명 컬럼만 왼쪽 정렬 */
+        .reports-table td:nth-child(2) {
+            text-align: left;
+        }
+
+        /* 헤더 부제 스타일 */
+        .header-subtitle {
+            display: block;
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--color-neutral-500);
+            margin-top: 2px;
+        }
+
+        .reports-table tbody tr:hover {
+            background: var(--color-neutral-50);
+        }
+
+        .project-name {
+            color: var(--color-primary-600);
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.2s;
+            display: block;
+        }
+
+        .project-name:hover {
+            color: var(--color-primary-700);
+            text-decoration: underline;
+        }
+
+        .project-period {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+            font-weight: 400;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-ongoing {
+            background: var(--color-success-100);
+            color: var(--color-success-700);
+        }
+
+        .status-completed {
+            background: #FEE;
+            color: #C00;
+        }
+
+        .status-planning {
+            background: var(--color-neutral-200);
+            color: var(--color-neutral-700);
+        }
+
+        .btn-sm {
+            padding: 4px 12px;
+            font-size: 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            line-height: 1.4;
+        }
+
+        .btn-outline-edit {
+            background: transparent;
+            border: 1px solid var(--color-neutral-300);
+            color: var(--color-neutral-600);
+        }
+
+        .btn-outline-edit:hover {
+            background: var(--color-neutral-50);
+            border-color: var(--color-neutral-400);
+            color: var(--color-neutral-800);
+        }
+
+        /* ===== 라이프사이클 파이프라인 스타일 ===== */
+        .pipeline-cell {
+            padding: 8px 16px 16px !important;
+            vertical-align: middle;
+        }
+        .pipeline-stepper {
+            display: flex;
+            align-items: flex-start;
+            min-width: 420px;
+            padding: 2px 0;
+        }
+        .pipeline-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+            flex: 0 0 auto;
+            width: 52px;
+        }
+        .pipeline-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-sizing: border-box;
+            flex-shrink: 0;
+            transition: filter 0.15s, transform 0.15s;
+        }
+        .pipeline-icon svg {
+            width: 15px;
+            height: 15px;
+        }
+        .pipeline-icon.pending {
+            border: 1.5px dashed #d1d5db;
+            background: transparent;
+            color: transparent;
+        }
+        .pipeline-icon.pending svg { display: none; }
+        .pipeline-icon.completed-nodata {
+            border: 1.5px solid #fb923c;
+            background: #fff7ed;
+            color: #ea580c;
+        }
+        .pipeline-icon:hover { filter: brightness(1.1); transform: scale(1.06); }
+        .pipeline-label {
+            font-size: 10px;
+            color: var(--color-neutral-400);
+            margin-top: 5px;
+            white-space: nowrap;
+            font-weight: 500;
+            letter-spacing: -0.3px;
+        }
+        .pipeline-step.completed-nodata .pipeline-label { color: #ea580c; font-weight: 600; }
+        .pipeline-line {
+            flex: 1;
+            height: 2px;
+            background: var(--color-neutral-200);
+            margin-top: 14px;
+            min-width: 4px;
+        }
+        .pipeline-line.completed-nodata { background: #fdba74; }
+        .pipeline-file-count {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            min-width: 14px;
+            height: 14px;
+            border-radius: 7px;
+            background: #ea580c;
+            color: #fff;
+            font-size: 9px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 3px;
+            z-index: 2;
+            border: 1.5px solid #fff;
+        }
+
+        /* 단계 드롭다운 패널 */
+        .stage-dropdown-panel {
+            position: fixed;
+            z-index: 9999;
+            background: #fff;
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            min-width: 260px;
+            max-width: 340px;
+            padding: 0;
+            font-size: 13px;
+        }
+        .stage-dropdown-panel .sdp-header {
+            padding: 10px 14px 8px;
+            font-weight: 700;
+            color: var(--color-primary, #1A4B7C);
+            border-bottom: 1px solid var(--color-neutral-100);
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .stage-dropdown-panel .sdp-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            cursor: pointer;
+            transition: background 0.1s;
+            color: var(--color-neutral-700);
+        }
+        .stage-dropdown-panel .sdp-item:hover {
+            background: var(--color-neutral-50, #f9fafb);
+        }
+        .stage-dropdown-panel .sdp-item .sdp-icon {
+            width: 16px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .stage-dropdown-panel .sdp-item .sdp-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+        .stage-dropdown-panel .sdp-item .sdp-size {
+            font-size: 11px;
+            color: var(--color-neutral-400);
+            white-space: nowrap;
+        }
+        .stage-dropdown-panel .sdp-item .sdp-delete-btn {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: var(--color-neutral-400);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .stage-dropdown-panel .sdp-item .sdp-delete-btn:hover {
+            background: #FEE2E2;
+            color: #dc2626;
+        }
+        .stage-dropdown-panel .sdp-empty {
+            padding: 12px 14px;
+            color: var(--color-neutral-400);
+            font-size: 12px;
+            font-style: italic;
+            text-align: center;
+        }
+        .stage-dropdown-panel .sdp-upload-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-top: 1px solid var(--color-neutral-100);
+            cursor: pointer;
+            color: var(--color-primary-600);
+            font-size: 12px;
+            font-weight: 600;
+            transition: background 0.15s;
+        }
+        .stage-dropdown-panel .sdp-upload-btn:hover {
+            background: var(--color-primary-50);
+        }
+
+        /* 필터 바 */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-bar select,
+        .filter-bar input {
+            padding: 10px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+        }
+
+        .filter-bar .btn-primary {
+            padding: 10px 20px;
+            border-radius: var(--radius-lg);
+        }
+
+        .filter-bar .btn-secondary {
+            padding: 10px 20px;
+            border-radius: var(--radius-lg);
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-300);
+            color: var(--color-neutral-700);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-bar .btn-secondary:hover {
+            background: var(--color-neutral-100);
+            border-color: var(--color-neutral-400);
+        }
+
+        /* 사업 개요 모달 */
+        .project-detail {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            color: var(--color-neutral-600);
+            font-weight: 600;
+        }
+
+        .detail-value {
+            font-size: 14px;
+            color: var(--color-neutral-800);
+        }
+
+        .detail-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* 모달 기본 숨김 */
+        .modal {
+            display: none;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: none !important;
+            max-height: none !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+            z-index: 10000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            animation: none !important;
+            overflow: visible !important;
+        }
+
+        .modal.show {
+            display: block !important;
+        }
+
+        .modal-content {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-neutral-800);
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: var(--color-neutral-500);
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-md);
+        }
+
+        .modal-close:hover {
+            background: var(--color-neutral-100);
+            color: var(--color-neutral-700);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            padding: 16px 24px;
+            border-top: 1px solid var(--color-neutral-200);
+            background: var(--color-neutral-50);
+        }
+
+        .btn-outline {
+            padding: 10px 20px;
+            border: 1px solid var(--color-neutral-300);
+            background: white;
+            color: var(--color-neutral-700);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-outline:hover {
+            background: var(--color-neutral-100);
+            border-color: var(--color-neutral-400);
+        }
+
+        /* 사용자 드롭다운 기본 숨김 */
+        .user-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            min-width: 240px;
+            z-index: 1000;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--color-primary-500);
+            color: var(--color-neutral-0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-neutral-800);
+            margin-bottom: 4px;
+        }
+
+        .user-dropdown-role {
+            font-size: 13px;
+            color: var(--color-primary-600);
+            margin-bottom: 2px;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-600);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-50);
+        }
+
+        .user-dropdown-item span {
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../admin/users.html" class="user-dropdown-item"><span>👤</span> 사용자 관리</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../expansion/company-management.html">기업관리</a></li>
+                                <li><a href="../expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="../expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="../expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="../expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="../expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="../expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="../expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu active">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="international-cooperation.html">사업현황</a></li>
+                                <li><a href="oda-reports.html" class="active">보고서관리</a></li>
+                                <li><a href="intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../admin/offices.html">해외사무소 등</a></li>
+</ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../../pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../dashboard.html">홈</a></li>
+                    <li><a href="#">사업관리</a></li>
+                    <li><a href="international-cooperation.html">국제협력사업</a></li>
+                    <li aria-current="page">보고서관리</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">보고서관리</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 필터 바 -->
+            <div class="filter-bar">
+                <select id="countryFilter">
+                    <option value="">전체 국가</option>
+                </select>
+
+                <select id="statusFilter">
+                    <option value="">전체 상태</option>
+                    <option value="진행중">진행중</option>
+                    <option value="준공">준공</option>
+                    <option value="예비사업">예비사업</option>
+                </select>
+
+                <input type="text" id="searchInput" placeholder="사업명 검색">
+
+                <button class="btn-secondary" id="btnExcelDownload" style="margin-left: auto;">
+                    <span>📊</span> 엑셀 다운로드
+                </button>
+            </div>
+
+            <!-- 보고서 테이블 -->
+            <table class="reports-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">번호</th>
+                        <th style="width: 200px;">사업명</th>
+                        <th style="width: 70px;">대상국</th>
+                        <th style="width: 70px;">사업기간</th>
+                        <th style="width: 90px;">사업비(백만)</th>
+                        <th style="width: 70px;">상태</th>
+                        <th>보고서 파이프라인</th>
+                        <th style="width: 60px;">비고</th>
+                    </tr>
+                </thead>
+                <tbody id="reportsTableBody">
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px;">
+                            데이터를 불러오는 중...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 페이지네이션 -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </main>
+
+    <!-- 사업 개요 모달 -->
+    <div class="modal" id="projectModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">사업 개요</h3>
+                <button class="modal-close" onclick="closeProjectModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="project-detail" id="projectDetail"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 비고 보기 모달 -->
+    <div class="modal" id="noteViewModal">
+        <div class="modal-content" style="max-width: 560px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="noteViewModalTitle">비고</h3>
+                <button class="modal-close" onclick="closeNoteViewModal()">×</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <div id="noteViewContent">
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; color: var(--color-neutral-600); margin-bottom: 6px;">메모</label>
+                        <div id="noteViewMemo" style="padding: 12px; background: var(--color-neutral-50); border-radius: 8px; min-height: 60px; white-space: pre-wrap; line-height: 1.6;"></div>
+                    </div>
+                    <div id="noteViewFileSection" style="display: none;">
+                        <label style="display: block; font-weight: 600; color: var(--color-neutral-600); margin-bottom: 6px;">첨부파일</label>
+                        <div id="noteViewFile" style="padding: 10px 12px; background: var(--color-neutral-50); border-radius: 8px; display: flex; align-items: center; gap: 8px;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 12px 20px; border-top: 1px solid var(--color-neutral-100); display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeNoteViewModal()">닫기</button>
+                <button class="btn btn-primary" id="noteEditBtn" onclick="openNoteEditModal()" style="display: none;">수정</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 비고 편집 모달 -->
+    <div class="modal" id="noteEditModal">
+        <div class="modal-content" style="max-width: 560px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="noteEditModalTitle">비고 등록/수정</h3>
+                <button class="modal-close" onclick="closeNoteEditModal()">×</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <form id="noteEditForm">
+                    <input type="hidden" id="noteProjectId">
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 6px;">메모 <span style="font-weight: 400; color: var(--color-neutral-500);">(500자 이내)</span></label>
+                        <textarea id="noteMemoInput" rows="6" maxlength="500" placeholder="메모를 입력하세요..."
+                            style="width: 100%; padding: 10px; border: 1px solid var(--color-neutral-300); border-radius: 8px; resize: vertical; font-size: 14px; line-height: 1.6;"></textarea>
+                        <div style="text-align: right; font-size: 12px; color: var(--color-neutral-500); margin-top: 4px;">
+                            <span id="noteMemoCount">0</span>/500
+                        </div>
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 6px;">첨부파일</label>
+                        <div id="noteCurrentFile" style="display: none; margin-bottom: 8px; padding: 8px 12px; background: var(--color-neutral-50); border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                        </div>
+                        <div class="file-upload-area" id="noteFileUploadArea" onclick="document.getElementById('noteFileInput').click()" style="cursor: pointer; padding: 16px; border: 2px dashed var(--color-neutral-300); border-radius: 8px; text-align: center;">
+                            <div id="noteFileUploadText" style="color: var(--color-neutral-500);">클릭하여 파일 선택</div>
+                        </div>
+                        <input type="file" id="noteFileInput" style="display: none;"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.txt,.jpg,.jpeg,.png,.gif,.zip"
+                            onchange="handleNoteFileSelect(this)">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="padding: 12px 20px; border-top: 1px solid var(--color-neutral-100); display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="btn btn-secondary" onclick="closeNoteEditModal()">취소</button>
+                <button class="btn btn-primary" onclick="saveNote()">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 숨겨진 파일 input (드롭다운 업로드용) -->
+    <input type="file" id="hiddenFileInput" style="display:none;"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp,.txt,.jpg,.jpeg,.png,.gif,.zip">
+
+    <!-- SheetJS for Excel export -->
+    <script src="../../assets/lib/xlsx/xlsx.full.min.js"></script>
+
+    <!-- Scripts -->
+    <script src="../../assets/js/common.js"></script>
+    <script src="../../assets/js/api.js"></script>
+    <script src="../../assets/js/components/toast.js"></script>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let allReportsData = [];
+        let currentFilters = {
+            country: '',
+            status: '',
+            search: ''
+        };
+
+        // ODA 보고서 8단계 정의
+        const ODA_REPORT_STAGES = [
+            { key: 'pcp', label: 'PCP' },
+            { key: 'implementation_plan', label: '시행계획' },
+            { key: 'fs', label: 'F/S' },
+            { key: 'rod', label: 'ROD' },
+            { key: 'proposal', label: '제안서' },
+            { key: 'pmc', label: '실적보고' },
+            { key: 'performance', label: '성과관리' },
+            { key: 'post_evaluation', label: '사후평가' }
+        ];
+
+        // 단계별 흑백 SVG 픽토그램 (진한 주황 색상은 CSS에서 currentColor로 적용)
+        const ODA_STAGE_ICONS = {
+            'pcp': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="1.5" width="10" height="13" rx="1"/>
+                <rect x="5.5" y="1" width="5" height="2" rx="0.5"/>
+                <line x1="5.5" y1="6" x2="10.5" y2="6"/>
+                <line x1="5.5" y1="8.5" x2="10.5" y2="8.5"/>
+                <line x1="5.5" y1="11" x2="8.5" y2="11"/>
+            </svg>`,
+            'implementation_plan': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="12" height="12" rx="1"/>
+                <line x1="2" y1="5.5" x2="14" y2="5.5"/>
+                <line x1="5" y1="2" x2="5" y2="5.5"/>
+                <line x1="5" y1="8.5" x2="11" y2="8.5"/>
+                <line x1="5" y1="11" x2="9" y2="11"/>
+                <polyline points="2.5,8.5 3.2,9.2 4.2,7.8"/>
+                <polyline points="2.5,11 3.2,11.7 4.2,10.3"/>
+            </svg>`,
+            'fs': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8" cy="8" r="5.5"/>
+                <circle cx="8" cy="8" r="2"/>
+                <line x1="8" y1="2.5" x2="8" y2="1"/>
+                <line x1="8" y1="15" x2="8" y2="13.5"/>
+                <line x1="2.5" y1="8" x2="1" y2="8"/>
+                <line x1="15" y1="8" x2="13.5" y2="8"/>
+            </svg>`,
+            'rod': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 2H3.5A1 1 0 003 3v10a1 1 0 001 1h8a1 1 0 001-1V6.5L9 2z"/>
+                <path d="M9 2v4.5h4"/>
+                <polyline points="5.5,9.5 7,11 10.5,7.5"/>
+            </svg>`,
+            'proposal': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1.5" y="3.5" width="13" height="9" rx="1"/>
+                <polyline points="1.5,4.2 8,9.2 14.5,4.2"/>
+            </svg>`,
+            'pmc': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="2,12 5,7 8,9.5 11,4 14,6"/>
+                <line x1="2" y1="14" x2="14" y2="14"/>
+                <line x1="2" y1="3" x2="2" y2="14"/>
+            </svg>`,
+            'performance': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="9" width="3" height="5"/>
+                <rect x="6.5" y="6" width="3" height="8"/>
+                <rect x="11" y="3" width="3" height="11"/>
+                <line x1="1" y1="14.5" x2="15" y2="14.5"/>
+            </svg>`,
+            'post_evaluation': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="7" cy="7" r="4.5"/>
+                <line x1="10.2" y1="10.2" x2="14" y2="14"/>
+                <line x1="5" y1="7" x2="9" y2="7"/>
+                <line x1="7" y1="5" x2="7" y2="9"/>
+            </svg>`
+        };
+
+        const reportTypeLabels = {
+            'pcp': 'PCP (사업계획서)',
+            'implementation_plan': '무상원조시행계획서',
+            'fs': 'F/S (타당성조사)',
+            'rod': 'ROD (협의의사록)',
+            'proposal': '제안자료',
+            'pmc': '실적보고서',
+            'performance': '성과보고',
+            'post_evaluation': '사후평가'
+        };
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                window.location.href = '../../index.html';
+                return;
+            }
+
+            if (typeof checkPagePermission === 'function') {
+                if (!checkPagePermission('oda')) {
+                    return;
+                }
+            }
+
+            try {
+                const user = JSON.parse(userInfo);
+                const userNameEl = document.getElementById('userName');
+                if (userNameEl) userNameEl.textContent = user.name || '사용자';
+                document.getElementById('dropdownName').textContent = user.name || '사용자';
+                document.getElementById('dropdownRole').textContent = user.role === 'admin' ? '관리자' : user.role === 'manager' ? '매니저' : '사용자';
+                document.getElementById('dropdownDept').textContent = user.departmentName || user.department || '';
+                const initial = user.name ? user.name.charAt(0) : '사';
+                document.getElementById('userAvatar').textContent = initial;
+                document.getElementById('dropdownAvatar').textContent = initial;
+            } catch (e) {
+                console.error('사용자 정보 파싱 오류:', e);
+            }
+
+            if (typeof initCommonUI === 'function') initCommonUI();
+
+            // 관리자 메뉴 표시
+            try {
+                const user = JSON.parse(userInfo);
+                if (user && user.role === 'admin') {
+                    const adminMenu = document.getElementById('adminMenuUser');
+                    if (adminMenu) adminMenu.style.display = 'block';
+                }
+            } catch (e) {}
+
+            await loadCountries();
+            await loadReports();
+            setupEventListeners();
+        });
+
+        // 국가 목록 로드
+        async function loadCountries() {
+            try {
+                const response = await apiCall('/oda-reports/countries', 'GET');
+                if (response.success) {
+                    const select = document.getElementById('countryFilter');
+                    response.data.forEach(country => {
+                        const option = document.createElement('option');
+                        option.value = country;
+                        option.textContent = country;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('국가 목록 로드 실패:', error);
+            }
+        }
+
+        // 보고서 목록 로드
+        async function loadReports() {
+            try {
+                const params = new URLSearchParams({
+                    page: currentPage,
+                    per_page: 20,
+                    ...currentFilters
+                });
+
+                const response = await apiCall(`/oda-reports?${params}`, 'GET');
+                if (response.success) {
+                    renderReportsTable(response.data);
+                    renderPagination(response.currentPage, response.pages);
+                } else {
+                    Toast.error(response.message);
+                }
+            } catch (error) {
+                console.error('보고서 목록 로드 실패:', error);
+                Toast.error('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // 상태 배지 생성
+        function getStatusBadge(period, status) {
+            if (status) {
+                const statusMap = {
+                    '예비사업': '<span class="status-badge status-planning">예비사업</span>',
+                    '진행중': '<span class="status-badge status-ongoing">진행중</span>',
+                    '준공': '<span class="status-badge status-completed">준공</span>',
+                    '계획중': '<span class="status-badge status-planning">계획중</span>'
+                };
+                if (statusMap[status]) return statusMap[status];
+            }
+            if (!period) return '<span class="status-badge status-planning">계획중</span>';
+            const endYearMatch = period.match(/[-~][\s''\u2018\u2019""\u201C\u201D]*(\d{2})\s*$/);
+            if (!endYearMatch) return '<span class="status-badge status-planning">계획중</span>';
+            const endYear = parseInt(endYearMatch[1]);
+            return endYear <= 25
+                ? '<span class="status-badge status-completed">준공</span>'
+                : '<span class="status-badge status-ongoing">진행중</span>';
+        }
+
+        // 파이프라인 HTML 생성
+        function createOdaPipelineHTML(projectId, reports) {
+            const canEdit = typeof hasWritePermission === 'function' ? hasWritePermission('oda') : false;
+            let html = '<div class="pipeline-stepper">';
+
+            ODA_REPORT_STAGES.forEach((stage, idx) => {
+                const files = reports[stage.key] || [];
+                const fileCount = files.length;
+                const hasFiles = fileCount > 0;
+                const stateClass = hasFiles ? 'completed-nodata' : 'pending';
+
+                // 연결선 (첫번째 제외)
+                if (idx > 0) {
+                    const prevFiles = reports[ODA_REPORT_STAGES[idx - 1].key] || [];
+                    const lineClass = prevFiles.length > 0 && hasFiles ? 'completed-nodata' : '';
+                    html += `<div class="pipeline-line ${lineClass}"></div>`;
+                }
+
+                html += `<div class="pipeline-step ${stateClass}">`;
+                html += `<div style="position:relative; display:inline-flex;">`;
+                const svgIcon = hasFiles ? (ODA_STAGE_ICONS[stage.key] || '') : '';
+                html += `<div class="pipeline-icon ${stateClass}" onclick="openOdaStageDropdown(event, ${projectId}, '${stage.key}', this)" title="${reportTypeLabels[stage.key]}">`;
+                html += svgIcon;
+                html += `</div>`;
+                if (fileCount > 1) {
+                    html += `<span class="pipeline-file-count">${fileCount}</span>`;
+                }
+                html += `</div>`;
+                html += `<span class="pipeline-label">${stage.label}</span>`;
+                html += `</div>`;
+            });
+
+            html += '</div>';
+            return html;
+        }
+
+        // 보고서 테이블 렌더링
+        function renderReportsTable(data) {
+            allReportsData = data || [];
+            const tbody = document.getElementById('reportsTableBody');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px;">등록된 보고서가 없습니다.</td></tr>`;
+                return;
+            }
+
+            const canEdit = typeof hasWritePermission === 'function' ? hasWritePermission('oda') : false;
+
+            tbody.innerHTML = data.map((project, index) => {
+                const note = project.note;
+                const hasNote = note && (note.memo || note.fileName);
+
+                const noteCell = hasNote
+                    ? `<td style="text-align: center;">
+                        <button class="btn-sm btn-outline-edit" onclick="openNoteViewModal(${project.id}, '${project.title.replace(/'/g, "\\'")}')" style="font-size: 12px; padding: 4px 10px;">보기</button>
+                       </td>`
+                    : `<td style="text-align: center;">
+                        ${canEdit ? `<button class="btn-sm btn-outline-edit" onclick="openNoteEditModalDirect(${project.id}, '${project.title.replace(/'/g, "\\'")}')" style="font-size: 12px; padding: 4px 10px; color: var(--color-neutral-400); border-color: var(--color-neutral-300);">작성</button>` : '<span style="color: var(--color-neutral-400);">-</span>'}
+                       </td>`;
+
+                return `
+                    <tr>
+                        <td>${(currentPage - 1) * 20 + index + 1}</td>
+                        <td>
+                            <span class="project-name" onclick="showProjectDetail(${project.id})">
+                                ${project.title}
+                            </span>
+                        </td>
+                        <td>${project.country || ''}</td>
+                        <td>${project.period || '-'}</td>
+                        <td style="text-align: right;">${project.budget ? formatNumber(project.budget) : '-'}</td>
+                        <td>${getStatusBadge(project.period, project.status)}</td>
+                        <td class="pipeline-cell">${createOdaPipelineHTML(project.id, project.reports)}</td>
+                        ${noteCell}
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ==================== 드롭다운 패널 ====================
+        let currentDropdownPanel = null;
+
+        function closeDropdownPanel() {
+            if (currentDropdownPanel) {
+                currentDropdownPanel.remove();
+                currentDropdownPanel = null;
+            }
+            document.removeEventListener('click', onDocClickCloseDropdown);
+        }
+
+        function onDocClickCloseDropdown(e) {
+            if (currentDropdownPanel && !currentDropdownPanel.contains(e.target)) {
+                closeDropdownPanel();
+            }
+        }
+
+        function openOdaStageDropdown(event, projectId, stageKey, dotEl) {
+            event.stopPropagation();
+            closeDropdownPanel();
+
+            const project = allReportsData.find(p => p.id === projectId);
+            if (!project) return;
+
+            const files = project.reports[stageKey] || [];
+            const canEdit = typeof hasWritePermission === 'function' ? hasWritePermission('oda') : false;
+            const stageLabel = reportTypeLabels[stageKey] || stageKey;
+
+            // 패널 생성
+            const panel = document.createElement('div');
+            panel.className = 'stage-dropdown-panel';
+
+            let html = `<div class="sdp-header"><span>${stageLabel}</span></div>`;
+
+            if (files.length === 0) {
+                html += `<div class="sdp-empty">등록된 파일이 없습니다.</div>`;
+            } else {
+                files.forEach(file => {
+                    const isPdf = (file.fileType || '').toLowerCase() === 'pdf' ||
+                                  (file.fileName || '').toLowerCase().endsWith('.pdf');
+                    const fileIcon = isPdf
+                        ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#ea580c" stroke-width="1.5"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><path d="M9 2v4h4"/></svg>`
+                        : `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#9ca3af" stroke-width="1.5"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6L9 2z"/><path d="M9 2v4h4"/></svg>`;
+                    const sizeText = file.fileSize ? formatFileSize(file.fileSize) : '';
+                    const clickAction = isPdf
+                        ? `previewOdaReport(${file.id}, '${(file.fileName || '').replace(/'/g, "\\'")}')`
+                        : `downloadOdaReport(${file.id})`;
+
+                    html += `<div class="sdp-item">
+                        <span class="sdp-icon">${fileIcon}</span>
+                        <span class="sdp-name" onclick="${clickAction}" title="${file.fileName || ''}">${file.fileName || '파일'}</span>
+                        <span class="sdp-size">${sizeText}</span>
+                        ${canEdit ? `<button class="sdp-delete-btn" onclick="deleteOdaReport(event, ${file.id}, ${projectId}, '${stageKey}')" title="삭제">×</button>` : ''}
+                    </div>`;
+                });
+            }
+
+            if (canEdit) {
+                html += `<div class="sdp-upload-btn" onclick="triggerOdaUpload(${projectId}, '${stageKey}')">
+                    <span>+</span> 파일 추가
+                </div>`;
+            }
+
+            panel.innerHTML = html;
+            document.body.appendChild(panel);
+            currentDropdownPanel = panel;
+
+            // 위치 계산
+            const rect = dotEl.getBoundingClientRect();
+            let left = rect.left + rect.width / 2 - panel.offsetWidth / 2;
+            let top = rect.bottom + 6;
+
+            // 화면 밖으로 나가지 않도록 조정
+            if (left < 8) left = 8;
+            if (left + panel.offsetWidth > window.innerWidth - 8) {
+                left = window.innerWidth - panel.offsetWidth - 8;
+            }
+            if (top + panel.offsetHeight > window.innerHeight - 8) {
+                top = rect.top - panel.offsetHeight - 6;
+            }
+
+            panel.style.left = left + 'px';
+            panel.style.top = top + 'px';
+
+            setTimeout(() => {
+                document.addEventListener('click', onDocClickCloseDropdown);
+            }, 10);
+        }
+
+        // PDF 미리보기
+        async function previewOdaReport(reportId, fileName) {
+            try {
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const baseUrl = getApiBaseUrl();
+
+                const response = await fetch(`${baseUrl}/api/oda-reports/preview/${reportId}?token=${token}`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) throw new Error('PDF를 불러올 수 없습니다.');
+
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+
+                const width = Math.min(1400, window.screen.width * 0.8);
+                const height = Math.min(900, window.screen.height * 0.9);
+                const left = (window.screen.width - width) / 2;
+                const top = (window.screen.height - height) / 2;
+
+                const newWindow = window.open(
+                    blobUrl,
+                    `PDF 미리보기`,
+                    `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+                );
+
+                if (newWindow) {
+                    newWindow.focus();
+                } else {
+                    window.open(blobUrl, '_blank');
+                }
+            } catch (error) {
+                console.error('PDF 미리보기 실패:', error);
+                Toast.error('PDF를 불러올 수 없습니다.');
+            }
+        }
+
+        // 파일 다운로드
+        function downloadOdaReport(reportId) {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const baseUrl = getApiBaseUrl();
+            window.location.href = `${baseUrl}/api/oda-reports/download/${reportId}?token=${token}`;
+        }
+
+        // 파일 삭제
+        async function deleteOdaReport(event, reportId, projectId, stageKey) {
+            event.stopPropagation();
+            if (!confirm('이 파일을 삭제하시겠습니까?')) return;
+
+            try {
+                const response = await apiCall(`/oda-reports/${reportId}`, 'DELETE');
+                if (response.success) {
+                    Toast.success('삭제되었습니다.');
+                    closeDropdownPanel();
+                    await loadReports();
+                } else {
+                    Toast.error(response.message);
+                }
+            } catch (error) {
+                console.error('삭제 실패:', error);
+                Toast.error('삭제에 실패했습니다.');
+            }
+        }
+
+        // 드롭다운에서 파일 업로드 트리거
+        let pendingUploadProjectId = null;
+        let pendingUploadStageKey = null;
+
+        function triggerOdaUpload(projectId, stageKey) {
+            pendingUploadProjectId = projectId;
+            pendingUploadStageKey = stageKey;
+            const fileInput = document.getElementById('hiddenFileInput');
+            fileInput.value = '';
+            fileInput.click();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('hiddenFileInput').addEventListener('change', async function() {
+                if (!this.files || this.files.length === 0) return;
+                if (!pendingUploadProjectId || !pendingUploadStageKey) return;
+
+                const file = this.files[0];
+                const maxSize = 500 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    Toast.error('파일 크기는 500MB를 초과할 수 없습니다.');
+                    return;
+                }
+
+                try {
+                    Toast.info('업로드 중...');
+                    const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                    const baseUrl = getApiBaseUrl();
+
+                    const formData = new FormData();
+                    formData.append('odaProjectId', pendingUploadProjectId);
+                    formData.append('reportType', pendingUploadStageKey);
+                    formData.append('file', file);
+
+                    const response = await fetch(`${baseUrl}/api/oda-reports/upload`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        Toast.success(result.message);
+                        closeDropdownPanel();
+                        await loadReports();
+                    } else {
+                        Toast.error(result.message || '업로드 실패');
+                    }
+                } catch (error) {
+                    console.error('업로드 실패:', error);
+                    Toast.error('업로드에 실패했습니다.');
+                }
+
+                pendingUploadProjectId = null;
+                pendingUploadStageKey = null;
+            });
+        });
+
+        // ==================== 사업 상세 모달 ====================
+        async function showProjectDetail(projectId) {
+            try {
+                const response = await apiCall(`/oda/${projectId}`, 'GET');
+                if (response.success) {
+                    const project = response.data;
+                    document.getElementById('projectDetail').innerHTML = `
+                        <div class="detail-item">
+                            <div class="detail-label">사업명</div>
+                            <div class="detail-value">${project.title}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">대상국가</div>
+                            <div class="detail-value">${project.country}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">사업형태</div>
+                            <div class="detail-value">${project.projectType || '-'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">사업기간</div>
+                            <div class="detail-value">${project.period || '-'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">예산</div>
+                            <div class="detail-value">${formatNumber(project.budget || 0)} 백만원</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">진행상태</div>
+                            <div class="detail-value">${project.status || '-'}</div>
+                        </div>
+                        <div class="detail-item full-width">
+                            <div class="detail-label">사업 설명</div>
+                            <div class="detail-value">${project.description || '-'}</div>
+                        </div>
+                    `;
+                    document.getElementById('projectModal').classList.add('show');
+                } else {
+                    Toast.error(response.message);
+                }
+            } catch (error) {
+                console.error('사업 정보 로드 실패:', error);
+                Toast.error('사업 정보를 불러오는데 실패했습니다.');
+            }
+        }
+
+        function closeProjectModal() {
+            document.getElementById('projectModal').classList.remove('show');
+        }
+
+        // ==================== 비고(Note) 기능 ====================
+        let currentNoteProjectId = null;
+        let currentNoteProjectTitle = '';
+
+        function openNoteViewModal(projectId, projectTitle) {
+            currentNoteProjectId = projectId;
+            currentNoteProjectTitle = projectTitle;
+
+            const project = allReportsData.find(p => p.id === projectId);
+            if (!project || !project.note) return;
+
+            const note = project.note;
+            const canEdit = typeof hasWritePermission === 'function' ? hasWritePermission('oda') : false;
+
+            document.getElementById('noteViewModalTitle').textContent = `비고 - ${projectTitle}`;
+
+            const memoEl = document.getElementById('noteViewMemo');
+            memoEl.textContent = note.memo || '(메모 없음)';
+            memoEl.style.color = note.memo ? 'var(--color-neutral-800)' : 'var(--color-neutral-400)';
+
+            const fileSection = document.getElementById('noteViewFileSection');
+            const fileEl = document.getElementById('noteViewFile');
+            if (note.fileName) {
+                const fileSizeText = note.fileSize ? formatFileSize(note.fileSize) : '';
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const baseUrl = getApiBaseUrl();
+                fileSection.style.display = 'block';
+                fileEl.innerHTML = `
+                    <span style="font-size: 18px;">📎</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${note.fileName}</span>
+                    ${fileSizeText ? `<span style="color: var(--color-neutral-500); font-size: 12px;">${fileSizeText}</span>` : ''}
+                    <a href="${baseUrl}/api/oda-reports/note/download/${note.id}?token=${token}" class="btn-sm btn-outline-edit" style="font-size: 12px; padding: 3px 8px; text-decoration: none;">다운로드</a>
+                `;
+            } else {
+                fileSection.style.display = 'none';
+            }
+
+            document.getElementById('noteEditBtn').style.display = canEdit ? 'inline-block' : 'none';
+            document.getElementById('noteViewModal').classList.add('show');
+        }
+
+        function closeNoteViewModal() {
+            document.getElementById('noteViewModal').classList.remove('show');
+        }
+
+        function openNoteEditModal() {
+            closeNoteViewModal();
+            const project = allReportsData.find(p => p.id === currentNoteProjectId);
+            const note = project ? project.note : null;
+
+            document.getElementById('noteEditModalTitle').textContent = `비고 수정 - ${currentNoteProjectTitle}`;
+            document.getElementById('noteProjectId').value = currentNoteProjectId;
+            document.getElementById('noteMemoInput').value = note ? (note.memo || '') : '';
+            document.getElementById('noteMemoCount').textContent = note ? (note.memo || '').length : 0;
+
+            const currentFileEl = document.getElementById('noteCurrentFile');
+            if (note && note.fileName) {
+                currentFileEl.style.display = 'flex';
+                currentFileEl.innerHTML = `
+                    <span>📎 ${note.fileName}</span>
+                    <button type="button" class="btn-sm" onclick="deleteNoteFile(${note.id})" style="color: #dc3545; font-size: 12px; padding: 2px 6px; margin-left: auto;">삭제</button>
+                `;
+            } else {
+                currentFileEl.style.display = 'none';
+            }
+
+            document.getElementById('noteFileInput').value = '';
+            document.getElementById('noteFileUploadText').textContent = '클릭하여 파일 선택';
+            document.getElementById('noteFileUploadArea').style.borderColor = 'var(--color-neutral-300)';
+            document.getElementById('noteEditModal').classList.add('show');
+        }
+
+        function openNoteEditModalDirect(projectId, projectTitle) {
+            currentNoteProjectId = projectId;
+            currentNoteProjectTitle = projectTitle;
+
+            document.getElementById('noteEditModalTitle').textContent = `비고 등록 - ${projectTitle}`;
+            document.getElementById('noteProjectId').value = projectId;
+            document.getElementById('noteMemoInput').value = '';
+            document.getElementById('noteMemoCount').textContent = '0';
+            document.getElementById('noteCurrentFile').style.display = 'none';
+            document.getElementById('noteFileInput').value = '';
+            document.getElementById('noteFileUploadText').textContent = '클릭하여 파일 선택';
+            document.getElementById('noteFileUploadArea').style.borderColor = 'var(--color-neutral-300)';
+            document.getElementById('noteEditModal').classList.add('show');
+        }
+
+        function closeNoteEditModal() {
+            document.getElementById('noteEditModal').classList.remove('show');
+        }
+
+        function handleNoteFileSelect(input) {
+            const file = input.files[0];
+            const uploadText = document.getElementById('noteFileUploadText');
+            const uploadArea = document.getElementById('noteFileUploadArea');
+
+            if (file) {
+                if (file.size > 500 * 1024 * 1024) {
+                    alert('파일 크기는 500MB를 초과할 수 없습니다.');
+                    input.value = '';
+                    uploadText.textContent = '클릭하여 파일 선택';
+                    uploadArea.style.borderColor = 'var(--color-neutral-300)';
+                    return;
+                }
+                uploadText.textContent = `선택됨: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                uploadArea.style.borderColor = 'var(--color-primary-400)';
+            } else {
+                uploadText.textContent = '클릭하여 파일 선택';
+                uploadArea.style.borderColor = 'var(--color-neutral-300)';
+            }
+        }
+
+        document.addEventListener('input', function(e) {
+            if (e.target.id === 'noteMemoInput') {
+                document.getElementById('noteMemoCount').textContent = e.target.value.length;
+            }
+        });
+
+        async function saveNote() {
+            const projectId = document.getElementById('noteProjectId').value;
+            const memo = document.getElementById('noteMemoInput').value.trim();
+            const fileInput = document.getElementById('noteFileInput');
+
+            if (!memo && (!fileInput.files || fileInput.files.length === 0)) {
+                Toast.error('메모 또는 파일을 입력해주세요.');
+                return;
+            }
+
+            if (memo.length > 500) {
+                Toast.error('메모는 500자를 초과할 수 없습니다.');
+                return;
+            }
+
+            try {
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const baseUrl = getApiBaseUrl();
+
+                const formData = new FormData();
+                formData.append('odaProjectId', projectId);
+                formData.append('memo', memo);
+
+                if (fileInput.files && fileInput.files.length > 0) {
+                    formData.append('file', fileInput.files[0]);
+                }
+
+                const response = await fetch(`${baseUrl}/api/oda-reports/note`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    Toast.success(result.message);
+                    closeNoteEditModal();
+                    await loadReports();
+                } else {
+                    Toast.error(result.message);
+                }
+            } catch (error) {
+                console.error('비고 저장 실패:', error);
+                Toast.error('비고 저장에 실패했습니다.');
+            }
+        }
+
+        async function deleteNoteFile(noteId) {
+            if (!confirm('첨부파일을 삭제하시겠습니까?')) return;
+            try {
+                const response = await apiCall(`/oda-reports/note/delete-file/${noteId}`, 'POST');
+                if (response.success) {
+                    Toast.success(response.message);
+                    document.getElementById('noteCurrentFile').style.display = 'none';
+                    await loadReports();
+                } else {
+                    Toast.error(response.message);
+                }
+            } catch (error) {
+                console.error('파일 삭제 실패:', error);
+                Toast.error('파일 삭제에 실패했습니다.');
+            }
+        }
+
+        // ==================== 유틸리티 ====================
+        function getApiBaseUrl() {
+            return `${window.location.protocol}//${window.location.host}`;
+        }
+
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => { clearTimeout(timeout); func(...args); };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // ==================== 이벤트 리스너 ====================
+        function setupEventListeners() {
+            document.getElementById('countryFilter').addEventListener('change', (e) => {
+                currentFilters.country = e.target.value;
+                currentPage = 1;
+                loadReports();
+            });
+
+            document.getElementById('statusFilter').addEventListener('change', (e) => {
+                currentFilters.status = e.target.value;
+                currentPage = 1;
+                loadReports();
+            });
+
+            document.getElementById('searchInput').addEventListener('input', debounce((e) => {
+                currentFilters.search = e.target.value;
+                currentPage = 1;
+                loadReports();
+            }, 500));
+
+            document.getElementById('btnExcelDownload').addEventListener('click', downloadExcel);
+        }
+
+        // ==================== 페이지네이션 ====================
+        function renderPagination(current, total) {
+            totalPages = total;
+            const pagination = document.getElementById('pagination');
+
+            if (total <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            html += `<button class="page-btn" ${current === 1 ? 'disabled' : ''} onclick="goToPage(${current - 1})">이전</button>`;
+            const startPage = Math.max(1, current - 2);
+            const endPage = Math.min(total, current + 2);
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            html += `<button class="page-btn" ${current === total ? 'disabled' : ''} onclick="goToPage(${current + 1})">다음</button>`;
+            pagination.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            loadReports();
+        }
+
+        // ==================== 엑셀 다운로드 ====================
+        async function downloadExcel() {
+            try {
+                Toast.info('엑셀 파일 생성 중...');
+
+                const params = new URLSearchParams({
+                    page: 1,
+                    per_page: 9999,
+                    ...currentFilters
+                });
+
+                const response = await apiCall(`/oda-reports?${params}`, 'GET');
+                if (!response.success) {
+                    Toast.error('데이터를 불러오는데 실패했습니다.');
+                    return;
+                }
+
+                const data = response.data;
+                if (!data || data.length === 0) {
+                    Toast.error('다운로드할 데이터가 없습니다.');
+                    return;
+                }
+
+                function getStatus(period, status) {
+                    if (status) return status;
+                    if (!period) return '계획중';
+                    const endYearMatch = period.match(/[-~][\s''\u2018\u2019""\u201C\u201D]*(\d{2})\s*$/);
+                    if (!endYearMatch) return '계획중';
+                    return parseInt(endYearMatch[1]) <= 25 ? '준공' : '시행중';
+                }
+
+                const excelData = data.map((project, index) => {
+                    const reports = project.reports || {};
+                    return {
+                        '번호': index + 1,
+                        '사업명': project.title || '',
+                        '대상국': project.country || '',
+                        '사업기간': project.period || '',
+                        '상태': getStatus(project.period, project.status),
+                        'PCP': (reports.pcp || []).length > 0 ? `O(${(reports.pcp || []).length})` : 'X',
+                        '시행계획': (reports.implementation_plan || []).length > 0 ? `O(${(reports.implementation_plan || []).length})` : 'X',
+                        'F/S': (reports.fs || []).length > 0 ? `O(${(reports.fs || []).length})` : 'X',
+                        'ROD': (reports.rod || []).length > 0 ? `O(${(reports.rod || []).length})` : 'X',
+                        '제안자료': (reports.proposal || []).length > 0 ? `O(${(reports.proposal || []).length})` : 'X',
+                        '실적보고서': (reports.pmc || []).length > 0 ? `O(${(reports.pmc || []).length})` : 'X',
+                        '성과보고': (reports.performance || []).length > 0 ? `O(${(reports.performance || []).length})` : 'X',
+                        '사후평가': (reports.post_evaluation || []).length > 0 ? `O(${(reports.post_evaluation || []).length})` : 'X',
+                        '비고': project.note ? (project.note.memo || '') : ''
+                    };
+                });
+
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(excelData);
+
+                ws['!cols'] = [
+                    { wch: 6 }, { wch: 50 }, { wch: 12 }, { wch: 12 }, { wch: 8 },
+                    { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 },
+                    { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 30 }
+                ];
+
+                XLSX.utils.book_append_sheet(wb, ws, '국제협력사업 보고서현황');
+
+                const today = new Date();
+                const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+                XLSX.writeFile(wb, `국제협력사업_보고서현황_${dateStr}.xlsx`);
+                Toast.success(`엑셀 파일이 다운로드되었습니다. (${data.length}건)`);
+
+            } catch (error) {
+                console.error('엑셀 다운로드 실패:', error);
+                Toast.error('엑셀 파일 생성에 실패했습니다.');
+            }
+        }
+    </script>
+</body>
+
+</html>

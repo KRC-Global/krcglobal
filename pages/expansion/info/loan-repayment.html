@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>융자사업 연도별 상환내역 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../../assets/css/base.css">
+    <link rel="stylesheet" href="../../../assets/css/components.css">
+    <link rel="stylesheet" href="../../../assets/css/pages.css">
+
+    <style>
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-nested-level4 {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested-level4 li {
+            list-style: none;
+        }
+
+        .submenu-nested-level4 li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested-level4 li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested-level4 li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        /* Summary Cards */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-4);
+            margin-bottom: var(--spacing-6);
+        }
+
+        .summary-card {
+            background: var(--color-neutral-0);
+            padding: var(--spacing-5);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border-left: 4px solid var(--color-primary-500);
+        }
+
+        .summary-card-title {
+            font-size: var(--font-size-sm);
+            color: var(--color-neutral-600);
+            margin-bottom: var(--spacing-2);
+        }
+
+        .summary-card-value {
+            font-size: var(--font-size-2xl);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-neutral-900);
+        }
+
+        .summary-card-unit {
+            font-size: var(--font-size-sm);
+            color: var(--color-neutral-500);
+            margin-left: var(--spacing-1);
+        }
+
+        .filter-section {
+            background: var(--color-neutral-50);
+            padding: var(--spacing-6);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-6);
+            display: flex;
+            gap: var(--spacing-4);
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+        }
+
+        .filter-group label {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            color: var(--color-neutral-700);
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: var(--spacing-2) var(--spacing-3);
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            min-width: 150px;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .table-info {
+            font-size: var(--font-size-sm);
+            color: var(--color-neutral-600);
+        }
+
+        .btn-success {
+            background: var(--color-success-500);
+            color: white;
+            padding: var(--spacing-2) var(--spacing-4);
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-2);
+        }
+
+        .btn-success:hover {
+            background: var(--color-success-600);
+        }
+
+        /* Pivot Table Styles */
+        .pivot-table-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .pivot-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--color-neutral-0);
+            font-size: var(--font-size-sm);
+        }
+
+        .pivot-table th,
+        .pivot-table td {
+            padding: var(--spacing-3);
+            text-align: right;
+            border: 1px solid var(--color-neutral-200);
+            white-space: nowrap;
+        }
+
+        .pivot-table th {
+            background: var(--color-primary-600);
+            color: white;
+            font-weight: var(--font-weight-semibold);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .pivot-table th:first-child,
+        .pivot-table th:nth-child(2),
+        .pivot-table th:nth-child(3),
+        .pivot-table th:nth-child(4),
+        .pivot-table th:nth-child(5) {
+            text-align: left;
+        }
+
+        .pivot-table td:first-child,
+        .pivot-table td:nth-child(2),
+        .pivot-table td:nth-child(3),
+        .pivot-table td:nth-child(4),
+        .pivot-table td:nth-child(5) {
+            text-align: left;
+            position: sticky;
+            background: var(--color-neutral-50);
+            z-index: 5;
+        }
+
+        .pivot-table td:first-child {
+            left: 0;
+        }
+
+        .pivot-table td:nth-child(2) {
+            left: 80px;
+        }
+
+        .pivot-table td:nth-child(3) {
+            left: 180px;
+        }
+
+        .pivot-table td:nth-child(4) {
+            left: 260px;
+        }
+
+        .pivot-table td:nth-child(5) {
+            left: 380px;
+        }
+
+        .pivot-table tbody tr:hover td {
+            background: var(--color-primary-50);
+        }
+
+        .pivot-table tbody tr:nth-child(even) td {
+            background: var(--color-neutral-25, #fafafa);
+        }
+
+        .pivot-table tbody tr:nth-child(even):hover td {
+            background: var(--color-primary-50);
+        }
+
+        .pivot-table .total-row td {
+            background: var(--color-secondary-100) !important;
+            font-weight: var(--font-weight-bold);
+        }
+
+        .pivot-table .year-col {
+            min-width: 70px;
+        }
+
+        .pivot-table .balance-col {
+            background: var(--color-warning-50) !important;
+            font-weight: var(--font-weight-semibold);
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: var(--spacing-12);
+            color: var(--color-neutral-500);
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: var(--spacing-8);
+        }
+
+        .loading-spinner::after {
+            content: '';
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--color-neutral-200);
+            border-top-color: var(--color-primary-500);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 필터 영역 일관성 스타일 */
+        .search-form {
+            display: flex;
+            gap: var(--spacing-4);
+            align-items: flex-end;
+            flex-wrap: wrap;
+            padding: var(--spacing-4);
+            background: var(--color-neutral-50);
+            border-radius: 8px;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .search-form .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 180px;
+            flex: 0 0 auto;
+        }
+
+        .search-form .form-group label {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--color-neutral-700);
+        }
+
+        .search-form .form-group input,
+        .search-form .form-group select {
+            padding: 8px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 6px;
+            font-size: var(--font-size-sm);
+            min-height: 38px;
+            background: white;
+        }
+
+        .search-form .form-group input::placeholder {
+            color: var(--color-neutral-400);
+        }
+
+        .search-form .form-actions {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            margin-left: auto;
+        }
+
+        .search-form .form-actions .btn {
+            min-height: 38px;
+            padding: 8px 16px;
+            font-size: var(--font-size-sm);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header> <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle active" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../company-management.html">기업관리</a></li>
+                                <li><a href="../loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle active" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="loan-repayment.html" class="active">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="post-management.html">사후관리대장</a></li>
+                                        <li><a href="mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../../projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="../../projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="../../projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../../admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../../gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../../dashboard.html">홈</a></li>
+                    <li><a href="#">사업관리</a></li>
+                    <li><a href="#">해외진출지원사업</a></li>
+                    <li><a href="#">정보표출</a></li>
+                    <li aria-current="page">융자사업 연도별 상환내역</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">융자사업 연도별 상환내역</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 요약 카드 -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="summary-card-title">총 상환액</div>
+                    <div class="summary-card-value">
+                        <span id="totalRepayment">0</span>
+                        <span class="summary-card-unit">백만원</span>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">총 잔액</div>
+                    <div class="summary-card-value">
+                        <span id="totalBalance">0</span>
+                        <span class="summary-card-unit">백만원</span>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">대상 국가</div>
+                    <div class="summary-card-value">
+                        <span id="totalCountries">0</span>
+                        <span class="summary-card-unit">개국</span>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-title">참여 기업</div>
+                    <div class="summary-card-value">
+                        <span id="totalCompanies">0</span>
+                        <span class="summary-card-unit">개사</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 필터 영역 -->
+            <section class="card">
+                <h3 class="visually-hidden">검색 조건</h3>
+                <form class="search-form">
+                    <div class="form-group">
+                        <label for="countryFilter">국가</label>
+                        <select id="countryFilter">
+                            <option value="">전체</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="searchInput">검색</label>
+                        <input type="text" id="searchInput" placeholder="기업명 검색">
+                    </div>
+                    <button class="btn btn-primary" onclick="applyFilters()">검색</button>
+                    <button class="btn btn-secondary" onclick="resetFilters()">초기화</button>
+        </div>
+
+        <!-- 테이블 영역 -->
+        <div class="table-section">
+            <div class="table-header">
+                <div class="table-info">
+                    <span id="totalCount">총 0건</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary" id="uploadBtn" onclick="openUploadModal()" style="display:none;">📁
+                        Excel 업로드</button>
+                    <button class="btn-success" onclick="downloadExcel()">📥 엑셀 다운로드</button>
+                </div>
+            </div>
+
+            <div class="pivot-table-wrapper">
+                <table class="pivot-table" id="repaymentTable">
+                    <thead>
+                        <tr id="tableHeader">
+                            <!-- Dynamic headers -->
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="22" class="loading-spinner"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        </div>
+    </main>
+
+    <!-- 업로드 모달 -->
+    <div class="modal-overlay" id="uploadModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="modal" style="background: white; padding: 24px; border-radius: 12px; max-width: 500px; width: 90%;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                <h3 style="margin: 0;">📁 Excel 파일 업로드</h3>
+                <button onclick="closeUploadModal()"
+                    style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Excel 파일 선택</label>
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" style="padding: 8px; width: 100%;">
+                    <small style="color: var(--color-neutral-600); margin-top: 8px; display: block;">* 융자사업 연도별 상환내역 양식에
+                        맞는 Excel 파일을 업로드하세요</small>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+                <button class="btn btn-secondary" onclick="closeUploadModal()">취소</button>
+                <button class="btn btn-primary" onclick="uploadExcel()">업로드</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../assets/js/common.js"></script>
+    <script src="../../../assets/js/api.js"></script>
+    <script>
+        // 전역 데이터
+        let allData = [];
+        let filteredData = [];
+        const yearColumns = [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
+
+        // toggleSubmenu 함수는 common.js에 정의되어 있음
+
+
+        // 데이터 로드
+        async function loadData() {
+            try {
+                const response = await apiCall('/expansion/repayment', 'GET');
+
+                if (response.success) {
+                    allData = response.data;
+                    filteredData = [...allData];
+
+                    renderTable();
+                    updateSummary();
+                    populateCountryFilter();
+                } else {
+                    showEmptyMessage('데이터를 불러오는데 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showEmptyMessage('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // 테이블 헤더 생성
+        function renderTableHeader() {
+            const headerRow = document.getElementById('tableHeader');
+            headerRow.innerHTML = `
+                <th style="min-width: 80px; left: 0; position: sticky; z-index: 11;">국가</th>
+                <th style="min-width: 100px; left: 80px; position: sticky; z-index: 11;">기업수</th>
+                <th style="min-width: 80px; left: 180px; position: sticky; z-index: 11;">기업명</th>
+                <th style="min-width: 120px; left: 260px; position: sticky; z-index: 11;">주요작물</th>
+                <th style="min-width: 100px; left: 380px; position: sticky; z-index: 11; background: var(--color-warning-500);">잔액</th>
+                ${yearColumns.map(year => `<th class="year-col">${year}</th>`).join('')}
+                <th style="background: var(--color-secondary-500);">계</th>
+            `;
+        }
+
+        // 테이블 렌더링
+        function renderTable() {
+            renderTableHeader();
+
+            const tbody = document.getElementById('tableBody');
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="22" class="empty-message">데이터가 없습니다.</td></tr>';
+                document.getElementById('totalCount').textContent = '총 0건';
+                return;
+            }
+
+            let html = '';
+
+            filteredData.forEach(row => {
+                html += `
+                    <tr>
+                        <td>${row.country || '-'}</td>
+                        <td>${row.companyCount || '-'}</td>
+                        <td>${row.companyName || '-'}</td>
+                        <td>${row.mainCrop || '-'}</td>
+                        <td class="balance-col">${formatNumber(row.balance)}</td>
+                        ${yearColumns.map(year => `<td>${formatNumber(row['year' + year])}</td>`).join('')}
+                        <td style="font-weight: bold;">${formatNumber(row.total)}</td>
+                    </tr>
+                `;
+            });
+
+            // 합계 행 추가
+            const totals = calculateTotals();
+            html += `
+                <tr class="total-row">
+                    <td colspan="4" style="text-align: center; font-weight: bold;">합계</td>
+                    <td class="balance-col">${formatNumber(totals.balance)}</td>
+                    ${yearColumns.map(year => `<td>${formatNumber(totals['year' + year])}</td>`).join('')}
+                    <td style="font-weight: bold;">${formatNumber(totals.total)}</td>
+                </tr>
+            `;
+
+            tbody.innerHTML = html;
+            document.getElementById('totalCount').textContent = `총 ${filteredData.length}건`;
+        }
+
+        // 합계 계산
+        function calculateTotals() {
+            const totals = { balance: 0, total: 0 };
+            yearColumns.forEach(year => totals['year' + year] = 0);
+
+            filteredData.forEach(row => {
+                totals.balance += row.balance || 0;
+                totals.total += row.total || 0;
+                yearColumns.forEach(year => {
+                    totals['year' + year] += row['year' + year] || 0;
+                });
+            });
+
+            return totals;
+        }
+
+        // 요약 업데이트
+        function updateSummary() {
+            const totals = calculateTotals();
+            const countries = new Set(filteredData.map(d => d.country).filter(c => c));
+            const companies = filteredData.reduce((sum, d) => sum + (d.companyCount || 0), 0);
+
+            document.getElementById('totalRepayment').textContent = formatNumber(totals.total);
+            document.getElementById('totalBalance').textContent = formatNumber(totals.balance);
+            document.getElementById('totalCountries').textContent = countries.size;
+            document.getElementById('totalCompanies').textContent = companies;
+        }
+
+        // 국가 필터 채우기
+        function populateCountryFilter() {
+            const countries = [...new Set(allData.map(d => d.country).filter(c => c))].sort();
+            const select = document.getElementById('countryFilter');
+
+            countries.forEach(country => {
+                const option = document.createElement('option');
+                option.value = country;
+                option.textContent = country;
+                select.appendChild(option);
+            });
+        }
+
+        // 필터 적용
+        function applyFilters() {
+            const country = document.getElementById('countryFilter').value;
+            const search = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            filteredData = allData.filter(row => {
+                if (country && row.country !== country) return false;
+                if (search && !((row.companyName || '').toLowerCase().includes(search) ||
+                    (row.mainCrop || '').toLowerCase().includes(search))) return false;
+                return true;
+            });
+
+            renderTable();
+            updateSummary();
+        }
+
+        // 필터 초기화
+        function resetFilters() {
+            document.getElementById('countryFilter').value = '';
+            document.getElementById('searchInput').value = '';
+            filteredData = [...allData];
+            renderTable();
+            updateSummary();
+        }
+
+        // 숫자 포맷
+        function formatNumber(num) {
+            if (num === null || num === undefined || num === 0) return '-';
+            return num.toLocaleString('ko-KR');
+        }
+
+        // 빈 메시지 표시
+        function showEmptyMessage(message) {
+            renderTableHeader();
+            document.getElementById('tableBody').innerHTML =
+                `<tr><td colspan="22" class="empty-message">${message}</td></tr>`;
+        }
+
+        // 엑셀 다운로드
+        function downloadExcel() {
+            if (filteredData.length === 0) {
+                alert('다운로드할 데이터가 없습니다.');
+                return;
+            }
+
+            let csvContent = '\uFEFF'; // BOM for Excel UTF-8
+
+            // Headers
+            csvContent += '국가,기업수,기업명,주요작물,잔액,' + yearColumns.join(',') + ',계\n';
+
+            // Data rows
+            filteredData.forEach(row => {
+                const values = [
+                    row.country || '',
+                    row.companyCount || '',
+                    row.companyName || '',
+                    row.mainCrop || '',
+                    row.balance || 0
+                ];
+                yearColumns.forEach(year => values.push(row['year' + year] || 0));
+                values.push(row.total || 0);
+                csvContent += values.map(v => `"${v}"`).join(',') + '\n';
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `융자사업_연도별_상환내역_${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+        }
+
+        // 업로드 모달
+        function openUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('excelFile').value = '';
+        }
+
+        async function uploadExcel() {
+            const fileInput = document.getElementById('excelFile');
+            if (!fileInput.files.length) {
+                alert('파일을 선택해주세요.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await apiCallFormData('/expansion/repayment/upload', formData);
+                if (response.success) {
+                    alert(response.message || '업로드 완료!');
+                    closeUploadModal();
+                    loadData();
+                } else {
+                    alert(response.message || '업로드 실패');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('업로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 페이지 초기화
+        document.addEventListener('DOMContentLoaded', function () {
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+            if (userInfo) {
+                const currentUser = JSON.parse(userInfo);
+                const userPermission = currentUser.permissionScope || currentUser.permission_scope || 'readonly';
+                const canEdit = currentUser.role === 'admin' || userPermission === 'expansion' || userPermission === 'all';
+                if (canEdit) {
+                    document.getElementById('uploadBtn').style.display = 'inline-flex';
+                }
+            }
+
+            initCommonUI();
+            loadData();
+        });
+    </script>
+</body>
+
+</html>

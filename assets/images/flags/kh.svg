@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <!-- 캄보디아 국기: 파랑-빨강-파랑 with Angkor Wat temple -->
+  <circle cx="500" cy="500" r="500" fill="#032EA1"/>
+  <rect y="250" width="1000" height="500" fill="#E00025"/>
+  <rect y="0" width="1000" height="250" fill="#032EA1"/>
+  <rect y="750" width="1000" height="250" fill="#032EA1"/>
+  <!-- Angkor Wat 심플화된 표현 -->
+  <g fill="#FFF">
+    <rect x="420" y="400" width="40" height="200" rx="5"/>
+    <rect x="540" y="400" width="40" height="200" rx="5"/>
+    <rect x="350" y="450" width="40" height="150" rx="5"/>
+    <rect x="610" y="450" width="40" height="150" rx="5"/>
+    <rect x="480" y="350" width="40" height="250" rx="5"/>
+    <!-- 지붕들 -->
+    <polygon points="440,400 420,350 460,350"/>
+    <polygon points="560,400 540,350 580,350"/>
+    <polygon points="500,320 480,280 520,280"/>
+    <polygon points="370,450 350,420 390,420"/>
+    <polygon points="630,450 610,420 650,420"/>
+  </g>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Italian Flag (Tricolore) - Circle version -->
+  <defs>
+    <clipPath id="circleClip">
+      <circle cx="256" cy="256" r="256"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#circleClip)">
+    <!-- Green stripe (left) -->
+    <rect x="0" y="0" width="170.67" height="512" fill="#009246"/>
+    <!-- White stripe (center) -->
+    <rect x="170.67" y="0" width="170.67" height="512" fill="#FFFFFF"/>
+    <!-- Red stripe (right) -->
+    <rect x="341.33" y="0" width="170.67" height="512" fill="#CE2B37"/>
+  </g>
+</svg>

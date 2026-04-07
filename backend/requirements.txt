@@ -1,0 +1,27 @@
+# GBMS - 글로벌사업처 해외사업관리시스템
+# Python Dependencies (Flask + SQLite)
+
+# Web Framework
+Flask==2.3.3
+Flask-SQLAlchemy==3.1.1
+Flask-CORS==4.0.0
+Flask-WTF==1.2.1
+
+# Authentication
+PyJWT==2.8.0
+Werkzeug==2.3.7
+
+# Utilities
+python-dotenv==1.0.0
+beautifulsoup4==4.12.2
+
+# Excel handling
+openpyxl==3.1.2
+pandas==2.1.0
+
+# PDF Processing (for utilities)
+pikepdf>=8.0.0
+Pillow>=10.0.0
+
+# Production Server (optional, for deployment)
+# gunicorn==21.2.0

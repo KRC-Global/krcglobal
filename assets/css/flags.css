@@ -1,0 +1,238 @@
+/* Circle Flags - Offline Compatible Country Flags */
+/* 국가별 원형 국기 스타일 - 텍스트 없이 색상만 표시 */
+
+.flag-circle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+}
+
+/* 아시아 */
+.flag-kh {
+    background: linear-gradient(135deg, #032EA1 0%, #E00025 100%);
+}
+
+/* 캄보디아 */
+.flag-vn {
+    background: linear-gradient(135deg, #DA251D 0%, #FFCD00 100%);
+}
+
+/* 베트남 */
+.flag-th {
+    background: linear-gradient(135deg, #ED1C24 0%, #241D4F 50%, #ffffff 100%);
+}
+
+/* 태국 */
+.flag-la {
+    background: linear-gradient(135deg, #CE1126 0%, #002868 100%);
+}
+
+/* 라오스 */
+.flag-mm {
+    background: linear-gradient(135deg, #FECB00 0%, #EA2839 100%);
+}
+
+/* 미얀마 */
+.flag-bd {
+    background: linear-gradient(135deg, #006747 0%, #F42A41 100%);
+}
+
+/* 방글라데시 */
+.flag-ph {
+    background: linear-gradient(135deg, #0038A8 0%, #CE1126 50%, #ffffff 100%);
+}
+
+/* 필리핀 */
+.flag-my {
+    background: linear-gradient(135deg, #CC0001 0%, #010066 100%);
+}
+
+/* 말레이시아 */
+.flag-id {
+    background: linear-gradient(180deg, #FF0000 0%, #FF0000 50%, #FFFFFF 50%, #FFFFFF 100%);
+}
+
+/* 인도네시아 */
+.flag-lk {
+    background: linear-gradient(135deg, #FF7900 0%, #5A0D13 100%);
+}
+
+/* 스리랑카 */
+.flag-np {
+    background: linear-gradient(135deg, #DC143C 0%, #003893 100%);
+}
+
+/* 네팔 */
+.flag-mn {
+    background: linear-gradient(135deg, #C4272F 0%, #015197 100%);
+}
+
+/* 몽골 */
+.flag-kz {
+    background: linear-gradient(135deg, #00AFCA 0%, #FEC50C 100%);
+}
+
+/* 카자흐스탄 */
+.flag-uz {
+    background: linear-gradient(135deg, #1EB53A 0%, #0099B5 50%, #CE1126 100%);
+}
+
+/* 우즈베키스탄 */
+.flag-kg {
+    background: linear-gradient(135deg, #E8112D 0%, #FFEF00 100%);
+}
+
+/* 키르기스스탄 */
+.flag-pk {
+    background: linear-gradient(90deg, #FFFFFF 0%, #FFFFFF 25%, #01411C 25%, #01411C 100%);
+}
+
+/* 파키스탄 */
+.flag-in {
+    background: linear-gradient(180deg, #FF9933 0%, #FF9933 33%, #FFFFFF 33%, #FFFFFF 67%, #138808 67%, #138808 100%);
+}
+
+/* 인도 */
+.flag-ir {
+    background: linear-gradient(180deg, #239F40 0%, #239F40 33%, #FFFFFF 33%, #FFFFFF 67%, #DA0000 67%, #DA0000 100%);
+}
+
+/* 이란 */
+.flag-af {
+    background: linear-gradient(90deg, #000000 0%, #000010 33%, #D32011 33%, #D32011 67%, #007A36 67%, #007A36 100%);
+}
+
+/* 아프가니스탄 */
+.flag-bn {
+    background: linear-gradient(135deg, #F7E017 0%, #CE1126 100%);
+}
+
+/* 브루나이 */
+
+/* 아프리카 */
+.flag-gh {
+    background: linear-gradient(180deg, #CE1126 0%, #CE1126 33%, #FCD116 33%, #FCD116 67%, #006B3F 67%, #006B3F 100%);
+}
+
+/* 가나 */
+.flag-gm {
+    background: linear-gradient(180deg, #CE1126 0%, #CE1126 30%, #FFFFFF 30%, #FFFFFF 40%, #3A7728 40%, #3A7728 60%, #FFFFFF 60%, #FFFFFF 70%, #0C1C8C 70%, #0C1C8C 100%);
+}
+
+/* 감비아 */
+.flag-gn {
+    background: linear-gradient(90deg, #CE1126 0%, #CE1126 33%, #FCD116 33%, #FCD116 67%, #009460 67%, #009460 100%);
+}
+
+/* 기니 */
+.flag-mw {
+    background: linear-gradient(180deg, #000000 0%, #000000 33%, #CE1126 33%, #CE1126 67%, #339E35 67%, #339E35 100%);
+}
+
+/* 말라위 */
+.flag-mz {
+    background: linear-gradient(135deg, #007168 0%, #FCE100 50%, #000000 100%);
+}
+
+/* 모잠비크 */
+.flag-sn {
+    background: linear-gradient(90deg, #00853F 0%, #00853F 33%, #FDEF42 33%, #FDEF42 67%, #E31B23 67%, #E31B23 100%);
+}
+
+/* 세네갈 */
+.flag-ug {
+    background: linear-gradient(180deg, #000000 0%, #FCDC04 17%, #000000 33%, #FCDC04 50%, #D90000 67%, #FCDC04 83%, #000000 100%);
+}
+
+/* 우간다 */
+.flag-cm {
+    background: linear-gradient(90deg, #007A5E 0%, #007A5E 33%, #CE1126 33%, #CE1126 67%, #FCD116 67%, #FCD116 100%);
+}
+
+/* 카메룬 */
+.flag-ke {
+    background: linear-gradient(180deg, #000000 0%, #000000 25%, #FFFFFF 25%, #FFFFFF 45%, #BB0000 45%, #BB0000 55%, #FFFFFF 55%, #FFFFFF 75%, #006600 75%, #006600 100%);
+}
+
+/* 케냐 */
+.flag-tz {
+    background: linear-gradient(135deg, #1EB53A 0%, #FCD116 50%, #00A3DD 100%);
+}
+
+/* 탄자니아 */
+.flag-dz {
+    background: linear-gradient(90deg, #007229 0%, #007229 50%, #FFFFFF 50%, #FFFFFF 100%);
+}
+
+/* 알제리 */
+.flag-cd {
+    background: linear-gradient(135deg, #007FFF 0%, #F7D618 100%);
+}
+
+/* DR콩고 */
+.flag-ci {
+    background: linear-gradient(90deg, #F77F00 0%, #F77F00 33%, #FFFFFF 33%, #FFFFFF 67%, #009E60 67%, #009E60 100%);
+}
+
+/* 코트디부아르 */
+
+/* 중남미 */
+.flag-py {
+    background: linear-gradient(180deg, #D52B1E 0%, #D52B1E 33%, #FFFFFF 33%, #FFFFFF 67%, #0038A8 67%, #0038A8 100%);
+}
+
+/* 파라과이 */
+.flag-pe {
+    background: linear-gradient(90deg, #D91023 0%, #D91023 33%, #FFFFFF 33%, #FFFFFF 67%, #D91023 67%, #D91023 100%);
+}
+
+/* 페루 */
+.flag-ar {
+    background: linear-gradient(180deg, #74ACDF 0%, #74ACDF 33%, #FFFFFF 33%, #FFFFFF 67%, #74ACDF 67%, #74ACDF 100%);
+}
+
+/* 아르헨티나 */
+.flag-bo {
+    background: linear-gradient(180deg, #D52B1E 0%, #D52B1E 33%, #F9E300 33%, #F9E300 67%, #007934 67%, #007934 100%);
+}
+
+/* 볼리비아 */
+.flag-gt {
+    background: linear-gradient(90deg, #4997D0 0%, #4997D0 33%, #FFFFFF 33%, #FFFFFF 67%, #4997D0 67%, #4997D0 100%);
+}
+
+/* 과테말라 */
+.flag-sv {
+    background: linear-gradient(180deg, #0F47AF 0%, #0F47AF 33%, #FFFFFF 33%, #FFFFFF 67%, #0F47AF 67%, #0F47AF 100%);
+}
+
+/* 엘살바도르 */
+
+/* 중동 */
+.flag-jo {
+    background: linear-gradient(180deg, #000000 0%, #000000 33%, #FFFFFF 33%, #FFFFFF 67%, #007A3D 67%, #007A3D 100%);
+}
+
+/* 요르단 */
+
+/* 오세아니아 */
+.flag-ki {
+    background: linear-gradient(135deg, #E73E2C 0%, #FFC639 50%, #003F87 100%);
+}
+
+/* 키리바시 */
+
+/* 기타/유럽 */
+.flag-ru {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 33%, #0039A6 33%, #0039A6 67%, #D52B1E 67%, #D52B1E 100%);
+}
+
+/* 러시아 */
+
+/* 기본 플래그 (국가 정보 없을 때) */
+.flag-default {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}

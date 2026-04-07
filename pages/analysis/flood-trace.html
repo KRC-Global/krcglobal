@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>침수흔적 시스템</title>
+<style>
+  body { font-family: 'Malgun Gothic', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f4f5f6; }
+  .msg { text-align: center; color: #464c53; }
+  .msg a { color: #1A4B7C; }
+</style>
+</head>
+<body>
+<div class="msg">
+  <p>침수흔적 시스템으로 이동 중...</p>
+  <p><a href="/flood/">이동하지 않으면 여기를 클릭하세요</a></p>
+  <p><a href="#" onclick="localStorage.removeItem('gbms_token');sessionStorage.removeItem('gbms_token');window.location.href='../../index.html';return false;">로그아웃</a></p>
+</div>
+<script>
+  const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+  if (!token) {
+    window.location.replace('../../index.html');
+  } else {
+    window.location.replace('/flood/');
+  }
+</script>
+</body>
+</html>

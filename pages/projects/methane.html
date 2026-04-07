@@ -1,0 +1,1861 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메탄감축사업 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <!-- System Font (내부망 최적화) -->
+    <style>
+        /* 중첩 서브메뉴 스타일 */
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        /* 상태 배지 색상 */
+        .badge-status-active {
+            background: #10B981;
+            color: #fff;
+        }
+
+        .badge-status-complete {
+            background: #6B7280;
+            color: #fff;
+        }
+
+        .badge-status-proposal {
+            background: #F59E0B;
+            color: #fff;
+        }
+
+        .badge-status-eoi {
+            background: #8B5CF6;
+            color: #fff;
+        }
+
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        [data-theme="dark"] #userName {
+            color: var(--color-text-secondary, #b0b0b0) !important;
+        }
+
+        /* 탭 스타일 */
+        .tab-container {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .tab-header {
+            display: flex;
+            border-bottom: 2px solid var(--color-neutral-200);
+            background: var(--color-secondary-50);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 16px 24px;
+            background: none;
+            border: none;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--color-neutral-600);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            background: var(--color-neutral-100);
+            color: var(--color-neutral-800);
+        }
+
+        .tab-btn.active {
+            color: var(--color-primary-600);
+            background: var(--color-neutral-0);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--color-primary-500);
+        }
+
+        .tab-btn .tab-badge {
+            background: var(--color-primary-100);
+            color: var(--color-primary-700);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .tab-btn.active .tab-badge {
+            background: var(--color-primary-500);
+            color: #fff;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        [data-theme="dark"] .tab-container {
+            background: var(--color-bg-secondary);
+        }
+
+        [data-theme="dark"] .tab-header {
+            background: var(--color-bg-tertiary);
+            border-color: var(--color-border);
+        }
+
+        [data-theme="dark"] .tab-btn {
+            color: var(--color-text-secondary);
+        }
+
+        [data-theme="dark"] .tab-btn:hover {
+            background: var(--color-bg-primary);
+        }
+
+        [data-theme="dark"] .tab-btn.active {
+            background: var(--color-bg-secondary);
+            color: var(--color-text-primary);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 (dashboard.html과 동일) -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../admin/users.html" class="user-dropdown-item"><span>👤</span> 사용자 관리</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 (dashboard.html과 동일) -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../expansion/company-management.html">기업관리</a></li>
+                                <li><a href="../expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="../expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="../expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="../expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="../expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="../expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="../expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="international-cooperation.html">사업현황</a></li>
+                                <li><a href="oda-reports.html">보고서관리</a></li>
+                                <li><a href="intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="methane.html" class="active"
+                                style="color: var(--color-primary-600); font-weight: 700;">메탄감축사업</a></li>
+                        <li><a href="../admin/offices.html">해외사무소 등</a></li>
+</ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../../pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+
+
+                
+
+                
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../dashboard.html">홈</a></li>
+                    <li><a href="#">사업관리</a></li>
+                    <li aria-current="page">메탄감축사업</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">메탄감축사업</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 통계 카드 (대시보드) -->
+            <section class="stats-grid">
+                <article class="stat-card card">
+                    <div class="stat-icon" style="background: var(--color-primary-100)">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)"
+                            stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value">24</span>
+                        <span class="stat-label">총 사업 수</span>
+                    </div>
+                </article>
+
+                <article class="stat-card card">
+                    <div class="stat-icon" style="background: var(--color-success-100)">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-success-500)"
+                            stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                            <path d="M22 4L12 14.01l-3-3" />
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value">18</span>
+                        <span class="stat-label">수행중</span>
+                    </div>
+                </article>
+
+                <article class="stat-card card">
+                    <div class="stat-icon" style="background: var(--color-warning-100)">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#856404" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value" id="totalBudgetStat">-</span>
+                        <span class="stat-label">총 사업비 (백만원)</span>
+                    </div>
+                </article>
+
+                <article class="stat-card card">
+                    <div class="stat-icon" style="background: var(--color-info-100)">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0c5460" stroke-width="2">
+                            <path d="M18 20V10M12 20V4M6 20v-6" />
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value">67.5%</span>
+                        <span class="stat-label">예산 집행률</span>
+                    </div>
+                </article>
+            </section>
+
+            <!-- 검색/필터 영역 -->
+            <section class="search-section card">
+                <h3 class="visually-hidden">검색 조건</h3>
+                <form class="search-form">
+                    <div class="form-group">
+                        <label for="project-year">사업연도</label>
+                        <select id="project-year">
+                            <option value="">전체</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="project-country">대상국가</label>
+                        <select id="project-country">
+                            <option value="">전체</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="project-status">진행상태</label>
+                        <select id="project-status">
+                            <option value="">전체</option>
+                            <option value="시행중">시행중</option>
+                            <option value="준공">준공</option>
+                            <option value="제안서제출">제안서제출</option>
+                            <option value="EOI제출">EOI제출</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="project-search">검색</label>
+                        <input type="text" id="project-search" placeholder="사업명, 국가 검색...">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">검색</button>
+                        <button type="reset" class="btn btn-secondary">초기화</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- 탭 컨테이너 -->
+            <div class="tab-container">
+                <div class="tab-header">
+                    <button class="tab-btn active" data-tab="current-year" onclick="switchTab('current-year')">
+                        <span id="tabCurrentYearTitle">2026년도 추진사업 목록</span>
+                        <span class="tab-badge" id="currentYearCount">0</span>
+                    </button>
+                    <button class="tab-btn" data-tab="project-list" onclick="switchTab('project-list')">
+                        전체 사업 목록
+                        <span class="tab-badge" id="totalProjectCount">0</span>
+                    </button>
+                </div>
+
+                <!-- 탭 1: 금년도 추진사업 연도별 예산 목록 -->
+                <div class="tab-content active" id="tab-current-year">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div id="editModeButtons" style="display: none;">
+                            <button class="btn btn-primary" id="toggleEditBtn" onclick="toggleEditMode()"
+                                style="font-size: 13px; padding: 6px 12px;">
+                                📝 편집 모드
+                            </button>
+                            <button class="btn btn-success" id="saveAllBtn" onclick="saveAllManualData()"
+                                style="display: none; margin-left: 8px; font-size: 13px; padding: 6px 12px;">
+                                💾 저장
+                            </button>
+                            <button class="btn btn-secondary" id="cancelEditBtn" onclick="cancelEdit()"
+                                style="display: none; margin-left: 8px; font-size: 13px; padding: 6px 12px;">
+                                취소
+                            </button>
+                        </div>
+                        <div style="font-size: 12px; color: var(--color-neutral-600);">(단위: 백만원)</div>
+                    </div>
+                    <div class="table-container" style="overflow-x: auto;">
+                        <table class="data-table" id="currentYearProjectsTable"
+                            style="width: 100%; table-layout: fixed;">
+                            <thead id="currentYearTableHead">
+                                <tr>
+                                    <th scope="col"
+                                        style="width: auto; white-space: nowrap; position: sticky; left: 0; background: var(--color-secondary-100); z-index: 1;">
+                                        사업명</th>
+                                    <!-- 연도 컬럼들이 동적으로 추가됨 -->
+                                </tr>
+                            </thead>
+                            <tbody id="currentYearTableBody">
+                                <tr>
+                                    <td colspan="10" style="text-align: center; padding: 30px;">
+                                        <div>데이터를 불러오는 중...</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot id="currentYearTableFoot">
+                                <tr style="background: var(--color-secondary-100); font-weight: 600;">
+                                    <td
+                                        style="position: sticky; left: 0; background: var(--color-secondary-100); z-index: 1;">
+                                        합계</td>
+                                    <!-- 연도별 합계가 동적으로 추가됨 -->
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 탭 2: 전체 사업 목록 -->
+                <div class="tab-content" id="tab-project-list">
+                    <div id="actionButtons" style="display: none; justify-content: flex-end; margin-bottom: 16px;">
+                        <button class="btn btn-primary" id="newProjectBtn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M12 5v14M5 12h14" />
+                            </svg>
+                            신규 등록
+                        </button>
+                        <button class="btn btn-secondary" id="exportBtn" style="margin-left: 8px;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                            </svg>
+                            엑셀 다운로드
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="width: 40px;">
+                                        <input type="checkbox" id="select-all" aria-label="전체 선택">
+                                    </th>
+                                    <th scope="col" style="width: auto; min-width: 200px;">사업명</th>
+                                    <th scope="col" style="width: 100px;">대상국가</th>
+                                    <th scope="col" style="width: 100px;">사업기간</th>
+                                    <th scope="col" style="width: 110px;">용역비(백만원)</th>
+                                    <th scope="col" style="width: 100px;">진행률</th>
+                                    <th scope="col" style="width: 80px;">상태</th>
+                                    <th scope="col" style="width: 120px;">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="projectsTableBody">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 40px;">
+                                        <div>데이터를 불러오는 중...</div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 페이지네이션 -->
+                    <nav class="pagination" aria-label="페이지 네비게이션" id="pagination">
+                        <button class="page-btn" id="prevPage" aria-label="이전 페이지" disabled>&lt;</button>
+                        <div id="pageNumbers" style="display: inline-flex; gap: 4px;"></div>
+                        <button class="page-btn" id="nextPage" aria-label="다음 페이지">&gt;</button>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../assets/js/common.js"></script>
+    <!-- API 모듈 - frontend/js/api.js 사용 (절대 경로 또는 상대 경로 확인 필요) -->
+    <script>
+        // API 모듈 직접 정의 (경로 문제 해결)
+        const API = {
+            get BASE_URL() {
+                // 동적 호스트 감지 (네트워크 공유 지원)
+                return `${window.location.protocol}//${window.location.host}/api`;
+            },
+            async request(endpoint, options = {}) {
+                const url = `${this.BASE_URL}${endpoint}`;
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                };
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                try {
+                    const response = await fetch(url, { ...options, headers });
+                    if (response.status === 401) {
+                        localStorage.removeItem('gbms_token');
+                        localStorage.removeItem('gbms_user');
+                        window.location.href = '../../index.html';
+                        throw new Error('인증이 만료되었습니다.');
+                    }
+                    if (!response.ok) {
+                        const text = await response.text();
+                        console.error('API 오류:', response.status, text);
+                        throw new Error(`API 요청 실패: ${response.status}`);
+                    }
+                    return response.json();
+                } catch (error) {
+                    console.error('API 요청 중 오류:', error);
+                    throw error;
+                }
+            },
+            async get(endpoint, params = {}) {
+                const queryString = new URLSearchParams(params).toString();
+                const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+                return this.request(url, { method: 'GET' });
+            },
+            async post(endpoint, data = {}) {
+                return this.request(endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+            },
+            async put(endpoint, data = {}) {
+                return this.request(endpoint, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+            },
+            async delete(endpoint) {
+                return this.request(endpoint, { method: 'DELETE' });
+            },
+            methane: {
+                async list(filters = {}) {
+                    return API.get('/methane', filters);
+                },
+                async get(id) {
+                    return API.get(`/methane/${id}`);
+                },
+                async create(data) {
+                    return API.post('/methane', data);
+                },
+                async update(id, data) {
+                    return API.put(`/methane/${id}`, data);
+                },
+                async delete(id) {
+                    return API.delete(`/methane/${id}`);
+                },
+                async getStats(filters = {}) {
+                    return API.get('/methane/stats', filters);
+                },
+                async getCountries() {
+                    return API.get('/methane/countries');
+                },
+                async getClients() {
+                    return API.get('/methane/clients');
+                },
+                async export(filters = {}) {
+                    const queryString = new URLSearchParams(filters).toString();
+                    const url = queryString ? `/methane/export?${queryString}` : '/methane/export';
+                    const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                    const headers = {};
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+                    const response = await fetch(`${API.BASE_URL}${url}`, { headers });
+                    if (!response.ok) {
+                        throw new Error('Excel 다운로드 실패');
+                    }
+                    return response.blob();
+                }
+            }
+        };
+    </script>
+    <script src="../../assets/js/components/modal.js"></script>
+    <script src="../../assets/js/components/toast.js"></script>
+    <script>
+        // 전역 변수
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentFilters = {};
+        let editingProjectId = null;
+        let currentUserRole = 'guest'; // Default to guest
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // 인증 확인 - 글로벌사업관리시스템 표준 형식 사용
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                console.log('인증 정보가 없습니다. 로그인 페이지로 이동합니다.');
+                window.location.href = '../../index.html';
+                return;
+            }
+
+            // 사용자 이름 표시 및 role 저장
+            try {
+                const user = JSON.parse(userInfo);
+                currentUserRole = user.role || 'guest';
+
+                const userNameEl = document.getElementById('userName');
+                if (userNameEl && user.name) {
+                    userNameEl.textContent = user.name;
+                }
+
+                // 권한별 UI 제어
+                if (user.role === 'admin') {
+                    // 관리자만 신규 등록 및 엑셀 다운로드 버튼 표시
+                    const actionButtons = document.getElementById('actionButtons');
+                    if (actionButtons) {
+                        actionButtons.style.display = 'flex';
+                    }
+                }
+                // guest는 버튼이 숨겨진 상태로 유지됨
+
+                // 관리자 메뉴 표시
+                if (user.role === 'admin') {
+                    const adminMenu = document.getElementById('adminMenuUser');
+                    if (adminMenu) {
+                        adminMenu.style.display = 'block';
+                    }
+
+                    // 편집 모드 버튼 표시
+                    const editModeButtons = document.getElementById('editModeButtons');
+                    if (editModeButtons) {
+                        editModeButtons.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('사용자 정보 파싱 오류:', error);
+            }
+
+            // 공통 UI 초기화 (테마, 드롭다운)
+            if (typeof initCommonUI === 'function') {
+                initCommonUI();
+            }
+
+            // 초기화 (Sidebar toggle은 initCommonUI()에서 처리)
+            updateCurrentYearTabTitle(); // 탭 타이틀에 현재 연도 적용
+            initYears();
+            loadCountries();
+            loadStats();
+            loadProjects();
+            loadCurrentYearProjects();
+
+            // 신규 등록 버튼
+            const newProjectBtn = document.getElementById('newProjectBtn');
+            if (newProjectBtn) {
+                newProjectBtn.addEventListener('click', function () {
+                    openAddModal();
+                });
+            }
+
+            // Excel 다운로드 버튼
+            const exportBtn = document.querySelector('.section-actions .btn-secondary');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', function () {
+                    exportToExcel();
+                });
+            }
+
+            // 검색 폼
+            const searchForm = document.querySelector('.search-form');
+            if (searchForm) {
+                searchForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    applyFilters();
+                });
+
+                // 초기화 버튼
+                const resetBtn = searchForm.querySelector('button[type="reset"]');
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', function () {
+                        resetFilters();
+                    });
+                }
+            }
+
+            // 검색 입력 엔터키
+            const searchInput = document.getElementById('project-search');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') {
+                        applyFilters();
+                    }
+                });
+            }
+
+            // 페이지네이션
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+            if (prevBtn) {
+                prevBtn.addEventListener('click', function () {
+                    if (currentPage > 1) {
+                        loadProjects(currentPage - 1);
+                    }
+                });
+            }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', function () {
+                    if (currentPage < totalPages) {
+                        loadProjects(currentPage + 1);
+                    }
+                });
+            }
+        });
+
+        // 탭 전환 함수
+        function switchTab(tabId) {
+            // 모든 탭 버튼에서 active 클래스 제거
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            // 모든 탭 컨텐츠에서 active 클래스 제거
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            // 선택된 탭 버튼에 active 클래스 추가
+            const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+            // 선택된 탭 컨텐츠에 active 클래스 추가
+            const activeContent = document.getElementById(`tab-${tabId}`);
+            if (activeContent) {
+                activeContent.classList.add('active');
+            }
+        }
+
+        // 현재 연도 기반 탭 타이틀 업데이트
+        function updateCurrentYearTabTitle() {
+            const currentYear = new Date().getFullYear();
+            const tabTitle = document.getElementById('tabCurrentYearTitle');
+            if (tabTitle) {
+                tabTitle.textContent = `${currentYear}년도 추진사업 목록`;
+            }
+        }
+
+        // 전역 변수 - 금년도 추진사업 데이터 저장
+        let currentYearProjectsData = null;
+
+        // 금년도 추진사업 로드
+        async function loadCurrentYearProjects() {
+            const tableHead = document.getElementById('currentYearTableHead');
+            const tableBody = document.getElementById('currentYearTableBody');
+            const tableFoot = document.getElementById('currentYearTableFoot');
+
+            if (!tableHead || !tableBody || !tableFoot) return;
+
+            try {
+                const data = await API.get('/methane/current-year-projects');
+
+                if (!data.success) {
+                    throw new Error(data.message || '데이터를 불러오는데 실패했습니다.');
+                }
+
+                const { currentYear, nextYear, yearColumns, projects, totals } = data;
+
+                // 데이터 저장
+                currentYearProjectsData = data;
+
+                // 탭 배지 카운트 업데이트
+                const currentYearCountBadge = document.getElementById('currentYearCount');
+                if (currentYearCountBadge) {
+                    currentYearCountBadge.textContent = projects.length;
+                }
+
+                if (projects.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="10" style="text-align: center; padding: 30px;">
+                                <div>현재 시행중인 사업이 없습니다.</div>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                // 편집 모드 버튼 표시
+                const editModeButtons = document.getElementById('editModeButtons');
+                if (editModeButtons) {
+                    editModeButtons.style.display = 'block';
+                }
+
+                // 테이블 헤더 생성
+                let headerHtml = `<tr style="height: 44px;">
+                    <th scope="col" style="width: 250px; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 0; background: var(--color-secondary-100); z-index: 1;">사업명</th>
+                    <th scope="col" style="width: 80px; min-width: 80px; text-align: right; background: var(--color-info-100);">전체용역비</th>`;
+
+                yearColumns.forEach((year, index) => {
+                    const isCurrentYear = year === currentYear;
+                    const bgColor = isCurrentYear ? 'var(--color-primary-100)' : 'var(--color-secondary-100)';
+                    const shortYear = "'" + String(year).slice(-2);
+                    headerHtml += `<th scope="col" style="width: 70px; min-width: 70px; text-align: right; background: ${bgColor};">${shortYear}</th>`;
+                });
+
+                const shortNextYear = "'" + String(nextYear).slice(-2);
+                headerHtml += `<th scope="col" style="width: 80px; min-width: 80px; text-align: right; background: var(--color-warning-100);">${shortNextYear}~</th>`;
+                headerHtml += `</tr>`;
+                tableHead.innerHTML = headerHtml;
+
+                // 테이블 렌더링
+                renderCurrentYearTable();
+
+                // 테이블 푸터 (합계) 생성
+                const totalBudgetSum = totals.totalBudget || 0;
+                const formattedTotalBudget = totalBudgetSum > 0 ? formatCurrency(totalBudgetSum) : '-';
+
+                let footHtml = `<tr style="background: var(--color-secondary-100); font-weight: 600; height: 32px;">
+                    <td style="width: 250px; max-width: 250px; white-space: nowrap; position: sticky; left: 0; background: var(--color-secondary-100); z-index: 1;">합계</td>
+                    <td style="text-align: right; background: var(--color-info-100);">${formattedTotalBudget}</td>`;
+
+                yearColumns.forEach(year => {
+                    const total = totals.byYear[year] || 0;
+                    const isCurrentYear = year === currentYear;
+                    const bgColor = isCurrentYear ? 'var(--color-primary-100)' : 'var(--color-secondary-100)';
+                    const formattedTotal = total > 0 ? formatCurrency(total) : '-';
+                    footHtml += `<td style="text-align: right; background: ${bgColor}; font-size: 14px; padding: 6px 8px; height: 32px; color: #2563eb;">${formattedTotal}</td>`;
+                });
+
+                const futureTotal = totals.future || 0;
+                const formattedFutureTotal = futureTotal > 0 ? formatCurrency(futureTotal) : '-';
+                footHtml += `<td style="text-align: right; background: var(--color-warning-100); height: 32px; color: #2563eb;">${formattedFutureTotal}</td>`;
+                footHtml += `</tr>`;
+                tableFoot.innerHTML = footHtml;
+
+            } catch (error) {
+                console.error('금년도 추진사업 목록 로드 실패:', error);
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 30px; color: #dc3545;">
+                            <div>금년도 추진사업 목록을 불러오는데 실패했습니다.</div>
+                            <div style="font-size: 12px; margin-top: 8px; color: #6c757d;">${error.message || ''}</div>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // 금액 포맷팅 (천원 → 백만원 표시)
+        function formatCurrency(amount) {
+            if (!amount || amount === 0) return '-';
+            const millions = amount / 1000;
+            return millions.toLocaleString('ko-KR', { maximumFractionDigits: 0 });
+        }
+
+        // 테이블 렌더링 (편집 모드에 따라 다르게)
+        function renderCurrentYearTable() {
+            if (!currentYearProjectsData) return;
+
+            const { currentYear, nextYear, yearColumns, projects, totals } = currentYearProjectsData;
+            const tableBody = document.getElementById('currentYearTableBody');
+
+            let bodyHtml = '';
+            projects.forEach((project, index) => {
+                const budgetInThousands = project.budgetInThousands || 0;
+                const formattedTotalBudget = budgetInThousands > 0 ? formatCurrency(budgetInThousands) : '-';
+
+                // 사업명 표시 (title_kr이 없으면 국가명 사용)
+                const displayTitle = project.titleKr || `메탄감축사업 (${project.country})`;
+
+                bodyHtml += `<tr style="height: 32px; border-bottom: 1px solid var(--color-neutral-200);">
+                    <td style="width: 250px; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 0; background: var(--color-neutral-0); z-index: 1; padding: 4px 8px;">
+                        <a href="#" onclick="viewProject(${project.id}); return false;" style="color: #0066cc; font-weight: 500;" title="${displayTitle}">${displayTitle}</a>
+                        <div style="font-size: 11px; color: var(--color-neutral-500); margin-top: 2px;">${project.country || ''}</div>
+                    </td>
+                    <td style="text-align: right; background: var(--color-info-100); font-weight: 500;">${formattedTotalBudget}</td>`;
+
+                yearColumns.forEach(year => {
+                    const yearBudget = project.budgets ? (project.budgets[year] || 0) : 0;
+                    const isCurrentYear = year === currentYear;
+                    const is2024OrBefore = year <= 2024;
+                    const cellStyle = isCurrentYear ? 'background: var(--color-primary-50);' : '';
+                    const formattedYearBudget = yearBudget > 0 ? formatCurrency(yearBudget) : '-';
+
+                    if (isEditMode && is2024OrBefore) {
+                        // 편집 모드이고 2024년 이전인 경우 input 표시
+                        const valueInMillion = yearBudget > 0 ? Math.round(yearBudget / 1000) : 0;
+                        bodyHtml += `<td style="text-align: right; font-size: 12px; padding: 2px; ${cellStyle}">
+                            <input type="number" class="edit-input"
+                                   data-project-id="${project.id}"
+                                   data-year="${year}"
+                                   value="${valueInMillion}"
+                                   style="width: 100%; text-align: right; padding: 4px; border: 1px solid #2563eb; border-radius: 3px; font-size: 12px; color: #2563eb;">
+                        </td>`;
+                    } else {
+                        // 읽기 모드 또는 2025년 이후
+                        bodyHtml += `<td style="text-align: right; font-size: 13px; padding: 6px 8px; ${cellStyle} color: #2563eb;">${formattedYearBudget}</td>`;
+                    }
+                });
+
+                // 내년도 이후 예산
+                const futureBudget = project.futureBudget || 0;
+                const formattedFuture = futureBudget > 0 ? formatCurrency(futureBudget) : '-';
+                bodyHtml += `<td style="text-align: right; background: var(--color-warning-50); color: #2563eb;">${formattedFuture}</td>`;
+                bodyHtml += `</tr>`;
+            });
+
+            tableBody.innerHTML = bodyHtml;
+        }
+
+        // 편집 모드 관련 변수
+        let isEditMode = false;
+
+        // 편집 모드 토글
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const toggleBtn = document.getElementById('toggleEditBtn');
+            const saveBtn = document.getElementById('saveAllBtn');
+            const cancelBtn = document.getElementById('cancelEditBtn');
+
+            if (isEditMode) {
+                toggleBtn.textContent = '📖 읽기 모드';
+                toggleBtn.classList.remove('btn-primary');
+                toggleBtn.classList.add('btn-secondary');
+                saveBtn.style.display = 'inline-block';
+                cancelBtn.style.display = 'inline-block';
+            } else {
+                toggleBtn.textContent = '📝 편집 모드';
+                toggleBtn.classList.remove('btn-secondary');
+                toggleBtn.classList.add('btn-primary');
+                saveBtn.style.display = 'none';
+                cancelBtn.style.display = 'none';
+            }
+
+            // 테이블 다시 렌더링
+            loadCurrentYearProjects();
+        }
+
+        // 일괄 저장
+        async function saveAllManualData() {
+            try {
+                const inputs = document.querySelectorAll('.edit-input');
+                const dataToSave = {};
+
+                // 프로젝트별로 데이터 수집
+                inputs.forEach(input => {
+                    const projectId = parseInt(input.dataset.projectId);
+                    const year = parseInt(input.dataset.year);
+                    const value = parseFloat(input.value) || 0;
+
+                    if (!dataToSave[projectId]) {
+                        dataToSave[projectId] = {};
+                    }
+
+                    dataToSave[projectId][year] = value;
+                });
+
+                // 각 프로젝트의 각 연도별로 저장 (0 포함)
+                let savedCount = 0;
+                for (const projectId in dataToSave) {
+                    for (const year in dataToSave[projectId]) {
+                        const budgetAmount = dataToSave[projectId][year] || 0;
+
+                        // 항상 저장 (0으로 변경하는 경우도 처리)
+                        await API.post('/methane/budget-data', {
+                            methaneProjectId: parseInt(projectId),
+                            year: parseInt(year),
+                            budgetAmount: budgetAmount * 1000  // 백만원 → 천원
+                        });
+                        savedCount++;
+                    }
+                }
+
+                Toast.success(`${savedCount}개의 데이터가 저장되었습니다.`);
+
+                // 편집 모드 종료 및 데이터 새로고침
+                isEditMode = false;
+                await loadCurrentYearProjects();
+
+                const toggleBtn = document.getElementById('toggleEditBtn');
+                const saveBtn = document.getElementById('saveAllBtn');
+                const cancelBtn = document.getElementById('cancelEditBtn');
+
+                toggleBtn.textContent = '📝 편집 모드';
+                toggleBtn.classList.remove('btn-secondary');
+                toggleBtn.classList.add('btn-primary');
+                saveBtn.style.display = 'none';
+                cancelBtn.style.display = 'none';
+
+            } catch (error) {
+                console.error('저장 오류:', error);
+                Toast.error('저장에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+            }
+        }
+
+        // 편집 취소
+        function cancelEdit() {
+            isEditMode = false;
+            const toggleBtn = document.getElementById('toggleEditBtn');
+            const saveBtn = document.getElementById('saveAllBtn');
+            const cancelBtn = document.getElementById('cancelEditBtn');
+
+            toggleBtn.textContent = '📝 편집 모드';
+            toggleBtn.classList.remove('btn-secondary');
+            toggleBtn.classList.add('btn-primary');
+            saveBtn.style.display = 'none';
+            cancelBtn.style.display = 'none';
+
+            // 테이블 다시 로드
+            loadCurrentYearProjects();
+        }
+
+                // toggleSubmenu 함수는 common.js에 정의되어 있음
+
+
+        // 사업연도 목록 생성 (현재 연도부터 1972년까지 내림차순)
+        function initYears() {
+            const select = document.getElementById('project-year');
+            if (!select) return;
+
+            const currentYear = new Date().getFullYear();
+            for (let year = currentYear; year >= 1972; year--) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                select.appendChild(option);
+            }
+        }
+
+        // 국가 목록 로드
+        async function loadCountries() {
+            try {
+                const data = await API.methane.getCountries();
+                if (data && data.success) {
+                    const select = document.getElementById('project-country');
+                    if (!select) return;
+
+                    data.data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.country;
+                        option.textContent = `${item.country} (${item.count})`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('국가 목록 로드 실패:', error);
+                // 국가 목록 로드 실패는 조용히 처리
+            }
+        }
+
+        // 통계 로드
+        async function loadStats(filters = {}) {
+            try {
+                const data = await API.methane.getStats(filters);
+                if (data && data.success) {
+                    const stats = data.data;
+
+                    // 총 사업 수
+                    const totalEl = document.querySelector('.stat-card .stat-value');
+                    if (totalEl) {
+                        totalEl.textContent = stats.total.toLocaleString();
+                    }
+
+                    // 수행중
+                    const inProgressEl = document.querySelectorAll('.stat-card .stat-value')[1];
+                    if (inProgressEl) {
+                        // 시행중 상태를 수행중으로 카운트
+                        const inProgressCount = (stats.byStatus['시행중'] || 0) + (stats.byStatus['진행중'] || 0);
+                        inProgressEl.textContent = inProgressCount.toLocaleString();
+                    }
+
+                    // 총 사업비 (백만원 단위로 표시)
+                    const budgetEl = document.getElementById('totalBudgetStat');
+                    if (budgetEl) {
+                        budgetEl.textContent = `${Math.round(stats.totalBudget).toLocaleString()}`;
+                    }
+
+                    // 예산 집행률 (좌표 등록률로 대체)
+                    const rateEl = document.querySelectorAll('.stat-card .stat-value')[3];
+                    if (rateEl) {
+                        rateEl.textContent = `${stats.coordinateRate}%`;
+                    }
+                }
+            } catch (error) {
+                console.error('통계 로드 실패:', error);
+                // 통계 로드 실패는 조용히 처리 (페이지는 계속 작동)
+            }
+        }
+
+        // 프로젝트 목록 로드
+        async function loadProjects(page = 1) {
+            try {
+                const params = {
+                    page: page,
+                    per_page: 20,
+                    ...currentFilters
+                };
+
+                console.log('프로젝트 로드 시작:', params);
+                console.log('API BASE URL:', API.BASE_URL);
+
+                const data = await API.methane.list(params);
+                console.log('API 응답:', data);
+
+                if (data && data.success) {
+                    currentPage = data.currentPage;
+                    totalPages = data.pages;
+                    displayProjects(data.data);
+                    updatePagination();
+                } else {
+                    throw new Error(data?.message || '데이터를 불러올 수 없습니다.');
+                }
+            } catch (error) {
+                console.error('프로젝트 로드 실패:', error);
+                const tbody = document.getElementById('projectsTableBody');
+                if (tbody) {
+                    let errorMsg = '프로젝트를 불러오는데 실패했습니다.';
+                    if (error.message) {
+                        errorMsg += '\n' + error.message;
+                    }
+                    if (error.message && error.message.includes('Unexpected token')) {
+                        errorMsg += '\n\n서버 연결을 확인하세요. Flask 서버가 실행 중인지 확인하세요.';
+                    }
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 40px; color: #dc3545;">
+                                <div style="white-space: pre-line;">${errorMsg}</div>
+                                <div style="font-size: 12px; margin-top: 12px; color: #6c757d;">
+                                    API URL: ${API.BASE_URL}/methane
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+                if (typeof Toast !== 'undefined') {
+                    Toast.error('프로젝트를 불러오는데 실패했습니다.');
+                }
+            }
+        }
+
+        // 프로젝트 테이블 표시
+        function displayProjects(projects) {
+            const tbody = document.getElementById('projectsTableBody');
+            if (!tbody) return;
+
+            if (projects.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px;">
+                            <div>등록된 프로젝트가 없습니다.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const html = projects.map(project => {
+                // 사업명 표시 (title_kr이 없으면 국가명 사용)
+                const displayTitle = project.titleKr || `메탄감축사업 (${project.country})`;
+
+                // 4가지 상태 구분
+                const status = project.status || '시행중';
+                let statusClass, statusText;
+                switch (status) {
+                    case '완료':
+                    case '준공':
+                        statusClass = 'badge-status-complete';
+                        statusText = '완료';
+                        break;
+                    case 'EOI':
+                    case 'EOI제출':
+                        statusClass = 'badge-status-eoi';
+                        statusText = 'EOI';
+                        break;
+                    case '제안서제출':
+                    case '제안중':
+                        statusClass = 'badge-status-proposal';
+                        statusText = '제안중';
+                        break;
+                    case '시행중':
+                    case '진행중':
+                    default:
+                        statusClass = 'badge-status-active';
+                        statusText = '시행중';
+                        break;
+                }
+                const period = project.startDate && project.endDate
+                    ? `${project.startDate.substring(0, 7).replace('-', '.')} ~ ${project.endDate.substring(0, 7).replace('-', '.')}`
+                    : (project.period || project.startDate || project.endDate || '-');
+
+                // 진행률 계산 (일 단위 기준)
+                let progress = 0;
+                if (project.status === '완료' || project.status === '준공') {
+                    progress = 100;
+                } else if (project.startDate && project.endDate) {
+                    const start = new Date(project.startDate);
+                    const end = new Date(project.endDate);
+                    const now = new Date();
+                    if (now >= end) {
+                        progress = 100;
+                    } else if (now <= start) {
+                        progress = 0;
+                    } else {
+                        const total = end - start;
+                        const elapsed = now - start;
+                        progress = Math.round((elapsed / total) * 100);
+                    }
+                }
+
+                // 관리자 권한 확인
+                const actionButtons = currentUserRole === 'admin'
+                    ? `<button class="btn btn-sm btn-outline" onclick="editProject(${project.id})">수정</button>
+                       <button class="btn btn-sm btn-outline" style="margin-left: 4px; color: #dc3545;" onclick="deleteProject(${project.id}, '${displayTitle.replace(/'/g, "\\'")}')">삭제</button>`
+                    : `<span style="color: var(--color-neutral-500); font-size: 13px;">조회 전용</span>`;
+
+                return `
+                    <tr>
+                        <td><input type="checkbox" aria-label="선택" data-id="${project.id}" ${currentUserRole === 'guest' ? 'disabled' : ''}></td>
+                        <td>
+                            <a href="#" onclick="viewProject(${project.id}); return false;" style="color: #0066cc; font-weight: 700;">${displayTitle}</a>
+                            ${project.titleEn ? `<div style="font-size: 12px; color: #6c757d; margin-top: 4px;">${project.titleEn}</div>` : ''}
+                        </td>
+                        <td>${project.country || '-'}</td>
+                        <td>${period}</td>
+                        <td>${project.budget ? project.budget.toLocaleString() : '-'}</td>
+                        <td>
+                            <div class="progress" style="width: 80px;">
+                                <div class="progress-bar ${progress >= 100 ? 'success' : ''}" style="width: ${progress}%"></div>
+                            </div>
+                            <small>${progress}%</small>
+                        </td>
+                        <td><span class="badge ${statusClass}">${statusText}</span></td>
+                        <td>${actionButtons}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = html;
+        }
+
+        // 페이지네이션 업데이트
+        function updatePagination() {
+            const pageNumbers = document.getElementById('pageNumbers');
+            const prevBtn = document.getElementById('prevPage');
+            const nextBtn = document.getElementById('nextPage');
+
+            if (prevBtn) prevBtn.disabled = currentPage <= 1;
+            if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+
+            if (pageNumbers && totalPages > 0) {
+                let html = '';
+                const maxVisible = 5;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                if (endPage - startPage < maxVisible - 1) {
+                    startPage = Math.max(1, endPage - maxVisible + 1);
+                }
+
+                if (startPage > 1) {
+                    html += `<button class="page-btn" onclick="goToPage(1)">1</button>`;
+                    if (startPage > 2) html += `<span style="padding: 0 4px;">...</span>`;
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                    const activeClass = i === currentPage ? 'style="background: var(--color-primary-500); color: white;"' : '';
+                    html += `<button class="page-btn" onclick="goToPage(${i})" ${activeClass}>${i}</button>`;
+                }
+
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) html += `<span style="padding: 0 4px;">...</span>`;
+                    html += `<button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+                }
+
+                pageNumbers.innerHTML = html;
+            }
+        }
+
+        function goToPage(page) {
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                loadProjects(currentPage);
+            }
+        }
+
+        // 필터 적용
+        function applyFilters() {
+            currentFilters = {
+                year: document.getElementById('project-year')?.value || '',
+                country: document.getElementById('project-country')?.value || '',
+                status: document.getElementById('project-status')?.value || '',
+                search: document.getElementById('project-search')?.value || ''
+            };
+
+            // 빈 값 제거
+            Object.keys(currentFilters).forEach(key => {
+                if (!currentFilters[key]) delete currentFilters[key];
+            });
+
+            loadProjects(1);
+            loadStats(currentFilters);
+        }
+
+        // 필터 초기화
+        function resetFilters() {
+            document.getElementById('project-year').value = '';
+            document.getElementById('project-country').value = '';
+            document.getElementById('project-status').value = '';
+            document.getElementById('project-search').value = '';
+            currentFilters = {};
+            loadProjects(1);
+            loadStats();
+        }
+
+        // 모달 열기 (추가)
+        function openAddModal() {
+            editingProjectId = null;
+            // 간단한 모달로 구현 (필요시 더 복잡한 폼으로 확장 가능)
+            const modal = new Modal();
+            modal.open(
+                `<div id="projectFormContainer">
+                    <form id="projectForm" style="display: grid; gap: 16px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">번호</label>
+                                <input type="number" id="projectNumber" name="number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">수주년도</label>
+                                <input type="number" id="projectYear" name="contractYear" min="1972" max="2100" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">국가 <span style="color: #dc3545;">*</span></label>
+                            <input type="text" id="projectCountry" name="country" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">국문사업명 <span style="color: #dc3545;">*</span></label>
+                            <input type="text" id="projectTitleKr" name="titleKr" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">영문사업명</label>
+                            <input type="text" id="projectTitleEn" name="titleEn" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">사업형태</label>
+                            <input type="text" id="projectType" name="projectType" placeholder="예: 타당성조사, 기본조사, 설계 등" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">착수일</label>
+                                <input type="text" id="projectStartDate" name="startDate" placeholder="예: '72-10" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">준공일</label>
+                                <input type="text" id="projectEndDate" name="endDate" placeholder="예: '73-09" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">용역비(백만원)</label>
+                                <input type="number" id="projectBudget" name="budget" step="0.01" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">상태</label>
+                                <select id="projectStatus" name="status" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="시행중">시행중</option>
+                                    <option value="준공">준공</option>
+                                    <option value="제안서제출">제안서제출</option>
+                                    <option value="EOI제출">EOI제출</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">발주처</label>
+                            <input type="text" id="projectClient" name="client" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">위도</label>
+                                <input type="number" id="projectLatitude" name="latitude" step="0.0000001" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">경도</label>
+                                <input type="number" id="projectLongitude" name="longitude" step="0.0000001" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                        </div>
+                    </form>
+                </div>`,
+                '프로젝트 추가',
+                {
+                    footer: `
+                        <button class="btn btn-secondary" onclick="closeProjectModal()">취소</button>
+                        <button class="btn btn-primary" onclick="saveProject()">저장</button>
+                    `,
+                    onClose: function () {
+                        editingProjectId = null;
+                    }
+                }
+            );
+        }
+
+        // 모달 닫기
+        function closeProjectModal() {
+            const modalOverlay = document.querySelector('.modal-overlay');
+            if (modalOverlay) {
+                modalOverlay.remove();
+            }
+            // 스크롤 복원
+            document.body.style.overflow = '';
+            editingProjectId = null;
+        }
+
+        // 프로젝트 상세보기 (읽기 전용)
+        async function viewProject(id) {
+            try {
+                const data = await API.methane.get(id);
+                if (data.success) {
+                    const project = data.data;
+
+                    const modal = new Modal();
+                    modal.open(
+                        `<div style="display: grid; gap: 16px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">수주년도</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.contractYear || '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">상태</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.status || '-'}</div>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국가</label>
+                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.country || '-'}</div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국문사업명</label>
+                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.titleKr || '-'}</div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">영문사업명</label>
+                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.titleEn || '-'}</div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">사업형태</label>
+                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.projectType || '-'}</div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">착수일</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.startDate || '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">준공일</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.endDate || '-'}</div>
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">용역비(백만원)</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.budget ? project.budget.toLocaleString() : '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">상태</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.status || '-'}</div>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">발주처</label>
+                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.client || '-'}</div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">위도</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.latitude || '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">경도</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.longitude || '-'}</div>
+                                </div>
+                            </div>
+                        </div>`,
+                        '프로젝트 상세정보',
+                        {
+                            footer: `<button class="btn btn-secondary" onclick="closeProjectModal()">닫기</button>`
+                        }
+                    );
+                }
+            } catch (error) {
+                Toast.error('프로젝트 정보를 불러오는데 실패했습니다.');
+                console.error(error);
+            }
+        }
+
+        // 프로젝트 수정
+        async function editProject(id) {
+            try {
+                const data = await API.methane.get(id);
+                if (data.success) {
+                    const project = data.data;
+                    editingProjectId = id;
+
+                    const modal = new Modal();
+                    modal.open(
+                        `<div id="projectFormContainer">
+                            <form id="projectForm" style="display: grid; gap: 16px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">번호</label>
+                                        <input type="number" id="projectNumber" name="number" value="${project.number || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">수주년도</label>
+                                        <input type="number" id="projectYear" name="contractYear" min="1972" max="2100" value="${project.contractYear || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">국가 <span style="color: #dc3545;">*</span></label>
+                                    <input type="text" id="projectCountry" name="country" value="${project.country || ''}" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">국문사업명 <span style="color: #dc3545;">*</span></label>
+                                    <input type="text" id="projectTitleKr" name="titleKr" value="${project.titleKr || ''}" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">영문사업명</label>
+                                    <input type="text" id="projectTitleEn" name="titleEn" value="${project.titleEn || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">사업형태</label>
+                                    <input type="text" id="projectType" name="projectType" value="${project.projectType || ''}" placeholder="예: 타당성조사, 기본조사, 설계 등" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">착수일</label>
+                                        <input type="text" id="projectStartDate" name="startDate" value="${project.startDate || ''}" placeholder="예: '72-10" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">준공일</label>
+                                        <input type="text" id="projectEndDate" name="endDate" value="${project.endDate || ''}" placeholder="예: '73-09" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div>
+                                                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">용역비(백만원)</label>
+                                                                        <input type="number" id="projectBudget" name="budget" step="0.01" value="${project.budget || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">상태</label>
+                                        <select id="projectStatus" name="status" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                            <option value="시행중" ${project.status === '시행중' || project.status === '진행중' ? 'selected' : ''}>시행중</option>
+                                            <option value="준공" ${project.status === '준공' ? 'selected' : ''}>준공</option>
+                                            <option value="제안서제출" ${project.status === '제안서제출' ? 'selected' : ''}>제안서제출</option>
+                                            <option value="EOI제출" ${project.status === 'EOI제출' ? 'selected' : ''}>EOI제출</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">발주처</label>
+                                    <input type="text" id="projectClient" name="client" value="${project.client || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">위도</label>
+                                        <input type="number" id="projectLatitude" name="latitude" step="0.0000001" value="${project.latitude || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">경도</label>
+                                        <input type="number" id="projectLongitude" name="longitude" step="0.0000001" value="${project.longitude || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+                            </form>
+                        </div>`,
+                        '프로젝트 수정',
+                        {
+                            footer: `
+                                <button class="btn btn-secondary" onclick="closeProjectModal()">취소</button>
+                                <button class="btn btn-primary" onclick="saveProject()">저장</button>
+                            `,
+                            onClose: function () {
+                                editingProjectId = null;
+                            }
+                        }
+                    );
+                }
+            } catch (error) {
+                Toast.error('프로젝트 정보를 불러오는데 실패했습니다.');
+                console.error(error);
+            }
+        }
+
+        // 프로젝트 저장
+        async function saveProject() {
+            const form = document.getElementById('projectForm');
+            if (!form) {
+                Toast.error('폼을 찾을 수 없습니다.');
+                return;
+            }
+
+            const formData = new FormData(form);
+            const projectData = {};
+
+            formData.forEach((value, key) => {
+                if (value !== '' && value !== null && value !== undefined) {
+                    if (['number', 'contractYear', 'budget', 'latitude', 'longitude'].includes(key)) {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                            projectData[key] = numValue;
+                        }
+                    } else {
+                        projectData[key] = value.trim();
+                    }
+                }
+            });
+
+            try {
+                let data;
+                if (editingProjectId) {
+                    data = await API.methane.update(editingProjectId, projectData);
+                } else {
+                    data = await API.methane.create(projectData);
+                }
+
+                if (data.success) {
+                    Toast.success(data.message || '저장되었습니다.');
+                    closeProjectModal();
+                    loadProjects(currentPage);
+                    loadStats();
+                } else {
+                    const errorMsg = data.errors ? data.errors.join('\n') : (data.message || '저장에 실패했습니다.');
+                    Toast.error(errorMsg);
+                }
+            } catch (error) {
+                console.error('저장 오류:', error);
+                Toast.error('저장 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'));
+            }
+        }
+
+        // 프로젝트 삭제
+        async function deleteProject(id, title) {
+            if (!confirm(`"${title}" 프로젝트를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+                return;
+            }
+
+            try {
+                const data = await API.methane.delete(id);
+
+                if (data.success) {
+                    Toast.success(data.message || '삭제되었습니다.');
+                    loadProjects(currentPage);
+                    loadStats();
+                } else {
+                    Toast.error(data.message || '삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('삭제 오류:', error);
+                Toast.error('삭제 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'));
+            }
+        }
+
+        // Excel 다운로드
+        async function exportToExcel() {
+            try {
+                const blob = await API.methane.export(currentFilters);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `메탄감축사업_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                Toast.success('Excel 파일이 다운로드되었습니다.');
+            } catch (error) {
+                console.error('Excel 다운로드 오류:', error);
+                Toast.error('Excel 다운로드에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+            }
+        }
+    </script>
+</body>
+
+</html>

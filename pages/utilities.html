@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="한국농어촌공사 글로벌사업관리시스템 - 편의기능">
+    <title>편의기능 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../assets/css/variables.css">
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/pages.css">
+
+    <style>
+        /* 서브메뉴 스타일 */
+        .submenu-toggle {
+            cursor: pointer;
+        }
+
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: var(--z-dropdown);
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 500;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown-item:last-child {
+            border-radius: 0 0 12px 12px;
+        }
+
+        /* 테마 토글 스타일 */
+        [data-theme="dark"] #userName {
+            color: var(--color-text-secondary) !important;
+        }
+
+        /* 편의기능 페이지 전용 스타일 */
+        .utility-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 24px;
+            padding: 0;
+        }
+
+        .utility-card {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--color-neutral-200);
+        }
+
+        .utility-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--color-primary-100);
+        }
+
+        .utility-card-icon {
+            font-size: 2rem;
+        }
+
+        .utility-card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--color-neutral-900);
+        }
+
+        .utility-card-desc {
+            font-size: 14px;
+            color: var(--color-neutral-600);
+        }
+
+        /* 드래그앤드롭 영역 */
+        .drop-zone {
+            border: 2px dashed var(--color-neutral-300);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            text-align: center;
+            transition: all var(--transition-fast);
+            cursor: pointer;
+            background: var(--color-neutral-50);
+        }
+
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: var(--color-primary-500);
+            background: var(--color-primary-50);
+        }
+
+        .drop-zone-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+
+        .drop-zone-text {
+            color: var(--color-neutral-600);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .drop-zone-hint {
+            font-size: var(--font-size-sm);
+            color: var(--color-neutral-500);
+        }
+
+        /* 파일 정보 */
+        .file-info {
+            display: none;
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--color-neutral-100);
+            border-radius: var(--radius-md);
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: var(--color-neutral-800);
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .file-size {
+            font-size: var(--font-size-sm);
+            color: var(--color-neutral-600);
+        }
+
+        /* 옵션 영역 */
+        .utility-options {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--color-neutral-50);
+            border-radius: var(--radius-md);
+        }
+
+        .utility-options-title {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--color-neutral-700);
+            margin-bottom: 12px;
+        }
+
+        .option-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .option-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .option-label {
+            font-size: var(--font-size-sm);
+            color: var(--color-neutral-700);
+        }
+
+        .option-input {
+            width: 100px;
+            padding: 8px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            text-align: center;
+        }
+
+        .option-input:focus {
+            outline: none;
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px var(--color-primary-100);
+        }
+
+        /* 진행률 바 */
+        .progress-container {
+            display: none;
+            margin-top: 16px;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--color-neutral-200);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--color-primary-500), var(--color-primary-600));
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 8px;
+            font-size: var(--font-size-sm);
+            color: var(--color-neutral-600);
+        }
+
+        /* 결과 영역 */
+        .result-container {
+            display: none;
+            margin-top: 16px;
+            padding: 20px;
+            background: var(--color-success-50);
+            border: 1px solid var(--color-success-200);
+            border-radius: var(--radius-md);
+        }
+
+        .result-container.show {
+            display: block;
+        }
+
+        .result-container.error {
+            background: var(--color-error-50);
+            border-color: var(--color-error-200);
+        }
+
+        .result-title {
+            font-weight: 600;
+            color: var(--color-success-700);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .result-container.error .result-title {
+            color: var(--color-error-700);
+        }
+
+        .result-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .result-stat {
+            text-align: center;
+            padding: 12px;
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-md);
+        }
+
+        .result-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-primary-600);
+        }
+
+        .result-stat-label {
+            font-size: var(--font-size-xs);
+            color: var(--color-neutral-600);
+            margin-top: 4px;
+        }
+
+        /* 버튼 그룹 */
+        .utility-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .utility-actions .btn {
+            flex: 1;
+        }
+
+        /* 반응형 */
+        @media (max-width: 992px) {
+            .utility-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .result-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글" aria-expanded="false"
+                aria-controls="sidebar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName"
+                        style="font-size: var(--font-size-sm); color: var(--color-neutral-700);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">Administrator</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="admin/users.html" class="user-dropdown-item">
+                        <span>👤</span> 사용자 관리
+                    </a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;">
+                        <span>🚪</span> 로그아웃
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+
+                <li class="nav-item has-submenu">
+                    <button class="nav-link" aria-expanded="false">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="expansion/company-management.html">기업관리</a></li>
+                                <li><a href="expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4">
+                                        <li><a href="expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../dashboard.html">홈</a></li>
+                    <li aria-current="page">편의기능</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">🛠️ 편의기능</h2>
+            <p class="page-description">PDF 압축 도구 - 파일을 서버에 저장하지 않고 바로 처리합니다.</p>
+        </div>
+
+        <div class="utility-container">
+            <!-- PDF 압축 카드 -->
+            <div class="utility-card">
+                <div class="utility-card-header">
+                    <span class="utility-card-icon">📄</span>
+                    <div>
+                        <h3 class="utility-card-title">PDF 압축</h3>
+                        <p class="utility-card-desc">화질을 유지하면서 PDF 파일 크기 축소</p>
+                    </div>
+                </div>
+
+                <div class="drop-zone" id="pdfDropZone">
+                    <div class="drop-zone-icon">📁</div>
+                    <div class="drop-zone-text">PDF 파일을 드래그하거나 클릭하여 선택</div>
+                    <div class="drop-zone-hint">최대 500MB</div>
+                    <input type="file" id="pdfFileInput" accept=".pdf" hidden>
+                </div>
+
+                <div class="file-info" id="pdfFileInfo">
+                    <div class="file-name" id="pdfFileName"></div>
+                    <div class="file-size" id="pdfFileSize"></div>
+                </div>
+
+                <div class="utility-options">
+                    <div class="utility-options-title">압축 레벨</div>
+                    <div class="option-row">
+                        <select class="option-input" id="pdfLevel" style="width: 100%;">
+                            <option value="low">낮음 - 최고 화질 유지 (압축률 낮음)</option>
+                            <option value="medium">중간 - 화질/용량 균형</option>
+                            <option value="high" selected>높음 - 50%+ 압축 목표 (권장)</option>
+                            <option value="maximum">최대 - 최대 압축 (화질 다소 저하)</option>
+                        </select>
+                    </div>
+                    <div class="option-hint" style="font-size: 12px; color: var(--color-neutral-500); margin-top: 8px;">
+                        💡 '높음' 레벨은 인쇄용으로 충분한 화질을 유지하면서 50% 이상 압축합니다.
+                    </div>
+                </div>
+
+                <div class="progress-container" id="pdfProgress">
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" id="pdfProgressFill"></div>
+                    </div>
+                    <div class="progress-text" id="pdfProgressText">압축 중...</div>
+                </div>
+
+                <div class="result-container" id="pdfResult">
+                    <div class="result-title">
+                        <span>✅</span> 압축 완료
+                    </div>
+                    <div class="result-stats">
+                        <div class="result-stat">
+                            <div class="result-stat-value" id="pdfOriginalSize">-</div>
+                            <div class="result-stat-label">원본 크기</div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="result-stat-value" id="pdfCompressedSize">-</div>
+                            <div class="result-stat-label">압축 후</div>
+                        </div>
+                        <div class="result-stat">
+                            <div class="result-stat-value" id="pdfCompressionRatio">-</div>
+                            <div class="result-stat-label">절감률</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="utility-actions">
+                    <button class="btn btn-primary" id="pdfCompressBtn" disabled>
+                        압축하기
+                    </button>
+                    <button class="btn btn-secondary" id="pdfResetBtn" style="display:none;">
+                        초기화
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="../assets/js/common.js"></script>
+    <script src="../assets/js/api.js"></script>
+    <script src="../assets/js/components/toast.js"></script>
+
+    <script>
+        // 페이지 초기화
+        document.addEventListener('DOMContentLoaded', function () {
+            initCommonUI();
+            initPDFCompressor();
+        });
+
+        // PDF 압축 기능
+        let selectedPdfFile = null;
+
+        function initPDFCompressor() {
+            const dropZone = document.getElementById('pdfDropZone');
+            const fileInput = document.getElementById('pdfFileInput');
+            const compressBtn = document.getElementById('pdfCompressBtn');
+            const resetBtn = document.getElementById('pdfResetBtn');
+
+            // 클릭으로 파일 선택
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            // 드래그 이벤트
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('drag-over');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    if (files[0].type === 'application/pdf') {
+                        handlePdfFile(files[0]);
+                    } else {
+                        Toast.error('PDF 파일만 지원합니다.');
+                    }
+                }
+            });
+
+            // 파일 선택 이벤트
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handlePdfFile(e.target.files[0]);
+                }
+            });
+
+            // 압축 버튼
+            compressBtn.addEventListener('click', compressPdf);
+
+            // 초기화 버튼
+            resetBtn.addEventListener('click', resetPdfForm);
+        }
+
+        function handlePdfFile(file) {
+            // 파일 크기 검증 (500MB)
+            if (file.size > 500 * 1024 * 1024) {
+                Toast.error('파일 크기가 500MB를 초과합니다.');
+                return;
+            }
+
+            selectedPdfFile = file;
+
+            document.getElementById('pdfFileName').textContent = file.name;
+            document.getElementById('pdfFileSize').textContent = formatFileSize(file.size);
+            document.getElementById('pdfFileInfo').classList.add('show');
+            document.getElementById('pdfCompressBtn').disabled = false;
+            document.getElementById('pdfResult').classList.remove('show');
+            document.getElementById('pdfResetBtn').style.display = 'none';
+        }
+
+        async function compressPdf() {
+            if (!selectedPdfFile) return;
+
+            const level = document.getElementById('pdfLevel').value;
+
+            const formData = new FormData();
+            formData.append('file', selectedPdfFile);
+            formData.append('level', level);
+
+            const progressContainer = document.getElementById('pdfProgress');
+            const progressFill = document.getElementById('pdfProgressFill');
+            const progressText = document.getElementById('pdfProgressText');
+            const compressBtn = document.getElementById('pdfCompressBtn');
+            const resetBtn = document.getElementById('pdfResetBtn');
+            const resultContainer = document.getElementById('pdfResult');
+
+            // 진행률 표시 시작
+            progressContainer.classList.add('show');
+            compressBtn.disabled = true;
+            progressFill.style.width = '20%';
+            progressText.textContent = '파일 업로드 중...';
+
+            try {
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const apiBaseUrl = `${window.location.protocol}//${window.location.host}/api`;
+
+                progressFill.style.width = '50%';
+                progressText.textContent = '압축 처리 중...';
+
+                const response = await fetch(apiBaseUrl + '/utilities/compress-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                progressFill.style.width = '80%';
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || '압축 실패');
+                }
+
+                // 헤더에서 메타정보 추출
+                const originalSize = parseInt(response.headers.get('X-Original-Size') || selectedPdfFile.size);
+                const compressedSize = parseInt(response.headers.get('X-Compressed-Size') || 0);
+                const ratio = parseFloat(response.headers.get('X-Compression-Ratio') || 0);
+
+                // 결과 표시
+                document.getElementById('pdfOriginalSize').textContent = formatFileSize(originalSize);
+                document.getElementById('pdfCompressedSize').textContent = formatFileSize(compressedSize);
+                document.getElementById('pdfCompressionRatio').textContent = ratio.toFixed(1) + '%';
+
+                progressFill.style.width = '100%';
+                progressText.textContent = '다운로드 준비 중...';
+
+                // 파일 다운로드
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = selectedPdfFile.name.replace('.pdf', '_compressed.pdf').replace('.PDF', '_compressed.pdf');
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // 완료 상태
+                progressContainer.classList.remove('show');
+                resultContainer.classList.remove('error');
+                resultContainer.classList.add('show');
+                resetBtn.style.display = 'inline-flex';
+
+                Toast.success('PDF 압축이 완료되었습니다.');
+
+            } catch (error) {
+                progressFill.style.width = '100%';
+                progressFill.style.background = 'var(--color-error-500)';
+                progressText.textContent = '오류 발생';
+
+                resultContainer.classList.add('error');
+                resultContainer.classList.add('show');
+                resultContainer.querySelector('.result-title').innerHTML = '<span>❌</span> 압축 실패';
+                resultContainer.querySelector('.result-stats').innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; color: var(--color-error-700);">
+                        ${error.message}
+                    </div>
+                `;
+
+                Toast.error(error.message);
+                resetBtn.style.display = 'inline-flex';
+            } finally {
+                compressBtn.disabled = false;
+            }
+        }
+
+        function resetPdfForm() {
+            selectedPdfFile = null;
+            document.getElementById('pdfFileInput').value = '';
+            document.getElementById('pdfFileInfo').classList.remove('show');
+            document.getElementById('pdfProgress').classList.remove('show');
+            document.getElementById('pdfResult').classList.remove('show');
+            document.getElementById('pdfResult').classList.remove('error');
+            document.getElementById('pdfCompressBtn').disabled = true;
+            document.getElementById('pdfResetBtn').style.display = 'none';
+
+            // 진행률 바 초기화
+            const progressFill = document.getElementById('pdfProgressFill');
+            progressFill.style.width = '0%';
+            progressFill.style.background = 'linear-gradient(90deg, var(--color-primary-500), var(--color-primary-600))';
+
+            // 결과 영역 초기화
+            document.getElementById('pdfResult').querySelector('.result-title').innerHTML = '<span>✅</span> 압축 완료';
+            document.getElementById('pdfResult').querySelector('.result-stats').innerHTML = `
+                <div class="result-stat">
+                    <div class="result-stat-value" id="pdfOriginalSize">-</div>
+                    <div class="result-stat-label">원본 크기</div>
+                </div>
+                <div class="result-stat">
+                    <div class="result-stat-value" id="pdfCompressedSize">-</div>
+                    <div class="result-stat-label">압축 후</div>
+                </div>
+                <div class="result-stat">
+                    <div class="result-stat-value" id="pdfCompressionRatio">-</div>
+                    <div class="result-stat-label">절감률</div>
+                </div>
+            `;
+        }
+
+        // 유틸리티 함수
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+    </script>
+</body>
+
+</html>

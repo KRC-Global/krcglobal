@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>융자관리 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <style>
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        .filter-section {
+            background: var(--color-neutral-50);
+            padding: var(--spacing-6);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-6);
+            display: flex;
+            gap: var(--spacing-4);
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+        }
+
+        .filter-group label {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            color: var(--color-neutral-700);
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: var(--spacing-2) var(--spacing-3);
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .table-info {
+            font-size: var(--font-size-sm);
+            color: var(--color-neutral-600);
+        }
+
+        .btn-success {
+            background: var(--color-success-500);
+            color: white;
+            padding: var(--spacing-2) var(--spacing-4);
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+        }
+
+        .btn-success:hover {
+            background: var(--color-success-600);
+        }
+
+        /* 필터 영역 일관성 스타일 */
+        .search-form {
+            display: flex;
+            gap: var(--spacing-4);
+            align-items: flex-end;
+            flex-wrap: wrap;
+            padding: var(--spacing-4);
+            background: var(--color-neutral-50);
+            border-radius: 8px;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .search-form .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 180px;
+            flex: 0 0 auto;
+        }
+
+        .search-form .form-group label {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--color-neutral-700);
+        }
+
+        .search-form .form-group input,
+        .search-form .form-group select {
+            padding: 8px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 6px;
+            font-size: var(--font-size-sm);
+            min-height: 38px;
+            background: white;
+        }
+
+        .search-form .form-group input::placeholder {
+            color: var(--color-neutral-400);
+        }
+
+        .search-form .form-actions {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            margin-left: auto;
+        }
+
+        .search-form .form-actions .btn {
+            min-height: 38px;
+            padding: 8px 16px;
+            font-size: var(--font-size-sm);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+
+                <li class="nav-item has-submenu">
+                    <button class="nav-link" aria-expanded="false">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="company-management.html">기업관리</a></li>
+                                <li><a href="loan-management.html" class="active">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="../projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="../projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../../pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+
+
+
+
+
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../dashboard.html">홈</a></li>
+                    <li><a href="#">사업관리</a></li>
+                    <li><a href="#">해외진출지원사업</a></li>
+                    <li aria-current="page">융자관리</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">융자관리</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 필터 영역 -->
+            <section class="card">
+                <h3 class="visually-hidden">검색 조건</h3>
+                <form class="search-form">
+                    <div class="form-group">
+                        <label for="year-filter">연도</label>
+                        <select id="year-filter">
+                            <option value="">전체</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="country-filter">국가</label>
+                        <input type="text" id="country-filter" placeholder="국가명 입력">
+                    </div>
+                    <div class="form-group">
+                        <label for="search">기업명</label>
+                        <input type="text" id="search" placeholder="융자기업 검색">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-primary" onclick="loadLoans()">검색</button>
+                        <button type="button" class="btn btn-secondary" onclick="downloadExcel()">Excel 다운로드</button>
+                        <button type="button" class="btn btn-primary" id="uploadBtn" onclick="openUploadModal()"
+                            style="display:none;">📁 Excel 업로드</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- 통계 카드 -->
+            <div class="stats-grid"
+                style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+                <div class="card" style="padding: 20px;">
+                    <div style="font-size: 14px; color: var(--color-neutral-600);">총 융자원금</div>
+                    <div id="stat-principal"
+                        style="font-size: 24px; font-weight: 700; color: var(--color-primary-600);">0원</div>
+                </div>
+                <div class="card" style="padding: 20px;">
+                    <div style="font-size: 14px; color: var(--color-neutral-600);">총 상환액</div>
+                    <div id="stat-repaid" style="font-size: 24px; font-weight: 700; color: var(--color-success-500);">0원
+                    </div>
+                </div>
+                <div class="card" style="padding: 20px;">
+                    <div style="font-size: 14px; color: var(--color-neutral-600);">잔액</div>
+                    <div id="stat-balance" style="font-size: 24px; font-weight: 700; color: var(--color-warning-500);">
+                        0원</div>
+                </div>
+                <div class="card" style="padding: 20px;">
+                    <div style="font-size: 14px; color: var(--color-neutral-600);">융자 기업 수</div>
+                    <div id="stat-companies" style="font-size: 24px; font-weight: 700; color: var(--color-info-500);">
+                        0개사</div>
+                </div>
+            </div>
+
+            <!-- 테이블 영역 -->
+            <section class="card">
+                <header class="section-header">
+                    <h3>융자 목록</h3>
+                    <div class="section-actions">
+                        <span id="total-count" style="font-size: 13px; color: var(--color-neutral-600);">총 0건</span>
+                    </div>
+                </header>
+                <div class="table-container">
+                    <table class="data-table" id="loan-table">
+                        <thead>
+                            <tr>
+                                <th>번호</th>
+                                <th>연도</th>
+                                <th>기업명</th>
+                                <th>국가</th>
+                                <th>작물</th>
+                                <th>융자원금</th>
+                                <th>상환액</th>
+                                <th>잔액</th>
+                                <th>이율</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loan-tbody">
+                            <tr>
+                                <td colspan="9"
+                                    style="text-align: center; color: var(--color-neutral-500); padding: var(--spacing-8);">
+                                    데이터를 불러오는 중...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 페이지네이션 -->
+                <div class="pagination" id="pagination"></div>
+            </section>
+        </div>
+    </main>
+
+    <!-- 업로드 모달 -->
+    <div class="modal-overlay" id="uploadModal" style="display: none;">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>📁 Excel 파일 업로드</h3>
+                <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Excel 파일 선택</label>
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" style="padding: 8px;">
+                    <small style="color: var(--color-neutral-600); margin-top: 8px; display: block;">
+                        * 융자관리 양식에 맞는 Excel 파일을 업로드하세요<br>
+                        * 업로드 시 기존 데이터가 교체됩니다
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeUploadModal()">취소</button>
+                <button class="btn btn-primary" onclick="uploadExcel()">업로드</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="../../assets/js/api.js"></script>
+    <script src="../../assets/js/expansion-init.js"></script>
+    <script>
+        let currentPage = 1;
+        let loansData = [];
+        let canEdit = false;
+
+        // 숫자 포맷팅
+        function formatMoney(num) {
+            if (!num) return '0';
+            return num.toLocaleString();
+        }
+
+        // 연도 필터 초기화
+        function initYearFilter() {
+            const select = document.getElementById('year-filter');
+            const currentYear = new Date().getFullYear();
+            for (let y = currentYear; y >= 2005; y--) {
+                select.innerHTML += `<option value="${y}">${y}년</option>`;
+            }
+        }
+
+        // 융자 목록 로드
+        async function loadLoans() {
+            const tbody = document.getElementById('loan-tbody');
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: var(--spacing-8);">로딩 중...</td></tr>';
+
+            try {
+                const year = document.getElementById('year-filter').value;
+                const country = document.getElementById('country-filter').value;
+                const companyName = document.getElementById('search').value;
+
+                let url = `/expansion/loans?page=${currentPage}&perPage=20`;
+                if (year) url += `&year=${year}`;
+                if (country) url += `&country=${encodeURIComponent(country)}`;
+                if (companyName) url += `&companyName=${encodeURIComponent(companyName)}`;
+
+                const response = await apiCall(url, 'GET');
+
+                if (response.success) {
+                    loansData = response.data;
+                    renderTable(loansData);
+                    document.getElementById('total-count').textContent = `총 ${response.total || loansData.length}건`;
+                    renderPagination(response.total, response.page, response.perPage);
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-error-500); padding: var(--spacing-8);">데이터 로드 실패</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading loans:', error);
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-neutral-500); padding: var(--spacing-8);">데이터가 없습니다.</td></tr>';
+            }
+
+            // 통계 로드
+            loadStats();
+        }
+
+        // 통계 로드
+        async function loadStats() {
+            try {
+                const response = await apiCall('/expansion/loans/stats', 'GET');
+                if (response.success) {
+                    const data = response.data;
+                    document.getElementById('stat-principal').textContent = formatMoney(data.totalPrincipal) + '원';
+                    document.getElementById('stat-repaid').textContent = formatMoney(data.totalRepaid) + '원';
+                    document.getElementById('stat-balance').textContent = formatMoney(data.totalBalance) + '원';
+                    document.getElementById('stat-companies').textContent = data.totalCompanies + '개사';
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // 테이블 렌더링
+        function renderTable(data) {
+            const tbody = document.getElementById('loan-tbody');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--color-neutral-500); padding: var(--spacing-8);">데이터가 없습니다.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(loan => `
+                <tr>
+                    <td>${loan.number || '-'}</td>
+                    <td>${loan.year || '-'}</td>
+                    <td>${loan.companyName || '-'}</td>
+                    <td>${loan.country || '-'}</td>
+                    <td>${loan.crops || '-'}</td>
+                    <td style="text-align: right;">${formatMoney(loan.principal)}</td>
+                    <td style="text-align: right;">${formatMoney(loan.repaidAmount)}</td>
+                    <td style="text-align: right;">${formatMoney(loan.balance)}</td>
+                    <td>${loan.interestRate || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 페이지네이션 렌더링
+        function renderPagination(total, page, perPage) {
+            const container = document.getElementById('pagination');
+            const totalPages = Math.ceil(total / perPage);
+
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="page-btn ${i === page ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            loadLoans();
+        }
+
+        // 엑셀 다운로드
+        function downloadExcel() {
+            if (loansData.length === 0) {
+                alert('다운로드할 데이터가 없습니다.');
+                return;
+            }
+
+            let csv = '\uFEFF'; // BOM
+            csv += '번호,연도,기업명,국가,작물,융자원금,상환액,잔액,이율\n';
+
+            loansData.forEach(loan => {
+                csv += `${loan.number || ''},${loan.year || ''},${loan.companyName || ''},${loan.country || ''},${loan.crops || ''},${loan.principal || 0},${loan.repaidAmount || 0},${loan.balance || 0},${loan.interestRate || ''}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = '융자관리_' + new Date().toISOString().slice(0, 10) + '.csv';
+            link.click();
+        }
+
+        // 업로드 모달
+        function openUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('excelFile').value = '';
+        }
+
+        async function uploadExcel() {
+            const fileInput = document.getElementById('excelFile');
+            if (!fileInput.files.length) {
+                alert('파일을 선택해주세요.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await apiCallFormData('/expansion/loans/upload', formData);
+                if (response.success) {
+                    alert(response.message || '업로드 완료!');
+                    closeUploadModal();
+                    loadLoans();
+                } else {
+                    alert(response.message || '업로드 실패');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('업로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 페이지 초기화
+        window.addEventListener('load', function () {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                window.location.href = '../../index.html';
+                return;
+            }
+
+            const currentUser = JSON.parse(userInfo);
+            const userPermission = currentUser.permissionScope || currentUser.permission_scope || 'readonly';
+            canEdit = currentUser.role === 'admin' || userPermission === 'expansion' || userPermission === 'all';
+
+            // 편집 권한이 있으면 업로드 버튼 표시
+            if (canEdit) {
+                document.getElementById('uploadBtn').style.display = 'inline-flex';
+            }
+
+            initCommonUI();
+            initYearFilter();
+            loadLoans();
+        });
+    </script>
+</body>
+
+</html>

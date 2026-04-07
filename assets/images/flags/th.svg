@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <!-- 태국 국기: 빨-흰-파-흰-빨 5줄 -->
+  <circle cx="500" cy="500" r="500" fill="#FFF"/>
+  <rect y="0" width="1000" height="167" fill="#ED1C24"/>
+  <rect y="167" width="1000" height="166" fill="#FFF"/>
+  <rect y="333" width="1000" height="334" fill="#241D4F"/>
+  <rect y="667" width="1000" height="166" fill="#FFF"/>
+  <rect y="833" width="1000" height="167" fill="#ED1C24"/>
+</svg>

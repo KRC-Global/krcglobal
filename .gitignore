@@ -1,0 +1,86 @@
+# Database
+backend/database/
+*.db
+*.db-shm
+*.db-wal
+
+# Uploads
+backend/uploads/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+
+# Logs
+*.log
+server.log
+backend/server.log
+backend/backend.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+
+# Overseas tech pages (disabled feature)
+pages/projects/overseas-tech*.html
+
+# Google OAuth secrets
+client_secret*.json
+
+# IDE
+.vscode/
+.idea/
+
+# Preinstall packages (internal deployment only)
+preinstall2/
+preinstall3/
+preinstall_new/
+
+# Internal tools and data files
+CN_web/
+침수흔적/
+침수흔적.zip
+만능뷰어/
+국기/
+국기.zip
+001. Loan/
+leaflet_files/
+문서/
+study/
+migration/
+scripts/
+
+# Screenshots and test images
+*.png
+
+# Misc data files
+*.csv
+*.zip
+*.txt
+!requirements.txt
+사업관리시스템구축.txt
+
+# Test/debug scripts
+test_*.py
+migrate_*.py
+add_*.py
+
+# Claude/AI config
+.claude/
+.playwright-mcp/
+
+# Legacy app entry (root level)
+app.py
+
+# Misc
+GEMINI.md
+PERMISSION_GUIDE.md
+add_permission_checks.sh
+package.json

@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>무상원조시행계획서 관리 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <style>
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 500;
+        }
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+        .user-dropdown-info {
+            flex: 1;
+        }
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 500;
+        }
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        .data-table {
+            width: 100%;
+        }
+        .data-table th, .data-table td {
+            vertical-align: middle;
+            padding: 12px 8px;
+        }
+        .badge-selected { background: #10B981; color: #fff; }
+        .badge-rejected { background: #EF4444; color: #fff; }
+        .badge-pending { background: #F59E0B; color: #fff; }
+
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .filter-bar select, .filter-bar input {
+            padding: 8px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--color-neutral-0);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+        .stat-card .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-primary-600);
+        }
+        .stat-card .stat-label {
+            font-size: 13px;
+            color: var(--color-neutral-600);
+            margin-top: 4px;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal-content {
+            background: var(--color-neutral-0);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--color-neutral-500);
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--color-neutral-700);
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--color-neutral-200);
+        }
+        .file-upload-area {
+            border: 2px dashed var(--color-neutral-300);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .file-upload-area:hover {
+            border-color: var(--color-primary-500);
+            background: var(--color-primary-50);
+        }
+        .file-upload-area.has-file {
+            border-color: var(--color-success-500);
+            background: var(--color-success-50);
+        }
+        .clickable-row {
+            cursor: pointer;
+        }
+        .clickable-row:hover {
+            background: var(--color-neutral-50);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../expansion/company-management.html">기업관리</a></li>
+                                <li><a href="../expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="../expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="../expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="../expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="../expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="../expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="../expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="international-cooperation.html">사업현황</a></li>
+                                <li><a href="oda-reports.html">보고서관리</a></li>
+                                <li><a href="intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../admin/offices.html">해외사무소 등</a></li>
+</ul>
+                </li>
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../../pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+
+
+                
+
+                
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="app-main" id="main-content">
+        <div class="page-header">
+            <div>
+                <h2 class="page-title">무상원조시행계획서 관리</h2>
+                <p class="page-desc">무상원조 사업 시행계획서 문서 관리</p>
+            </div>
+            <button class="btn btn-primary" id="registerBtn" onclick="openModal()" style="display: none;"><span>+</span> 계획서 등록</button>
+        </div>
+
+        <!-- 통계 카드 -->
+        <div class="stats-cards">
+            <div class="stat-card">
+                <div class="stat-value" id="statTotal" style="color: var(--color-primary-600);">0</div>
+                <div class="stat-label">전체 계획서</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statApproved" style="color: #10B981;">0</div>
+                <div class="stat-label">승인</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statPending" style="color: #F59E0B;">0</div>
+                <div class="stat-label">검토중</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statRejected" style="color: #EF4444;">0</div>
+                <div class="stat-label">반려</div>
+            </div>
+        </div>
+                <div class="stat-label">전체</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statSelected" style="color: #10B981;">0</div>
+                <div class="stat-label">선정</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statRejected" style="color: #EF4444;">0</div>
+                <div class="stat-label">탈락</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statPending" style="color: #F59E0B;">0</div>
+                <div class="stat-label">심사중</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="statRate">0%</div>
+                <div class="stat-label">선정율</div>
+            </div>
+        </div>
+
+        <!-- 필터 -->
+        <div class="card">
+            <div class="filter-bar">
+                <select id="filterCountry">
+                    <option value="">전체 국가</option>
+                </select>
+                <select id="filterResult">
+                    <option value="">전체 결과</option>
+                    <option value="선정">선정</option>
+                    <option value="탈락">탈락</option>
+                    <option value="심사중">심사중</option>
+                </select>
+                <select id="filterYear">
+                    <option value="">전체 연도</option>
+                </select>
+                <input type="text" id="filterSearch" placeholder="검색어 입력..." style="width: 200px;">
+                <button class="btn btn-secondary" onclick="loadProposals()">검색</button>
+                <button class="btn btn-outline" onclick="resetFilters()">초기화</button>
+            </div>
+
+            <!-- 테이블 -->
+            <div class="table-container" style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">No.</th><th style="min-width: 200px;">사업명</th><th style="width: 100px;">국가</th><th style="width: 120px;">협력기관</th><th style="width: 100px;">제출일</th><th style="width: 80px; text-align: center;">상태</th><th style="width: 100px; text-align: center;">첨부문서</th><th style="width: 100px; text-align: center;">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="proposalTableBody">
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 40px;">
+                                데이터를 불러오는 중...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 페이지네이션 -->
+            <div class="pagination" id="pagination" style="margin-top: 20px; display: flex; justify-content: center; gap: 4px;">
+            </div>
+        </div>
+    </main>
+
+    <!-- 등록/수정 모달 -->
+    <div class="modal-overlay" id="proposalModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">무상원조시행계획서 등록</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="proposalForm">
+                    <input type="hidden" id="proposalId">
+
+                    <div class="form-group">
+                        <label for="title">사업명 <span style="color: red;">*</span></label>
+                        <input type="text" id="title" name="title" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="country">대상국가</label>
+                            <input type="text" id="country" name="country">
+                        </div>
+                        <div class="form-group">
+                            <label for="client">발주처</label>
+                            <input type="text" id="client" name="client">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="submissionDate">제출일</label>
+                            <input type="date" id="submissionDate" name="submissionDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="budget">제안예산 (백만원)</label>
+                            <input type="number" id="budget" name="budget" step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="projectPeriod">사업기간</label>
+                            <input type="text" id="projectPeriod" name="projectPeriod" placeholder="예: 2024.01 ~ 2026.12">
+                        </div>
+                        <div class="form-group">
+                            <label for="result">결과</label>
+                            <select id="result" name="result">
+                                <option value="심사중">심사중</option>
+                                <option value="선정">선정</option>
+                                <option value="탈락">탈락</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="resultDate">결과발표일</label>
+                        <input type="date" id="resultDate" name="resultDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">사업개요</label>
+                        <textarea id="description" name="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="teamMembers">참여인력</label>
+                        <textarea id="teamMembers" name="teamMembers" rows="2"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="remarks">비고</label>
+                        <textarea id="remarks" name="remarks" rows="2"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>기술제안서</label>
+                        <div class="file-upload-area" id="technicalFileUploadArea" onclick="document.getElementById('technicalFile').click()">
+                            <div id="technicalFileUploadText">클릭하여 파일 선택 (PDF 또는 ZIP)</div>
+                            <div style="font-size: 12px; color: var(--color-neutral-500); margin-top: 4px;">PDF 또는 ZIP 파일 업로드 가능 (최대 500MB)</div>
+                        </div>
+                        <input type="file" id="technicalFile" name="technicalFile" style="display: none;"
+                               accept=".pdf,.zip"
+                               onchange="handleFileSelect(this, 'technical')">
+                    </div>
+
+                    <div class="form-group">
+                        <label>가격제안서</label>
+                        <div class="file-upload-area" id="priceFileUploadArea" onclick="document.getElementById('priceFile').click()">
+                            <div id="priceFileUploadText">클릭하여 파일 선택 (PDF, ZIP, Excel)</div>
+                            <div style="font-size: 12px; color: var(--color-neutral-500); margin-top: 4px;">PDF, ZIP, Excel 파일 업로드 가능 (최대 500MB)</div>
+                        </div>
+                        <input type="file" id="priceFile" name="priceFile" style="display: none;"
+                               accept=".pdf,.zip,.xlsx,.xls"
+                               onchange="handleFileSelect(this, 'price')">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal()">취소</button>
+                <button class="btn btn-primary" onclick="saveProposal()">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF 미리보기 모달 -->
+    <div class="modal-overlay" id="pdfPreviewModal">
+        <div class="modal-content" style="max-width: 90%; max-height: 90vh; width: 1200px;">
+            <div class="modal-header">
+                <h3 id="pdfModalTitle">첨부문서 미리보기</h3>
+                <button class="modal-close" onclick="closePdfModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 0; height: 80vh;">
+                <iframe id="pdfViewer" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closePdfModal()">닫기</button>
+                <button class="btn btn-primary" onclick="downloadCurrentPdf()">다운로드</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 기술제안서 비밀번호 입력 모달 -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>기술제안서 열람 비밀번호</h3>
+                <button class="modal-close" onclick="closePasswordModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--color-neutral-600); margin-bottom: 16px;">
+                    기술제안서는 개인정보가 포함되어 있습니다.<br>
+                    비밀번호를 입력해주세요.
+                </p>
+                <div class="form-group">
+                    <input type="password"
+                           id="technicalPassword"
+                           class="form-control"
+                           placeholder="비밀번호 입력"
+                           style="width: 100%; padding: 10px 12px; border: 1px solid var(--color-neutral-300); border-radius: 8px; font-size: 14px;"
+                           onkeypress="if(event.key === 'Enter') verifyPasswordAndProceed()">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closePasswordModal()">취소</button>
+                <button class="btn btn-primary" onclick="verifyPasswordAndProceed()">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스크립트 -->
+    <script src="../../assets/js/api.js"></script>
+    <script src="../../assets/js/common.js"></script>
+    <script>
+        let currentPage = 1;
+        const perPage = 20;
+        let currentUserRole = 'user';
+        let projectTitleMap = {}; // 사업명 매칭용 Map
+
+        // 페이지 로드 시 실행
+        document.addEventListener('DOMContentLoaded', function() {
+            // 인증 확인
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                window.location.href = '../../index.html';
+                return;
+            }
+
+            // 페이지 접근 권한 확인 (국제협력사업)
+            if (typeof checkPagePermission === 'function') {
+                if (!checkPagePermission('oda')) {
+                    return;
+                }
+            }
+
+            // 사용자 역할 확인 및 권한별 UI 제어
+            try {
+                const user = JSON.parse(userInfo);
+                currentUserRole = user.role || 'user';
+
+                // 관리자/매니저만 등록 버튼 표시
+                if (user.role === 'admin' || user.role === 'manager') {
+                    const registerBtn = document.getElementById('registerBtn');
+                    if (registerBtn) {
+                        registerBtn.style.display = 'inline-flex';
+                    }
+                }
+            } catch (error) {
+                console.error('사용자 정보 파싱 오류:', error);
+            }
+
+            initCommonUI();
+            loadStats();
+            loadCountries();
+            loadYears();
+
+            // 프로젝트 사업명 매칭 데이터를 먼저 로드한 후 제안서 목록 로드
+            (async () => {
+                await loadProjectTitles(); // 프로젝트 사업명 매칭 데이터 로드 완료 대기
+                loadProposals(); // 매칭 데이터 준비 완료 후 제안서 목록 로드
+            })();
+        });
+
+        // 프로젝트 사업명 매칭 데이터 로드
+        async function loadProjectTitles() {
+            try {
+                // 1. projects 테이블 조회
+                console.log('📋 projects 테이블 로드 시작...');
+                const projectsResponse = await apiCall('/projects?per_page=1000', 'GET');
+                console.log('projects 응답:', projectsResponse);
+
+                if (projectsResponse.success && projectsResponse.data) {
+                    projectsResponse.data.forEach(project => {
+                        if (project.title && project.titleEn) {
+                            const normalizedTitle = project.title.replace(/\s+/g, '');
+                            projectTitleMap[normalizedTitle] = project.titleEn;
+                        }
+                    });
+                    console.log(`✓ projects 로드 완료: ${projectsResponse.data.length}개`);
+                }
+
+                // 2. consulting_projects 테이블 조회
+                console.log('📋 consulting 테이블 로드 시작...');
+                const consultingResponse = await apiCall('/consulting?per_page=1000', 'GET');
+                console.log('consulting 응답:', consultingResponse);
+
+                if (consultingResponse.success && consultingResponse.data) {
+                    let consultingCount = 0;
+                    consultingResponse.data.forEach(project => {
+                        if (project.titleKr && project.titleEn) {
+                            const normalizedTitle = project.titleKr.replace(/\s+/g, '');
+                            projectTitleMap[normalizedTitle] = project.titleEn;
+                            consultingCount++;
+                        }
+                    });
+                    console.log(`✓ consulting 로드 완료: ${consultingResponse.data.length}개 중 영문명 ${consultingCount}개`);
+                }
+
+                console.log('✅ 프로젝트 사업명 매칭 데이터 로드 완료:', Object.keys(projectTitleMap).length + '개');
+                console.log('매칭 Map 샘플:', Object.keys(projectTitleMap).slice(0, 5));
+            } catch (error) {
+                console.error('❌ 프로젝트 사업명 로드 실패:', error);
+            }
+        }
+
+        // 사업명으로 영문명 찾기
+        function findEnglishTitle(koreanTitle) {
+            if (!koreanTitle) return null;
+            const normalizedTitle = koreanTitle.replace(/\s+/g, '');
+            const englishTitle = projectTitleMap[normalizedTitle];
+
+            if (englishTitle) {
+                console.log(`✓ 매칭 성공: "${koreanTitle}" → "${englishTitle}"`);
+            } else {
+                console.log(`✗ 매칭 실패: "${koreanTitle}" (정규화: "${normalizedTitle}")`);
+            }
+
+            return englishTitle || null;
+        }
+
+        // 통계 로드
+        async function loadStats() {
+            try {
+                const response = await apiCall('/proposals/stats', 'GET');
+                if (response.success) {
+                    document.getElementById('statTotal').textContent = response.data.total;
+                    document.getElementById('statSelected').textContent = response.data.selected;
+                    document.getElementById('statRejected').textContent = response.data.rejected;
+                    document.getElementById('statPending').textContent = response.data.pending;
+                    document.getElementById('statRate').textContent = response.data.successRate + '%';
+                }
+            } catch (error) {
+                console.error('통계 로드 실패:', error);
+            }
+        }
+
+        // 국가 목록 로드
+        async function loadCountries() {
+            try {
+                const response = await apiCall('/proposals/countries', 'GET');
+                if (response.success) {
+                    const select = document.getElementById('filterCountry');
+                    response.data.forEach(country => {
+                        const option = document.createElement('option');
+                        option.value = country;
+                        option.textContent = country;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('국가 목록 로드 실패:', error);
+            }
+        }
+
+        // 연도 목록 로드
+        function loadYears() {
+            const select = document.getElementById('filterYear');
+            const currentYear = new Date().getFullYear();
+            for (let year = currentYear; year >= 2010; year--) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year + '년';
+                select.appendChild(option);
+            }
+        }
+
+        // 제안서 목록 로드
+        async function loadProposals() {
+            const tbody = document.getElementById('proposalTableBody');
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;">데이터를 불러오는 중...</td></tr>';
+
+            try {
+                const params = new URLSearchParams({
+                    page: currentPage,
+                    per_page: perPage
+                });
+
+                const country = document.getElementById('filterCountry').value;
+                const result = document.getElementById('filterResult').value;
+                const year = document.getElementById('filterYear').value;
+                const search = document.getElementById('filterSearch').value;
+
+                if (country) params.append('country', country);
+                if (result) params.append('result', result);
+                if (year) params.append('year', year);
+                if (search) params.append('search', search);
+
+                const response = await apiCall(`/proposals?${params.toString()}`, 'GET');
+
+                if (response.success) {
+                    renderProposals(response.data, response.total);
+                    renderPagination(response.pages, response.currentPage);
+
+                    // 필터링된 데이터 기반으로 통계 업데이트
+                    updateStatsFromData(response.data);
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: red;">데이터를 불러오는데 실패했습니다.</td></tr>';
+                }
+            } catch (error) {
+                console.error('제안서 목록 로드 실패:', error);
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: red;">오류가 발생했습니다.</td></tr>';
+            }
+        }
+
+        // 필터링된 데이터로 통계 업데이트
+        function updateStatsFromData(proposals) {
+            if (!proposals || proposals.length === 0) {
+                document.getElementById('statTotal').textContent = '0';
+                document.getElementById('statSelected').textContent = '0';
+                document.getElementById('statRejected').textContent = '0';
+                document.getElementById('statPending').textContent = '0';
+                document.getElementById('statRate').textContent = '0%';
+                return;
+            }
+
+            const total = proposals.length;
+            const selected = proposals.filter(p => p.result === '선정').length;
+            const rejected = proposals.filter(p => p.result === '탈락').length;
+            const pending = proposals.filter(p => p.result === '심사중' || !p.result).length;
+            const successRate = total > 0 ? Math.round((selected / total) * 100) : 0;
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statSelected').textContent = selected;
+            document.getElementById('statRejected').textContent = rejected;
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statRate').textContent = successRate + '%';
+        }
+
+        // 제안서 목록 렌더링
+        function renderProposals(proposals, total) {
+            const tbody = document.getElementById('proposalTableBody');
+
+            if (!proposals || proposals.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px;">등록된 제안서가 없습니다.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            proposals.forEach((p, index) => {
+                const resultBadge = getResultBadge(p.result);
+
+                // 기술제안서 버튼 (파일 확장자에 따라 미리보기/다운로드) + 파일 크기 툴팁
+                const techFileSizeText = p.technicalFileSize ? formatFileSize(p.technicalFileSize) : '크기 정보 없음';
+                const technicalPreviewButton = p.technicalFileName
+                    ? (p.technicalFileName.toLowerCase().endsWith('.zip')
+                        ? `<button class="btn btn-sm btn-success" onclick="downloadFile(${p.id}, 'technical')" title="📦 파일 크기: ${techFileSizeText}">📥 다운로드</button>`
+                        : `<button class="btn btn-sm btn-primary" onclick="showPdfPreview(${p.id}, 'technical', '${p.title || ''}')" title="📦 파일 크기: ${techFileSizeText}">미리보기</button>`)
+                    : '-';
+
+                // 가격제안서 버튼 (파일 확장자에 따라 미리보기/다운로드) + 파일 크기 툴팁
+                // ZIP, Excel 파일은 다운로드, PDF는 미리보기
+                const priceFileSizeText = p.priceFileSize ? formatFileSize(p.priceFileSize) : '크기 정보 없음';
+                const pricePreviewButton = p.priceFileName
+                    ? (p.priceFileName.toLowerCase().endsWith('.zip') ||
+                       p.priceFileName.toLowerCase().endsWith('.xlsx') ||
+                       p.priceFileName.toLowerCase().endsWith('.xls')
+                        ? `<button class="btn btn-sm btn-success" onclick="downloadFile(${p.id}, 'price')" title="📦 파일 크기: ${priceFileSizeText}">📥 다운로드</button>`
+                        : `<button class="btn btn-sm btn-primary" onclick="showPdfPreview(${p.id}, 'price', '${p.title || ''}')" title="📦 파일 크기: ${priceFileSizeText}">미리보기</button>`)
+                    : '-';
+
+                // 영문 사업명 찾기
+                const englishTitle = findEnglishTitle(p.title);
+                const titleDisplay = englishTitle
+                    ? `<div style="font-weight: 500;"><a href="#" onclick="editProposal(${p.id}); return false;" style="color: var(--color-primary-600); text-decoration: none;">${p.title || '-'}</a></div><div style="font-size: 12px; color: var(--color-neutral-500); margin-top: 2px;">${englishTitle}</div>`
+                    : `<a href="#" onclick="editProposal(${p.id}); return false;" style="color: var(--color-primary-600); text-decoration: none; font-weight: 500;">${p.title || '-'}</a>`;
+
+                // ODA 쓰기 권한 체크
+                const canEdit = typeof hasWritePermission === 'function' ? hasWritePermission('oda') : false;
+                const actionCell = canEdit
+                    ? `<td style="text-align: center;">
+                            <button class="btn btn-sm btn-outline" onclick="editProposal(${p.id})">수정</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteProposal(${p.id})" style="margin-left: 4px;">삭제</button>
+                       </td>`
+                    : `<td style="text-align: center; color: #999;">-</td>`;
+
+                html += `
+                    <tr>
+                        <td>${total - ((currentPage - 1) * perPage + index)}</td>
+                        <td>${titleDisplay}</td>
+                        <td>${p.country || '-'}</td>
+                        <td>${p.client || '-'}</td>
+                        <td>${formatDate(p.submissionDate)}</td>
+                        <td style="text-align: right;">${p.budget ? p.budget.toLocaleString() : '-'}</td>
+                        <td style="text-align: center;">${resultBadge}</td>
+                        <td style="text-align: center;">${technicalPreviewButton}</td>
+                        <td style="text-align: center;">${pricePreviewButton}</td>
+                        ${actionCell}
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // 결과 배지
+        function getResultBadge(result) {
+            switch (result) {
+                case '선정':
+                    return '<span class="badge badge-selected">선정</span>';
+                case '탈락':
+                    return '<span class="badge badge-rejected">탈락</span>';
+                default:
+                    return '<span class="badge badge-pending">심사중</span>';
+            }
+        }
+
+        // 날짜 포맷
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        // 페이지네이션 렌더링
+        function renderPagination(totalPages, current) {
+            const pagination = document.getElementById('pagination');
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<button class="btn btn-sm ${i === current ? 'btn-primary' : 'btn-outline'}" onclick="goToPage(${i})">${i}</button>`;
+            }
+            pagination.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            currentPage = page;
+            loadProposals();
+        }
+
+        // 필터 초기화
+        function resetFilters() {
+            document.getElementById('filterCountry').value = '';
+            document.getElementById('filterResult').value = '';
+            document.getElementById('filterYear').value = '';
+            document.getElementById('filterSearch').value = '';
+            currentPage = 1;
+            loadProposals();
+        }
+
+        // 모달 열기
+        function openModal() {
+            document.getElementById('modalTitle').textContent = '제안서 등록';
+            document.getElementById('proposalForm').reset();
+            document.getElementById('proposalId').value = '';
+            document.getElementById('technicalFileUploadText').textContent = '클릭하여 파일 선택 (PDF 또는 ZIP)';
+            document.getElementById('technicalFileUploadArea').classList.remove('has-file');
+            document.getElementById('priceFileUploadText').textContent = '클릭하여 파일 선택 (PDF, ZIP, Excel)';
+            document.getElementById('priceFileUploadArea').classList.remove('has-file');
+
+            // 모든 입력 필드 활성화 (등록 시)
+            const formElements = document.getElementById('proposalForm').elements;
+            for (let element of formElements) {
+                if (element.type !== 'button' && element.id !== 'proposalId') {
+                    element.disabled = false;
+                }
+            }
+
+            // 파일 업로드 영역 활성화
+            document.getElementById('technicalFileUploadArea').style.pointerEvents = 'auto';
+            document.getElementById('priceFileUploadArea').style.pointerEvents = 'auto';
+            document.getElementById('technicalFileUploadArea').style.opacity = '1';
+            document.getElementById('priceFileUploadArea').style.opacity = '1';
+
+            // 저장 버튼 표시
+            const saveButton = document.querySelector('#proposalModal .btn-primary');
+            if (saveButton) {
+                saveButton.style.display = 'inline-block';
+            }
+
+            document.getElementById('proposalModal').classList.add('show');
+        }
+
+        // 모달 닫기
+        function closeModal() {
+            document.getElementById('proposalModal').classList.remove('show');
+        }
+
+        // 파일 선택 처리
+        function handleFileSelect(input, type) {
+            const file = input.files[0];
+            const uploadArea = document.getElementById(type + 'FileUploadArea');
+            const uploadText = document.getElementById(type + 'FileUploadText');
+
+            // 기술제안서와 가격제안서의 기본 텍스트 다르게 설정
+            const defaultText = type === 'technical'
+                ? '클릭하여 파일 선택 (PDF 또는 ZIP)'
+                : '클릭하여 파일 선택 (PDF, ZIP, Excel)';
+
+            if (file) {
+                // 파일 크기 제한: 500MB
+                const maxSize = 500 * 1024 * 1024; // 500MB in bytes
+                if (file.size > maxSize) {
+                    alert('파일 크기는 500MB를 초과할 수 없습니다.\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(2) + ' MB');
+                    input.value = ''; // 파일 선택 초기화
+                    uploadText.textContent = defaultText;
+                    uploadArea.classList.remove('has-file');
+                    return;
+                }
+
+                uploadText.textContent = `선택됨: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                uploadArea.classList.add('has-file');
+            } else {
+                uploadText.textContent = defaultText;
+                uploadArea.classList.remove('has-file');
+            }
+        }
+
+        // 제안서 저장
+        async function saveProposal() {
+            // 토큰 확인
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            if (!token) {
+                alert('로그인이 필요합니다. 다시 로그인해주세요.');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const form = document.getElementById('proposalForm');
+            const id = document.getElementById('proposalId').value;
+
+            const formData = new FormData();
+            formData.append('title', document.getElementById('title').value);
+            formData.append('country', document.getElementById('country').value);
+            formData.append('client', document.getElementById('client').value);
+            formData.append('submissionDate', document.getElementById('submissionDate').value);
+            formData.append('budget', document.getElementById('budget').value);
+            formData.append('projectPeriod', document.getElementById('projectPeriod').value);
+            formData.append('result', document.getElementById('result').value);
+            formData.append('resultDate', document.getElementById('resultDate').value);
+            formData.append('description', document.getElementById('description').value);
+            formData.append('teamMembers', document.getElementById('teamMembers').value);
+            formData.append('remarks', document.getElementById('remarks').value);
+
+            // 기술제안서 파일
+            const technicalFileInput = document.getElementById('technicalFile');
+            if (technicalFileInput.files[0]) {
+                // 파일 크기 재확인 (500MB)
+                const maxSize = 500 * 1024 * 1024;
+                if (technicalFileInput.files[0].size > maxSize) {
+                    alert('기술제안서 파일 크기는 500MB를 초과할 수 없습니다.\n현재 파일 크기: ' + (technicalFileInput.files[0].size / 1024 / 1024).toFixed(2) + ' MB');
+                    return;
+                }
+                formData.append('technicalFile', technicalFileInput.files[0]);
+            }
+
+            // 가격제안서 파일
+            const priceFileInput = document.getElementById('priceFile');
+            if (priceFileInput.files[0]) {
+                // 파일 크기 재확인 (500MB)
+                const maxSize = 500 * 1024 * 1024;
+                if (priceFileInput.files[0].size > maxSize) {
+                    alert('가격제안서 파일 크기는 500MB를 초과할 수 없습니다.\n현재 파일 크기: ' + (priceFileInput.files[0].size / 1024 / 1024).toFixed(2) + ' MB');
+                    return;
+                }
+                formData.append('priceFile', priceFileInput.files[0]);
+            }
+
+            try {
+                const url = id ? `/proposals/${id}` : '/proposals';
+                const method = id ? 'PUT' : 'POST';
+
+                const response = await apiCallFormData(url, method, formData);
+
+                if (response.success) {
+                    alert(id ? '수정되었습니다.' : '등록되었습니다.');
+                    closeModal();
+                    loadStats();
+                    loadProposals();
+                } else {
+                    alert(response.message || '저장에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('저장 실패:', error);
+                if (error.message.includes('로그인') || error.message.includes('세션')) {
+                    alert(error.message);
+                    window.location.href = '/login.html';
+                } else {
+                    alert(error.message || '오류가 발생했습니다.');
+                }
+            }
+        }
+
+        // 제안서 수정
+        async function editProposal(id) {
+            try {
+                const response = await apiCall(`/proposals/${id}`, 'GET');
+                if (response.success) {
+                    const p = response.data;
+
+                    // ODA 쓰기 권한 체크
+                    const canEdit = typeof hasWritePermission === 'function' ? hasWritePermission('oda') : false;
+
+                    document.getElementById('modalTitle').textContent = canEdit ? '제안서 수정' : '제안서 상세';
+                    document.getElementById('proposalId').value = p.id;
+                    document.getElementById('title').value = p.title || '';
+                    document.getElementById('country').value = p.country || '';
+                    document.getElementById('client').value = p.client || '';
+                    document.getElementById('submissionDate').value = p.submissionDate || '';
+                    document.getElementById('budget').value = p.budget || '';
+                    document.getElementById('projectPeriod').value = p.projectPeriod || '';
+                    document.getElementById('result').value = p.result || '심사중';
+                    document.getElementById('resultDate').value = p.resultDate || '';
+                    document.getElementById('description').value = p.description || '';
+                    document.getElementById('teamMembers').value = p.teamMembers || '';
+                    document.getElementById('remarks').value = p.remarks || '';
+
+                    // 일반 직원은 모든 입력 필드를 읽기 전용으로 설정
+                    const formElements = document.getElementById('proposalForm').elements;
+                    for (let element of formElements) {
+                        if (element.type !== 'button' && element.id !== 'proposalId') {
+                            element.disabled = !canEdit;
+                        }
+                    }
+
+                    // 파일 업로드 영역 클릭 방지
+                    if (!canEdit) {
+                        document.getElementById('technicalFileUploadArea').style.pointerEvents = 'none';
+                        document.getElementById('priceFileUploadArea').style.pointerEvents = 'none';
+                        document.getElementById('technicalFileUploadArea').style.opacity = '0.6';
+                        document.getElementById('priceFileUploadArea').style.opacity = '0.6';
+                    } else {
+                        document.getElementById('technicalFileUploadArea').style.pointerEvents = 'auto';
+                        document.getElementById('priceFileUploadArea').style.pointerEvents = 'auto';
+                        document.getElementById('technicalFileUploadArea').style.opacity = '1';
+                        document.getElementById('priceFileUploadArea').style.opacity = '1';
+                    }
+
+                    // 저장 버튼 표시/숨김
+                    const saveButton = document.querySelector('#proposalModal .btn-primary');
+                    if (saveButton) {
+                        saveButton.style.display = canEdit ? 'inline-block' : 'none';
+                    }
+
+                    // 기술제안서 파일 표시
+                    if (p.technicalFileName) {
+                        document.getElementById('technicalFileUploadText').textContent = `기존 파일: ${p.technicalFileName}`;
+                        document.getElementById('technicalFileUploadArea').classList.add('has-file');
+                    } else {
+                        document.getElementById('technicalFileUploadText').textContent = '클릭하여 파일 선택 (PDF 또는 ZIP)';
+                        document.getElementById('technicalFileUploadArea').classList.remove('has-file');
+                    }
+
+                    // 가격제안서 파일 표시
+                    if (p.priceFileName) {
+                        document.getElementById('priceFileUploadText').textContent = `기존 파일: ${p.priceFileName}`;
+                        document.getElementById('priceFileUploadArea').classList.add('has-file');
+                    } else {
+                        document.getElementById('priceFileUploadText').textContent = '클릭하여 파일 선택 (PDF, ZIP, Excel)';
+                        document.getElementById('priceFileUploadArea').classList.remove('has-file');
+                    }
+
+                    document.getElementById('proposalModal').classList.add('show');
+                }
+            } catch (error) {
+                console.error('조회 실패:', error);
+                alert('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // 제안서 삭제
+        async function deleteProposal(id) {
+            if (!confirm('정말 삭제하시겠습니까?')) return;
+
+            try {
+                const response = await apiCall(`/proposals/${id}`, 'DELETE');
+                if (response.success) {
+                    alert('삭제되었습니다.');
+                    loadStats();
+                    loadProposals();
+                } else {
+                    alert(response.message || '삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('삭제 실패:', error);
+                alert('오류가 발생했습니다.');
+            }
+        }
+
+        // 비밀번호 검증 대기 변수
+        let pendingAction = null;
+
+        // 파일 다운로드
+        async function downloadFile(id, type = 'technical') {
+            // 기술제안서인 경우 비밀번호 확인 (ZIP 파일도 마찬가지)
+            if (type === 'technical') {
+                pendingAction = { action: 'download', id, type };
+                openPasswordModal();
+                return;
+            }
+
+            // 가격제안서는 바로 다운로드 (PDF/ZIP 모두)
+            await executeDownload(id, type);
+        }
+
+        // 실제 다운로드 실행
+        async function executeDownload(id, type) {
+            try {
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const response = await fetch(`${API_BASE_URL}/proposals/${id}/download?type=${type}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'download';
+                    if (contentDisposition) {
+                        const match = contentDisposition.match(/filename="?(.+)"?/);
+                        if (match) filename = match[1];
+                    }
+
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('파일 다운로드에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('다운로드 실패:', error);
+                alert('파일 다운로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        // PDF 미리보기
+        let currentPdfId = null;
+        let currentPdfType = null;
+        let currentPdfUrl = null;
+        let currentPdfTitle = null;
+
+        async function showPdfPreview(id, type, title) {
+            console.log('📋 showPdfPreview 호출됨:', { id, type, title });
+
+            // 기술제안서 PDF인 경우 비밀번호 확인
+            if (type === 'technical') {
+                console.log('🔐 기술제안서 - 비밀번호 모달 표시');
+                pendingAction = { action: 'preview', id, type, title };
+                console.log('💾 pendingAction 저장됨:', pendingAction);
+                openPasswordModal();
+                return;
+            }
+
+            // 가격제안서 PDF는 바로 미리보기
+            console.log('💰 가격제안서 - 바로 미리보기');
+            await executePdfPreview(id, type, title);
+        }
+
+        // 실제 PDF 미리보기 실행
+        async function executePdfPreview(id, type, title) {
+            console.log('📄 executePdfPreview 호출됨:', { id, type, title });
+
+            try {
+                currentPdfId = id;
+                currentPdfType = type;
+                currentPdfTitle = title;
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+
+                console.log('🔑 토큰 확인:', token ? '있음' : '없음');
+
+                // 제목 설정 및 모달 먼저 표시
+                const fileTypeLabel = type === 'technical' ? '기술제안서' : '가격제안서';
+                document.getElementById('pdfModalTitle').textContent = `${fileTypeLabel} 미리보기 - ${title}`;
+                document.getElementById('pdfPreviewModal').classList.add('show');
+
+                console.log('✅ 모달 표시 완료');
+
+                // iframe 완전히 초기화 - 기존 iframe 제거하고 새로 생성
+                const modalBody = document.querySelector('#pdfPreviewModal .modal-body');
+                const oldIframe = document.getElementById('pdfViewer');
+
+                // 이전 URL이 있으면 해제
+                if (currentPdfUrl) {
+                    console.log('🗑️ 이전 blob URL 해제:', currentPdfUrl);
+                    window.URL.revokeObjectURL(currentPdfUrl);
+                    currentPdfUrl = null;
+                }
+
+                // 기존 iframe 제거
+                if (oldIframe) {
+                    console.log('🗑️ 기존 iframe 제거');
+                    oldIframe.remove();
+                }
+
+                // 새 iframe 생성
+                const newIframe = document.createElement('iframe');
+                newIframe.id = 'pdfViewer';
+                newIframe.style.cssText = 'width: 100%; height: 100%; border: none;';
+                modalBody.appendChild(newIframe);
+
+                console.log('✅ 새 iframe 생성 완료');
+
+                // PDF를 blob으로 가져오기 (인증 헤더 포함)
+                const downloadUrl = `${API_BASE_URL}/proposals/${id}/download?type=${type}`;
+                console.log('📥 PDF 다운로드 URL:', downloadUrl);
+
+                const response = await fetch(downloadUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                console.log('📥 응답 상태:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    throw new Error(`파일을 불러올 수 없습니다. (상태: ${response.status})`);
+                }
+
+                const blob = await response.blob();
+                console.log('✅ PDF blob 생성 완료:', blob.size, 'bytes', 'Type:', blob.type);
+
+                // blob URL 생성
+                currentPdfUrl = window.URL.createObjectURL(blob);
+                console.log('✅ 새 blob URL 생성:', currentPdfUrl);
+
+                // 새 iframe에 URL 설정
+                newIframe.src = currentPdfUrl;
+                console.log('✅ iframe에 URL 설정 완료');
+
+                // iframe 로드 완료 확인
+                newIframe.onload = function() {
+                    console.log('✅ PDF iframe 로드 완료');
+                };
+
+                newIframe.onerror = function(error) {
+                    console.error('❌ PDF iframe 로드 실패:', error);
+                };
+
+            } catch (error) {
+                console.error('❌ PDF 미리보기 실패:', error);
+                alert('PDF를 불러올 수 없습니다.\n' + error.message);
+                closePdfModal();
+            }
+        }
+
+        function closePdfModal() {
+            document.getElementById('pdfPreviewModal').classList.remove('show');
+
+            // iframe 제거
+            const iframe = document.getElementById('pdfViewer');
+            if (iframe) {
+                iframe.src = '';
+                iframe.remove();
+            }
+
+            // blob URL 해제
+            if (currentPdfUrl) {
+                console.log('모달 닫기: blob URL 해제');
+                window.URL.revokeObjectURL(currentPdfUrl);
+                currentPdfUrl = null;
+            }
+
+            currentPdfId = null;
+            currentPdfType = null;
+
+            // 모달 body에 기본 iframe 다시 생성 (다음 사용을 위해)
+            const modalBody = document.querySelector('#pdfPreviewModal .modal-body');
+            const newIframe = document.createElement('iframe');
+            newIframe.id = 'pdfViewer';
+            newIframe.style.cssText = 'width: 100%; height: 100%; border: none;';
+            modalBody.appendChild(newIframe);
+        }
+
+        function downloadCurrentPdf() {
+            if (currentPdfId && currentPdfType) {
+                downloadFile(currentPdfId, currentPdfType);
+            }
+        }
+
+        // 비밀번호 모달 열기
+        function openPasswordModal() {
+            console.log('🔐 비밀번호 모달 열기');
+            document.getElementById('passwordModal').classList.add('show');
+            document.getElementById('technicalPassword').value = '';
+            // 입력 필드에 포커스
+            setTimeout(() => {
+                document.getElementById('technicalPassword').focus();
+            }, 100);
+        }
+
+        // 비밀번호 모달 닫기
+        function closePasswordModal() {
+            console.log('🔐 비밀번호 모달 닫기');
+            document.getElementById('passwordModal').classList.remove('show');
+            document.getElementById('technicalPassword').value = '';
+            pendingAction = null;
+        }
+
+        // 비밀번호 검증 및 진행
+        async function verifyPasswordAndProceed() {
+            const password = document.getElementById('technicalPassword').value;
+
+            if (!password) {
+                alert('비밀번호를 입력해주세요.');
+                return;
+            }
+
+            try {
+                console.log('🔐 비밀번호 검증 시작...');
+
+                // 토큰 확인
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                console.log('🔑 토큰 확인:', token ? '있음 (길이: ' + token.length + ')' : '❌ 없음');
+
+                if (!token) {
+                    alert('로그인 세션이 만료되었습니다.\n다시 로그인해주세요.');
+                    window.location.href = '../../index.html';
+                    return;
+                }
+
+                // API로 비밀번호 검증
+                const response = await apiCall('/proposals/verify-technical-password', 'POST', { password });
+
+                console.log('🔐 비밀번호 검증 응답:', response);
+
+                if (response.success) {
+                    console.log('✅ 비밀번호 검증 성공');
+
+                    // 대기 중인 작업 먼저 실행 (모달 닫기 전에!)
+                    if (pendingAction) {
+                        console.log('📄 대기 중인 작업 실행:', pendingAction);
+
+                        const action = pendingAction;  // 복사해서 사용
+
+                        // 모달 닫기 (pendingAction이 null이 됨)
+                        closePasswordModal();
+
+                        // 복사한 action으로 작업 실행
+                        if (action.action === 'preview') {
+                            await executePdfPreview(action.id, action.type, action.title);
+                        } else if (action.action === 'download') {
+                            await executeDownload(action.id, action.type);
+                        }
+                    } else {
+                        console.warn('⚠️ 대기 중인 작업이 없습니다.');
+                        closePasswordModal();
+                    }
+                } else {
+                    // 비밀번호 틀림
+                    console.error('❌ 비밀번호 불일치');
+                    alert(response.message || '비밀번호를 확인하세요.');
+                    document.getElementById('technicalPassword').value = '';
+                    document.getElementById('technicalPassword').focus();
+                }
+            } catch (error) {
+                console.error('❌ 비밀번호 검증 실패:', error);
+                alert('비밀번호 검증 중 오류가 발생했습니다.\n' + (error.message || ''));
+            }
+        }
+
+        // FormData API 호출
+        async function apiCallFormData(url, method, formData) {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+
+            if (!token) {
+                throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
+            }
+
+            const response = await fetch(`${API_BASE_URL}${url}`, {
+                method: method,
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (response.status === 401) {
+                throw new Error('로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+            }
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '파일 업로드에 실패했습니다.');
+            }
+
+            return await response.json();
+        }
+
+                // toggleSubmenu 함수는 common.js에 정의되어 있음
+
+    </script>
+</body>
+
+</html>

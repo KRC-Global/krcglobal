@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>근저당권 설정계약서 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../../assets/css/base.css">
+    <link rel="stylesheet" href="../../../assets/css/components.css">
+    <link rel="stylesheet" href="../../../assets/css/pages.css">
+
+    <style>
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-nested-level4 {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested-level4 li {
+            list-style: none;
+        }
+
+        .submenu-nested-level4 li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested-level4 li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested-level4 li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        .filter-section {
+            background: var(--color-neutral-50);
+            padding: var(--spacing-6);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--spacing-6);
+            display: flex;
+            gap: var(--spacing-4);
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+        }
+
+        .filter-group label {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            color: var(--color-neutral-700);
+        }
+
+        .filter-group select,
+        .filter-group input {
+            padding: var(--spacing-2) var(--spacing-3);
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            min-width: 150px;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .table-info {
+            font-size: var(--font-size-sm);
+            color: var(--color-neutral-600);
+        }
+
+        .btn-success {
+            background: var(--color-success-500);
+            color: white;
+            padding: var(--spacing-2) var(--spacing-4);
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+        }
+
+        .btn-success:hover {
+            background: var(--color-success-600);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--color-neutral-0);
+            font-size: var(--font-size-sm);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: var(--spacing-3) var(--spacing-4);
+            text-align: left;
+            border-bottom: 1px solid var(--color-neutral-200);
+            white-space: nowrap;
+        }
+
+        .data-table th {
+            background: var(--color-primary-600);
+            color: white;
+            font-weight: var(--font-weight-semibold);
+            position: sticky;
+            top: 0;
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--color-primary-50);
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background: var(--color-neutral-25, #fafafa);
+        }
+
+        .data-table tbody tr:nth-child(even):hover {
+            background: var(--color-primary-50);
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: var(--spacing-12);
+            color: var(--color-neutral-500);
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            padding: var(--spacing-8);
+        }
+
+        .loading-spinner::after {
+            content: '';
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--color-neutral-200);
+            border-top-color: var(--color-primary-500);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .pagination {
+            display: flex;
+            gap: var(--spacing-2);
+            justify-content: center;
+            margin-top: var(--spacing-6);
+        }
+
+        .page-btn {
+            padding: var(--spacing-2) var(--spacing-3);
+            border: 1px solid var(--color-neutral-300);
+            background: white;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            min-width: 36px;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: var(--color-primary-50);
+            border-color: var(--color-primary-500);
+        }
+
+        .page-btn.active {
+            background: var(--color-primary-500);
+            color: white;
+            border-color: var(--color-primary-500);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .text-wrap {
+            max-width: 200px;
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        /* 필터 영역 일관성 스타일 */
+        .search-form {
+            display: flex;
+            gap: var(--spacing-4);
+            align-items: flex-end;
+            flex-wrap: wrap;
+            padding: var(--spacing-4);
+            background: var(--color-neutral-50);
+            border-radius: 8px;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .search-form .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 180px;
+            flex: 0 0 auto;
+        }
+
+        .search-form .form-group label {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--color-neutral-700);
+        }
+
+        .search-form .form-group input,
+        .search-form .form-group select {
+            padding: 8px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 6px;
+            font-size: var(--font-size-sm);
+            min-height: 38px;
+            background: white;
+        }
+
+        .search-form .form-group input::placeholder {
+            color: var(--color-neutral-400);
+        }
+
+        .search-form .form-actions {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            margin-left: auto;
+        }
+
+        .search-form .form-actions .btn {
+            min-height: 38px;
+            padding: 8px 16px;
+            font-size: var(--font-size-sm);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header> <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle active" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../company-management.html">기업관리</a></li>
+                                <li><a href="../loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle active" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="post-management.html">사후관리대장</a></li>
+                                        <li><a href="mortgage-contract.html" class="active">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../../projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="../../projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="../../projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../../admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../../gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../../dashboard.html">홈</a></li>
+                    <li><a href="#">사업관리</a></li>
+                    <li><a href="#">해외진출지원사업</a></li>
+                    <li><a href="#">정보표출</a></li>
+                    <li aria-current="page">근저당권 설정계약서</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">근저당권 설정계약서</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 필터 영역 -->
+            <section class="card">
+                <h3 class="visually-hidden">검색 조건</h3>
+                <form class="search-form">
+                    <div class="form-group">
+                        <label for="yearFilter">연도</label>
+                        <select id="yearFilter">
+                            <option value="">전체</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="searchInput">검색</label>
+                        <input type="text" id="searchInput" placeholder="사업자명 검색">
+                    </div>
+                    <button class="btn btn-primary" onclick="applyFilters()">검색</button>
+                    <button class="btn btn-secondary" onclick="resetFilters()">초기화</button>
+        </div>
+
+        <!-- 테이블 영역 -->
+        <div class="table-section">
+            <div class="table-header">
+                <div class="table-info">
+                    <span id="totalCount">총 0건</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary" id="uploadBtn" onclick="openUploadModal()" style="display:none;">📁
+                        Excel 업로드</button>
+                    <button class="btn-success" onclick="downloadExcel()">📥 엑셀 다운로드</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="data-table" id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>연도</th>
+                            <th>사업자</th>
+                            <th>융자금액</th>
+                            <th>잔여원금</th>
+                            <th>근저당권 설정일</th>
+                            <th>상환완료 예정일</th>
+                            <th>담보제공자</th>
+                            <th>담보부동산</th>
+                            <th>설정금액</th>
+                            <th>근저당권 변동내역</th>
+                            <th>비고</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="11" class="loading-spinner"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 페이지네이션 -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+        </div>
+    </main>
+
+    <!-- 업로드 모달 -->
+    <div class="modal-overlay" id="uploadModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="modal" style="background: white; padding: 24px; border-radius: 12px; max-width: 500px; width: 90%;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                <h3 style="margin: 0;">📁 Excel 파일 업로드</h3>
+                <button onclick="closeUploadModal()"
+                    style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Excel 파일 선택</label>
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" style="padding: 8px; width: 100%;">
+                    <small style="color: var(--color-neutral-600); margin-top: 8px; display: block;">* 근저당권 설정계약서 양식에 맞는
+                        Excel 파일을 업로드하세요</small>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+                <button class="btn btn-secondary" onclick="closeUploadModal()">취소</button>
+                <button class="btn btn-primary" onclick="uploadExcel()">업로드</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../assets/js/common.js"></script>
+    <script src="../../../assets/js/api.js"></script>
+    <script>
+        // 전역 변수
+        let currentPage = 1;
+        let totalPages = 1;
+        const perPage = 20;
+
+        // toggleSubmenu 함수는 common.js에 정의되어 있음
+
+
+        // 데이터 로드
+        async function loadData(page = 1) {
+            try {
+                let url = `/expansion/mortgage?page=${page}&perPage=${perPage}`;
+
+                const response = await apiCall(url, 'GET');
+
+                if (response.success) {
+                    renderTable(response.data);
+                    currentPage = response.page;
+                    totalPages = response.totalPages;
+                    document.getElementById('totalCount').textContent = `총 ${response.total}건`;
+                    renderPagination();
+                    populateYearFilter(response.data);
+                } else {
+                    showEmptyMessage('데이터를 불러오는데 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+                showEmptyMessage('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // 테이블 렌더링
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="11" class="empty-message">데이터가 없습니다.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            data.forEach(row => {
+                html += `
+                    <tr>
+                        <td>${row.year || '-'}</td>
+                        <td>${row.businessOperator || '-'}</td>
+                        <td>${row.loanAmount || '-'}</td>
+                        <td>${row.remainingPrincipal || '-'}</td>
+                        <td>${formatDate(row.mortgageDate)}</td>
+                        <td>${formatDate(row.repaymentCompletionDate)}</td>
+                        <td>${row.collateralProvider || '-'}</td>
+                        <td class="text-wrap">${row.collateralProperty || '-'}</td>
+                        <td>${row.mortgageAmount || '-'}</td>
+                        <td class="text-wrap">${row.mortgageHistory || '-'}</td>
+                        <td class="text-wrap">${row.notes || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // 페이지네이션 렌더링
+        function renderPagination() {
+            const container = document.getElementById('pagination');
+
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+
+            html += `<button class="page-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>◀</button>`;
+
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                html += `<button class="page-btn" onclick="goToPage(1)">1</button>`;
+                if (startPage > 2) html += `<span style="padding: 0 8px;">...</span>`;
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<span style="padding: 0 8px;">...</span>`;
+                html += `<button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+            }
+
+            html += `<button class="page-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>▶</button>`;
+
+            container.innerHTML = html;
+        }
+
+        // 페이지 이동
+        function goToPage(page) {
+            if (page < 1 || page > totalPages) return;
+            loadData(page);
+        }
+
+        // 연도 필터 채우기
+        function populateYearFilter(data) {
+            const select = document.getElementById('yearFilter');
+            if (select.options.length > 1) return;
+
+            const years = [...new Set(data.map(d => d.year).filter(y => y))].sort((a, b) => b - a);
+            years.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year + '년';
+                select.appendChild(option);
+            });
+        }
+
+        // 필터 적용
+        function applyFilters() {
+            loadData(1);
+        }
+
+        // 필터 초기화
+        function resetFilters() {
+            document.getElementById('yearFilter').value = '';
+            document.getElementById('searchInput').value = '';
+            loadData(1);
+        }
+
+        // 날짜 포맷
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            return dateStr.split('T')[0];
+        }
+
+        // 빈 메시지 표시
+        function showEmptyMessage(message) {
+            document.getElementById('tableBody').innerHTML =
+                `<tr><td colspan="11" class="empty-message">${message}</td></tr>`;
+        }
+
+        // 엑셀 다운로드
+        async function downloadExcel() {
+            try {
+                const response = await apiCall('/expansion/mortgage?page=1&perPage=10000', 'GET');
+
+                if (!response.success || response.data.length === 0) {
+                    alert('다운로드할 데이터가 없습니다.');
+                    return;
+                }
+
+                let csvContent = '\uFEFF';
+
+                csvContent += '연도,사업자,융자금액,잔여원금,근저당권설정일,상환완료예정일,담보제공자,담보부동산,설정금액,근저당권변동내역,비고\n';
+
+                response.data.forEach(row => {
+                    const values = [
+                        row.year || '',
+                        row.businessOperator || '',
+                        row.loanAmount || '',
+                        row.remainingPrincipal || '',
+                        formatDate(row.mortgageDate),
+                        formatDate(row.repaymentCompletionDate),
+                        row.collateralProvider || '',
+                        (row.collateralProperty || '').replace(/"/g, '""'),
+                        row.mortgageAmount || '',
+                        (row.mortgageHistory || '').replace(/"/g, '""'),
+                        (row.notes || '').replace(/"/g, '""')
+                    ];
+                    csvContent += values.map(v => `"${v}"`).join(',') + '\n';
+                });
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `근저당권_설정계약서_${new Date().toISOString().slice(0, 10)}.csv`;
+                link.click();
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('다운로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 업로드 모달
+        function openUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('excelFile').value = '';
+        }
+
+        async function uploadExcel() {
+            const fileInput = document.getElementById('excelFile');
+            if (!fileInput.files.length) {
+                alert('파일을 선택해주세요.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await apiCallFormData('/expansion/mortgage/upload', formData);
+                if (response.success) {
+                    alert(response.message || '업로드 완료!');
+                    closeUploadModal();
+                    loadData();
+                } else {
+                    alert(response.message || '업로드 실패');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('업로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        // 페이지 초기화
+        document.addEventListener('DOMContentLoaded', function () {
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+            if (userInfo) {
+                const currentUser = JSON.parse(userInfo);
+                const userPermission = currentUser.permissionScope || currentUser.permission_scope || 'readonly';
+                const canEdit = currentUser.role === 'admin' || userPermission === 'expansion' || userPermission === 'all';
+                if (canEdit) {
+                    document.getElementById('uploadBtn').style.display = 'inline-flex';
+                }
+            }
+
+            initCommonUI();
+            loadData();
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,168 @@
+/* ═══════════════════════════════════════════════════════
+   KRC GLOBAL 디자인 토큰
+   기반: KRDS (Korea Design System)
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+    /* ─── Primary Colors (주요 색상 - 네이비 블루) ─── */
+    --color-primary-900: #0A1628;
+    /* 가장 진한 네이비 */
+    --color-primary-800: #0D2240;
+    /* 진한 네이비 */
+    --color-primary-700: #102D52;
+    /* 네이비 */
+    --color-primary-600: #143864;
+    /* 네이비 (hover) */
+    --color-primary-500: #1A4B7C;
+    /* 기본 네이비 블루 */
+    --color-primary-400: #2A5F94;
+    /* 밝은 네이비 */
+    --color-primary-300: #4A7FB4;
+    /* 연한 네이비 */
+    --color-primary-200: #7AA3CC;
+    /* 아주 연한 네이비 */
+    --color-primary-100: #B8D1E8;
+    /* 배경용 연한 블루 */
+    --color-primary-50: #E8F1F8;
+    /* 가장 연한 블루 */
+
+    /* ─── Secondary Colors (상아색 계열) ─── */
+    --color-secondary-900: #4A4538;
+    /* 진한 상아 */
+    --color-secondary-800: #6B6355;
+    /* 상아 브라운 */
+    --color-secondary-700: #8C8272;
+    /* 상아 미디엄 */
+    --color-secondary-600: #ADA18F;
+    /* 상아 라이트 */
+    --color-secondary-500: #CEC0AC;
+    /* 기본 상아색 */
+    --color-secondary-400: #DED3C3;
+    /* 밝은 상아 */
+    --color-secondary-300: #EBE4D9;
+    /* 연한 상아 */
+    --color-secondary-200: #F5F1EA;
+    /* 아주 연한 상아 */
+    --color-secondary-100: #FAF8F5;
+    /* 상아 배경 */
+    --color-secondary-50: #FDFCFB;
+    /* 가장 연한 상아 */
+
+    /* ─── Neutral Colors (검정/그레이 계열) ─── */
+    --color-neutral-900: #1A1A1A;
+    /* 거의 검정 */
+    --color-neutral-800: #2D2D2D;
+    /* 진한 그레이 */
+    --color-neutral-700: #4A4A4A;
+    /* 그레이 */
+    --color-neutral-600: #666666;
+    /* 미디엄 그레이 */
+    --color-neutral-500: #808080;
+    /* 기본 그레이 */
+    --color-neutral-400: #999999;
+    /* 밝은 그레이 */
+    --color-neutral-300: #B3B3B3;
+    /* 연한 그레이 */
+    --color-neutral-200: #D9D9D9;
+    /* 아주 연한 그레이 */
+    --color-neutral-100: #EBEBEB;
+    /* 배경 그레이 */
+    --color-neutral-50: #F5F5F5;
+    /* 가장 연한 그레이 */
+    --color-neutral-0: #FFFFFF;
+    /* 흰색 */
+
+    /* ─── Semantic Colors (의미 색상) ─── */
+    --color-success-500: #28A745;
+    --color-success-100: #D4EDDA;
+    --color-warning-500: #FFC107;
+    --color-warning-100: #FFF3CD;
+    --color-error-500: #DC3545;
+    --color-error-100: #F8D7DA;
+    --color-info-500: #17A2B8;
+    --color-info-100: #D1ECF1;
+
+    /* ─── Typography ─── */
+    --font-family-primary: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-family-mono: 'JetBrains Mono', 'Consolas', monospace;
+
+    --font-size-xs: 0.75rem;
+    /* 12px */
+    --font-size-sm: 0.875rem;
+    /* 14px */
+    --font-size-base: 1rem;
+    /* 16px */
+    --font-size-lg: 1.125rem;
+    /* 18px */
+    --font-size-xl: 1.25rem;
+    /* 20px */
+    --font-size-2xl: 1.5rem;
+    /* 24px */
+    --font-size-3xl: 1.875rem;
+    /* 30px */
+    --font-size-4xl: 2.25rem;
+    /* 36px */
+
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --line-height-tight: 1.25;
+    --line-height-base: 1.5;
+    --line-height-relaxed: 1.75;
+
+    /* ─── Spacing ─── */
+    --spacing-1: 0.25rem;
+    /* 4px */
+    --spacing-2: 0.5rem;
+    /* 8px */
+    --spacing-3: 0.75rem;
+    /* 12px */
+    --spacing-4: 1rem;
+    /* 16px */
+    --spacing-5: 1.25rem;
+    /* 20px */
+    --spacing-6: 1.5rem;
+    /* 24px */
+    --spacing-8: 2rem;
+    /* 32px */
+    --spacing-10: 2.5rem;
+    /* 40px */
+    --spacing-12: 3rem;
+    /* 48px */
+    --spacing-16: 4rem;
+    /* 64px */
+
+    /* ─── Border Radius ─── */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-full: 9999px;
+
+    /* ─── Shadows ─── */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+
+    /* ─── Transitions ─── */
+    --transition-fast: 150ms ease-in-out;
+    --transition-base: 250ms ease-in-out;
+    --transition-slow: 350ms ease-in-out;
+
+    /* ─── Z-Index ─── */
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-modal: 300;
+    --z-toast: 400;
+    --z-tooltip: 500;
+
+    /* ─── Layout ─── */
+    --sidebar-width: 260px;
+    --sidebar-collapsed-width: 72px;
+    --header-height: 64px;
+    --content-max-width: 100%;
+}
+

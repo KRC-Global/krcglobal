@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="한국농어촌공사 글로벌사업관리시스템">
+    <title>로그인 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="assets/css/variables.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/pages.css">
+
+    <style>
+        .google-login-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 24px;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            background: #fff;
+            color: #3c4043;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, box-shadow 0.2s;
+        }
+        .google-login-btn:hover {
+            background: #f7f8f8;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+        .google-login-btn:active {
+            background: #eee;
+        }
+        .google-login-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .google-login-btn svg {
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <main id="main-content" class="login-container">
+        <div class="login-card card">
+            <div class="login-header">
+                <div class="login-logo">
+                    <span style="font-size: 48px;">🌏</span>
+                </div>
+                <h1 class="login-title"><span style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</h1>
+                <p class="login-subtitle">한국농어촌공사</p>
+            </div>
+
+            <div style="margin-top: var(--spacing-6);">
+                <div id="loginError" class="alert alert-error" style="display: none;" role="alert">
+                    <span>⚠️</span>
+                    <span id="loginErrorMessage">로그인에 실패했습니다.</span>
+                </div>
+
+                <button type="button" class="google-login-btn" id="googleLoginBtn" onclick="loginWithGoogle()">
+                    <svg width="20" height="20" viewBox="0 0 48 48">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    <span id="googleBtnText">Google 계정으로 로그인</span>
+                    <span id="googleBtnLoading" style="display: none;">로그인 중...</span>
+                </button>
+            </div>
+
+            <div class="login-footer" style="margin-top: var(--spacing-6); text-align: center;">
+                <p style="font-size: var(--font-size-xs); color: var(--color-neutral-500);">
+                    Google 계정으로 로그인 후 관리자가 권한을 부여합니다.
+                </p>
+                <p
+                    style="margin-top: var(--spacing-8); font-size: var(--font-size-xs); color: var(--color-neutral-500);">
+                    © 2026 한국농어촌공사 글로벌사업관리시스템
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/supabase-config.js"></script>
+    <script src="assets/js/common.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            // 이미 로그인된 경우 대시보드로 이동
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (session) {
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            // OAuth 콜백 처리 (리다이렉트 후)
+            window.supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                if (event === 'SIGNED_IN' && session) {
+                    // 사용자 정보를 localStorage에 저장 (기존 호환성)
+                    const user = session.user;
+                    const userInfo = {
+                        id: user.id,
+                        userId: user.email,
+                        name: user.user_metadata?.full_name || user.email.split('@')[0],
+                        email: user.email,
+                        department: '',
+                        role: 'user',
+                        permissionScope: 'readonly',
+                        permission_scope: 'readonly'
+                    };
+
+                    localStorage.setItem('gbms_token', session.access_token);
+                    localStorage.setItem('gbms_user', JSON.stringify(userInfo));
+
+                    window.location.href = 'dashboard.html';
+                }
+            });
+        });
+
+        async function loginWithGoogle() {
+            const btn = document.getElementById('googleLoginBtn');
+            const btnText = document.getElementById('googleBtnText');
+            const btnLoading = document.getElementById('googleBtnLoading');
+            const loginError = document.getElementById('loginError');
+
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            loginError.style.display = 'none';
+
+            try {
+                const { data, error } = await window.supabaseClient.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: window.location.origin + '/dashboard.html'
+                    }
+                });
+
+                if (error) throw error;
+            } catch (error) {
+                console.error('Google 로그인 오류:', error);
+                const errorMessage = document.getElementById('loginErrorMessage');
+                errorMessage.textContent = error.message || '로그인에 실패했습니다. 다시 시도해주세요.';
+                loginError.style.display = 'flex';
+                loginError.style.alignItems = 'center';
+                loginError.style.gap = 'var(--spacing-2)';
+                loginError.style.padding = 'var(--spacing-3)';
+                loginError.style.borderRadius = 'var(--radius-md)';
+                loginError.style.backgroundColor = 'var(--color-error-100)';
+                loginError.style.color = 'var(--color-error-500)';
+                loginError.style.fontSize = 'var(--font-size-sm)';
+
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+
+</html>

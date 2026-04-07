@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="한국농어촌공사 글로벌사업관리시스템 - 대시보드">
+    <title>대시보드 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="assets/css/variables.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/pages.css">
+
+    <!-- System Font (내부망 최적화) -->
+    <style>
+        /* 서브메뉴 스타일 - 폰트 통일 (var(--font-size-sm) = 14px) */
+        .submenu-toggle {
+            cursor: pointer;
+        }
+
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: var(--z-dropdown);
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 500;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown-item:last-child {
+            border-radius: 0 0 12px 12px;
+        }
+
+        /* 데이터분석 드롭다운 */
+        .analysis-menu {
+            position: relative;
+        }
+        .analysis-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--color-primary-600);
+            background: var(--color-neutral-0);
+            color: var(--color-primary-600);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .analysis-btn:hover {
+            background: var(--color-primary-600);
+            color: #fff;
+        }
+        .analysis-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            min-width: 160px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .analysis-dropdown.show {
+            display: block;
+        }
+        .analysis-dropdown a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            font-size: 13px;
+            color: var(--color-neutral-800);
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+        .analysis-dropdown a:hover {
+            background: var(--color-neutral-100);
+            color: var(--color-primary-600);
+        }
+        .analysis-dropdown a + a {
+            border-top: 1px solid var(--color-neutral-100);
+        }
+
+        /* 배너 캐러셀 - 4:1 비율 고정 (1200x300) */
+        .banner-carousel {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4 / 1;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: var(--spacing-4);
+            background: var(--color-neutral-100);
+        }
+
+        .banner-slides {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s ease;
+        }
+
+        .banner-slide {
+            min-width: 100%;
+            height: 100%;
+        }
+
+        .banner-slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .banner-dots {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 2;
+        }
+
+        .banner-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            transition: background 0.3s;
+        }
+
+        .banner-dot.active {
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        /* 사업 선택 버튼 스타일 */
+        .biz-select-btn {
+            flex: 1;
+            padding: 14px 20px;
+            border: 2px solid var(--color-neutral-300);
+            background: var(--color-neutral-0);
+            font-size: var(--font-size-base);
+            font-weight: 600;
+            color: var(--color-neutral-600);
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .biz-select-btn:hover {
+            border-color: var(--color-primary-400);
+            color: var(--color-primary-600);
+            background: var(--color-primary-50, #f0f5ff);
+        }
+
+        .biz-select-btn.active {
+            border-color: var(--color-primary-600);
+            color: var(--color-neutral-0);
+            background: var(--color-primary-600);
+            box-shadow: 0 2px 8px rgba(26, 75, 124, 0.25);
+        }
+
+        /* 대시보드 테이블 세로줄 */
+        .dashboard-bordered td,
+        .dashboard-bordered th {
+            border-left: 1px solid var(--color-neutral-200);
+        }
+        .dashboard-bordered td:first-child,
+        .dashboard-bordered th:first-child {
+            border-left: none;
+        }
+
+        /* 사업제안 수주현황 테이블 스타일 */
+        .proposal-status-cell {
+            text-align: center !important;
+            vertical-align: middle;
+            font-size: var(--font-size-xs);
+            line-height: 1.5;
+        }
+
+        .proposal-status-cell .date {
+            font-size: var(--font-size-xs);
+            color: var(--color-neutral-900);
+            display: block;
+        }
+
+        .proposal-status-cell .status-o {
+            color: var(--color-primary-600);
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .proposal-status-cell .status-x {
+            color: var(--color-neutral-400);
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .proposal-status-cell .status-progress {
+            color: #e67e22;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        /* ===== 수주 파이프라인 스테퍼 ===== */
+        .pipeline-cell {
+            padding: 10px 12px !important;
+            vertical-align: middle;
+        }
+        .pipeline-stepper {
+            display: flex;
+            align-items: flex-start;
+            min-width: 400px;
+            padding: 2px 0;
+        }
+        .pipeline-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+            flex: 0 0 auto;
+            width: 72px;
+        }
+        .pipeline-date {
+            font-size: 10px;
+            color: var(--color-neutral-400);
+            margin-bottom: 5px;
+            height: 13px;
+            line-height: 13px;
+            white-space: nowrap;
+        }
+        .pipeline-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2.5px solid var(--color-neutral-300);
+            background: var(--color-neutral-0);
+            position: relative;
+            flex-shrink: 0;
+            box-sizing: border-box;
+        }
+        .pipeline-dot.completed {
+            border-color: var(--color-primary-600);
+            background: var(--color-primary-600);
+        }
+        .pipeline-dot.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 8px;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .pipeline-dot.in-progress {
+            border-color: #e67e22;
+            background: #e67e22;
+            box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.15);
+            animation: pipeline-pulse 2s ease-in-out infinite;
+        }
+        .pipeline-dot.in-progress::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #fff;
+        }
+        @keyframes pipeline-pulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.15); }
+            50% { box-shadow: 0 0 0 6px rgba(230, 126, 34, 0.08); }
+        }
+        .pipeline-label {
+            font-size: 10px;
+            color: var(--color-neutral-400);
+            margin-top: 5px;
+            white-space: nowrap;
+            font-weight: 500;
+            letter-spacing: -0.3px;
+        }
+        .pipeline-step.completed .pipeline-label {
+            color: var(--color-primary-600);
+            font-weight: 600;
+        }
+        .pipeline-step.in-progress .pipeline-label {
+            color: #e67e22;
+            font-weight: 600;
+        }
+        .pipeline-step.in-progress .pipeline-date {
+            color: #e67e22;
+            font-weight: 600;
+        }
+        .pipeline-step.completed .pipeline-date {
+            color: var(--color-primary-700);
+            font-weight: 500;
+        }
+        /* 라인: date(13px) + margin(5px) + dot 중앙(7px) = 25px 지점 */
+        .pipeline-line {
+            flex: 1;
+            height: 2px;
+            background: var(--color-neutral-200);
+            margin-top: 25px;
+            min-width: 12px;
+        }
+        .pipeline-line.completed {
+            background: var(--color-primary-600);
+        }
+        .pipeline-line.half {
+            background: linear-gradient(to right, var(--color-primary-600) 50%, var(--color-neutral-200) 50%);
+        }
+
+        /* ===== 컨소시엄 표시 ===== */
+        .consortium-cell {
+            padding: 6px 8px !important;
+            vertical-align: middle;
+        }
+        .consortium-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .consortium-lead {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-primary-700);
+            white-space: nowrap;
+        }
+        .consortium-members {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 3px;
+        }
+        .consortium-tag {
+            font-size: 10px;
+            color: var(--color-neutral-600);
+            background: var(--color-neutral-100);
+            padding: 1px 6px;
+            border-radius: 3px;
+            white-space: nowrap;
+            line-height: 1.4;
+        }
+        .consortium-tag.krc {
+            color: var(--color-primary-700);
+            background: rgba(26, 75, 124, 0.08);
+            font-weight: 600;
+        }
+
+        /* 수정/저장/취소 버튼 */
+        .btn-edit-proposal, .btn-save-proposal, .btn-cancel-proposal {
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid;
+            transition: all 0.2s;
+        }
+        .btn-edit-proposal {
+            background: var(--color-neutral-0);
+            border-color: var(--color-primary-600);
+            color: var(--color-primary-600);
+        }
+        .btn-edit-proposal:hover {
+            background: var(--color-primary-50, #f0f5ff);
+        }
+        .btn-save-proposal {
+            background: var(--color-primary-600);
+            border-color: var(--color-primary-600);
+            color: #fff;
+            margin-right: 8px;
+        }
+        .btn-save-proposal:hover {
+            background: var(--color-primary-700);
+        }
+        .btn-cancel-proposal {
+            background: var(--color-neutral-0);
+            border-color: var(--color-neutral-400);
+            color: var(--color-neutral-700);
+        }
+        .btn-cancel-proposal:hover {
+            background: var(--color-neutral-100);
+        }
+
+        /* 편집모드 input 스타일 */
+        .proposal-edit-input {
+            width: 100%;
+            padding: 4px 6px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 4px;
+            font-size: 12px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .proposal-edit-input:focus {
+            outline: none;
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 2px rgba(26, 75, 124, 0.15);
+        }
+        .proposal-edit-input.input-name {
+            text-align: left;
+        }
+        .proposal-progress-check {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+        .btn-add-proposal {
+            background: var(--color-neutral-0);
+            border-color: #27ae60;
+            color: #27ae60;
+        }
+        .btn-add-proposal:hover {
+            background: #f0fff5;
+        }
+        .btn-delete-row {
+            padding: 2px 8px;
+            border: 1px solid #e74c3c;
+            background: var(--color-neutral-0);
+            color: #e74c3c;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+        .btn-delete-row:hover {
+            background: #fdf0ef;
+        }
+    </style>
+
+    <!-- Chart.js (로컬) -->
+    <script src="assets/lib/chart.min.js"></script>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글" aria-expanded="false"
+                aria-controls="sidebar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" disabled style="opacity: 0.5; cursor: default;">
+                    📊 해외기술정보 (준비중)
+                </button>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName"
+                        style="font-size: var(--font-size-sm); color: var(--color-neutral-700);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <!-- 사용자 드롭다운 메뉴 -->
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">Administrator</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="pages/admin/users.html" class="user-dropdown-item">
+                        <span>👤</span> 사용자 관리
+                    </a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;">
+                        <span>🚪</span> 로그아웃
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="dashboard.html" class="nav-link active">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+
+                <li class="nav-item has-submenu">
+                    <button class="nav-link" aria-expanded="false">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="pages/expansion/company-management.html">기업관리</a></li>
+                                <li><a href="pages/expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4">
+                                        <li><a href="pages/expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="pages/expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="pages/expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="pages/expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="pages/expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="pages/expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="pages/expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="pages/projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="pages/projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="pages/projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="pages/admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="pages/budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="pages/admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="dashboard.html">홈</a></li>
+                    <li aria-current="page">대시보드</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">대시보드</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 배너 캐러셀 -->
+            <section class="banner-carousel" id="bannerCarousel" style="display: none;">
+                <div class="banner-slides" id="bannerSlides"></div>
+                <div class="banner-dots" id="bannerDots"></div>
+            </section>
+
+            <!-- 금년도 사업 현황 (탭 구성) -->
+            <section style="margin-bottom: var(--spacing-4);">
+                <header
+                    style="margin-bottom: 0; display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-size: var(--font-size-xl); font-weight: 600;">2026년 사업 현황</h3>
+                    <span style="font-size: var(--font-size-sm); color: var(--color-neutral-600);">(단위: 백만원)</span>
+                </header>
+
+                <!-- 사업 선택 버튼 -->
+                <div style="display: flex; gap: 12px; margin-top: var(--spacing-3); margin-bottom: var(--spacing-4);">
+                    <button class="biz-select-btn" data-tab="consulting" disabled style="opacity: 0.5; cursor: default;">
+                        해외기술용역사업 (준비중)
+                    </button>
+                    <button class="biz-select-btn active" data-tab="oda" onclick="switchDashboardTab('oda')">
+                        국제협력사업
+                    </button>
+                    <button class="biz-select-btn" data-tab="loan" onclick="switchDashboardTab('loan')">
+                        해외진출지원사업
+                    </button>
+                </div>
+
+                <!-- 사업 콘텐츠 -->
+                <div class="card">
+                    <!-- 해외기술용역사업 탭 (비활성) -->
+                    <div class="dashboard-tab-content" id="tab-consulting" style="display:none;">
+                        <!-- 사업제안 및 수주현황 테이블 -->
+                        <div class="dashboard-accordion collapsed">
+                            <div class="dashboard-accordion-header" onclick="toggleAccordion(this)">
+                                <h4>
+                                    <span class="accordion-arrow">▾</span>
+                                    <span style="color: var(--color-primary-600);">📋</span> 사업제안 및 수주현황
+                                </h4>
+                                <div id="proposal-edit-buttons" style="display: flex; gap: 8px;">
+                                    <button id="proposalEditBtn" class="btn-edit-proposal" onclick="startEditProposal()" style="display:none;">
+                                        ✏️ 수정
+                                    </button>
+                                    <button id="proposalAddBtn" class="btn-add-proposal" onclick="addProposalRow()" style="display:none;">
+                                        ➕ 추가
+                                    </button>
+                                    <button id="proposalSaveBtn" class="btn-save-proposal" onclick="saveProposalStatus()" style="display:none;">
+                                        💾 저장
+                                    </button>
+                                    <button id="proposalCancelBtn" class="btn-cancel-proposal" onclick="cancelEditProposal()" style="display:none;">
+                                        취소
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="dashboard-accordion-body">
+                                <div class="table-container">
+                                    <table class="data-table dashboard-bordered" style="font-size: var(--font-size-sm);">
+                                        <thead id="proposal-thead">
+                                            <tr>
+                                                <th style="width: 40px; text-align: center;">No</th>
+                                                <th style="min-width: 180px;">사업명</th>
+                                                <th style="width: 130px; text-align: center;">재원</th>
+                                                <th style="width: 200px; text-align: center;">컨소시엄</th>
+                                                <th style="min-width: 420px; text-align: center;">수주 파이프라인</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="proposal-status-list">
+                                            <tr>
+                                                <td colspan="5" style="text-align: center; padding: var(--spacing-4);">
+                                                    데이터를 불러오는 중...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="dashboard-accordion collapsed">
+                            <div class="dashboard-accordion-header" onclick="toggleAccordion(this)">
+                                <h4>
+                                    <span class="accordion-arrow">▾</span>
+                                    <span style="color: var(--color-primary-600);">📊</span> 2026년도 사업현황
+                                    <a href="pages/projects/overseas-tech.html" class="accordion-link" onclick="event.stopPropagation();" title="상세 페이지로 이동">↗</a>
+                                </h4>
+                            </div>
+                            <div class="dashboard-accordion-body">
+                                <div class="table-container" style="overflow-x: auto;">
+                                    <table class="data-table dashboard-bordered" style="font-size: var(--font-size-sm); min-width: 900px;">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 35px; text-align: center;">연번</th>
+                                                <th style="width: 22%;">사업명</th>
+                                                <th style="width: 7%; text-align: center;">국가명</th>
+                                                <th style="width: 11%; text-align: center;">사업기간</th>
+                                                <th style="width: 7%; text-align: center;">총용역비</th>
+                                                <th style="width: 8%; text-align: center;">공사지분</th>
+                                                <th style="width: 15%; text-align: center;">발주처</th>
+                                                <th style="width: 7%; text-align: center;">재원</th>
+                                                <th style="width: 20%;">컨소시엄구성</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="consulting-projects-list">
+                                            <tr>
+                                                <td colspan="9" style="text-align: center; padding: var(--spacing-4);">
+                                                    데이터를 불러오는 중...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div id="consulting-projects-list-pagination"></div>
+                            </div>
+                        </div>
+
+                        <!-- 추진사업 연도별 수익현황 -->
+                        <div class="dashboard-accordion collapsed">
+                            <div class="dashboard-accordion-header" onclick="toggleAccordion(this)">
+                                <h4>
+                                    <span class="accordion-arrow">▾</span>
+                                    <span style="color: var(--color-primary-600);">📈</span> 추진사업 연도별 수익현황
+                                    <span style="font-size: var(--font-size-xs); color: var(--color-neutral-500); font-weight: 400;">(단위: 천원)</span>
+                                    <a href="pages/projects/overseas-tech.html" class="accordion-link" onclick="event.stopPropagation();" title="상세 페이지로 이동">↗</a>
+                                </h4>
+                            </div>
+                            <div class="dashboard-accordion-body">
+                                <div class="table-container" style="overflow-x: auto;">
+                                    <table class="data-table dashboard-bordered" id="dashboard-revenue-table" style="font-size: var(--font-size-xs); min-width: 800px;">
+                                        <thead id="dashboard-revenue-thead">
+                                            <tr>
+                                                <th style="width: 32px; text-align: center; background: var(--color-secondary-100);">연번</th>
+                                                <th style="min-width: 180px; position: sticky; left: 0; background: var(--color-secondary-100); z-index: 1;">사업명</th>
+                                                <th style="width: 80px; text-align: right; background: var(--color-info-100);">공사지분</th>
+                                                <th style="width: 50px; text-align: center; background: var(--color-secondary-100);">구분</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="dashboard-revenue-tbody">
+                                            <tr>
+                                                <td colspan="3" style="text-align: center; padding: var(--spacing-4);">데이터를 불러오는 중...</td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot id="dashboard-revenue-tfoot"></tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 국제협력사업 탭 -->
+                    <div class="dashboard-tab-content active" id="tab-oda">
+                        <h4 style="font-size: var(--font-size-base); font-weight: 600; margin-bottom: var(--spacing-3); display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                            onclick="window.location.href='pages/projects/international-cooperation.html'">
+                            <span style="color: var(--color-primary-600);">📊</span> 2026년도 사업현황
+                        </h4>
+                        <div class="table-container">
+                            <table class="data-table" style="font-size: var(--font-size-sm);">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px; text-align: center;">No</th>
+                                        <th style="width: 55%;">사업명</th>
+                                        <th style="width: 20%; text-align: center;">사업비</th>
+                                        <th style="width: 20%; text-align: center;">사업기간</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="oda-projects-list">
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; padding: var(--spacing-4);">
+                                            데이터를 불러오는 중...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="oda-projects-list-pagination"></div>
+                    </div>
+
+                    <!-- 해외진출지원사업 탭 -->
+                    <div class="dashboard-tab-content" id="tab-loan" style="display: none;">
+                        <h4 style="font-size: var(--font-size-base); font-weight: 600; margin-bottom: var(--spacing-3);">
+                            기업별 담보현황
+                        </h4>
+                        <div class="table-container">
+                            <table class="data-table" style="font-size: var(--font-size-sm);">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px; text-align: center;">No</th>
+                                        <th style="width: 45%;">기업명</th>
+                                        <th style="width: 25%; text-align: center;">융자액</th>
+                                        <th style="width: 25%; text-align: center;">잔액</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="loan-projects-list">
+                                    <tr>
+                                        <td colspan="4" style="text-align: center; padding: var(--spacing-4);">
+                                            데이터를 불러오는 중...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="loan-projects-list-pagination"></div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <script src="assets/js/common.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script>
+        // toggleSubmenu 함수는 common.js에 정의되어 있음
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            // Check authentication
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const user = JSON.parse(userInfo);
+            document.getElementById('userName').textContent = user.name;
+
+            // Show admin menu
+            if (user.role === 'admin') {
+                const adminMenu = document.getElementById('adminMenuUser');
+                if (adminMenu) {
+                    adminMenu.style.display = 'block';
+                }
+            }
+
+            // Initialize Common UI (메뉴, 테마, 사용자 정보)
+            initCommonUI();
+
+            // Initialize Banner Carousel
+            await loadBannerCarousel();
+
+            // Initialize Dashboard
+            await loadDashboardData();
+        });
+
+        async function loadDashboardData() {
+            try {
+                // 1. Overview Statistics
+                const overviewData = await apiCall('/dashboard/overview');
+                if (overviewData.success) {
+                    updateStats(overviewData.data);
+                }
+
+                // 2. Current Year Projects (2026년 사업 현황)
+                await loadCurrentYearProjects();
+
+                // 3. 사업제안 및 수주현황
+                await loadProposalStatus();
+
+                // 4. 추진사업 연도별 수익현황
+                await loadDashboardRevenueTable();
+
+            } catch (error) {
+                console.error('Failed to load dashboard data:', error);
+            }
+        }
+
+        function updateStats(data) {
+            // Count Animation Helper
+            const animateValue = (id, start, end, duration) => {
+                const obj = document.getElementById(id);
+                if (!obj) return;
+
+                // For Budget fields
+                if (id.includes('budget')) {
+                    const budgetInUk = Math.round(end / 100000000);
+                    obj.textContent = `₩${formatNumber(budgetInUk)}억`;
+                    return;
+                }
+
+                let startTimestamp = null;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    obj.textContent = formatNumber(Math.floor(progress * (end - start) + start));
+                    if (progress < 1) {
+                        window.requestAnimationFrame(step);
+                    }
+                };
+                window.requestAnimationFrame(step);
+            };
+
+            // 예산 통계
+            animateValue('stat-budget-total', 0, data.budget.total, 1000);
+            animateValue('stat-budget-consulting', 0, data.budget.consulting, 1000);
+            animateValue('stat-budget-oda', 0, data.budget.oda, 1000);
+        }
+
+        // 페이지네이션 상태
+        const currentPages = {
+            consulting: 1,
+            oda: 1,
+            loan: 1
+        };
+
+        function renderCurrentYearProjects(data) {
+            // 1. 해외기술용역사업 (메탄감축사업 포함 - 백엔드에서 통합)
+            renderProjectTable('consulting', data.consulting, 'consulting-projects-list');
+
+            // 2. 국제협력사업
+            renderProjectTable('oda', data.oda, 'oda-projects-list');
+
+            // 3. 해외진출지원사업
+            renderProjectTable('loan', data.loan, 'loan-projects-list');
+        }
+
+        function renderProjectTable(type, data, tbodyId) {
+            const tbody = document.getElementById(tbodyId);
+            const paginationId = `${tbodyId}-pagination`;
+
+            // 테이블 렌더링
+            // 페이지 기반 시작 번호 계산
+            const perPage = 20;
+            const startIdx = data ? ((data.currentPage || 1) - 1) * perPage : 0;
+
+            const colSpan = type === 'consulting' ? 9 : 4;
+
+            if (data && data.items && data.items.length > 0) {
+                if (type === 'consulting') {
+                    // 해외기술용역사업 (메탄감축 포함)
+                    tbody.innerHTML = data.items.map((p, i) => `
+                        <tr${p.isMethane ? ' style="background: #f0fdf4;"' : ''}>
+                            <td style="text-align: center; font-size: var(--font-size-xs);">${startIdx + i + 1}</td>
+                            <td style="font-size: var(--font-size-xs); line-height: 1.4; padding: 8px;">${p.projectName}</td>
+                            <td style="text-align: center; font-size: var(--font-size-xs);">${p.country || '-'}</td>
+                            <td style="text-align: center; font-size: var(--font-size-xs); white-space: nowrap;">${p.period}</td>
+                            <td style="text-align: center; font-size: var(--font-size-xs); white-space: nowrap;">${p.totalBudget ? formatNumber(Math.round(p.totalBudget)) : '-'}</td>
+                            <td style="text-align: center; font-size: var(--font-size-xs); white-space: nowrap;">${p.krcBudget ? formatNumber(Math.round(p.krcBudget)) + (p.krcShareRatio ? ' (' + Math.round(p.krcShareRatio) + '%)' : '') : '-'}</td>
+                            <td style="text-align: center; font-size: var(--font-size-xs);">${p.client || '-'}</td>
+                            <td style="text-align: center; font-size: var(--font-size-xs);">${p.fundingSource || '-'}</td>
+                            <td style="font-size: var(--font-size-xs); line-height: 1.3; padding: 6px 8px;">${p.consortium || '-'}</td>
+                        </tr>
+                    `).join('');
+                } else if (type === 'loan') {
+                    // 해외진출지원사업 - 기업별 담보현황
+                    tbody.innerHTML = data.items.map((p, i) => `
+                        <tr>
+                            <td style="text-align: center; font-size: var(--font-size-xs);">${startIdx + i + 1}</td>
+                            <td style="font-size: var(--font-size-xs); line-height: 1.4; padding: 8px;">${p.companyName || '-'}</td>
+                            <td style="text-align: center; font-size: var(--font-size-xs); white-space: nowrap;">${formatNumber(p.loanAmount || 0)} 천원</td>
+                            <td style="text-align: center; font-size: var(--font-size-xs); white-space: nowrap;">${formatNumber(p.balance || 0)} 천원</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    // ODA 등 다른 프로젝트들
+                    tbody.innerHTML = data.items.map((p, i) => `
+                        <tr>
+                            <td style="text-align: center; font-size: var(--font-size-xs);">${startIdx + i + 1}</td>
+                            <td style="font-size: var(--font-size-xs); line-height: 1.4; padding: 8px;">${p.projectName}</td>
+                            <td style="text-align: center; font-size: var(--font-size-xs); white-space: nowrap;">${formatNumber(Math.round(p.currentYearBudget))}</td>
+                            <td style="text-align: center; font-size: var(--font-size-xs); white-space: nowrap;">${p.period}</td>
+                        </tr>
+                    `).join('');
+                }
+            } else {
+                tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align: center; padding: var(--spacing-4); color: var(--color-neutral-600);">데이터가 없습니다.</td></tr>`;
+            }
+
+            // 페이지네이션 렌더링
+            const paginationContainer = document.getElementById(paginationId);
+            if (paginationContainer && data && data.totalPages > 1) {
+                paginationContainer.innerHTML = `
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 12px; font-size: var(--font-size-sm);">
+                        <button onclick="changePage('${type}', ${data.currentPage - 1})"
+                                ${data.currentPage === 1 ? 'disabled' : ''}
+                                style="padding: 4px 12px; border: 1px solid var(--color-neutral-300); background: white; cursor: pointer; border-radius: 4px;">
+                            이전
+                        </button>
+                        <span style="color: var(--color-neutral-700);">
+                            ${data.currentPage} / ${data.totalPages} 페이지 (총 ${data.total}건)
+                        </span>
+                        <button onclick="changePage('${type}', ${data.currentPage + 1})"
+                                ${data.currentPage === data.totalPages ? 'disabled' : ''}
+                                style="padding: 4px 12px; border: 1px solid var(--color-neutral-300); background: white; cursor: pointer; border-radius: 4px;">
+                            다음
+                        </button>
+                    </div>
+                `;
+            } else if (paginationContainer) {
+                paginationContainer.innerHTML = '';
+            }
+        }
+
+        async function loadCurrentYearProjects() {
+            try {
+                const params = new URLSearchParams({
+                    consulting_page: currentPages.consulting,
+                    oda_page: currentPages.oda,
+                    loan_page: currentPages.loan
+                });
+
+                const currentYearData = await apiCall(`/dashboard/current-year-projects?${params}`);
+                if (currentYearData.success) {
+                    renderCurrentYearProjects(currentYearData.data);
+                }
+            } catch (error) {
+                console.error('Failed to load current year projects:', error);
+            }
+        }
+
+        // 추진사업 연도별 수익현황 로드 (overseas-tech 1번 탭과 동일)
+        async function loadDashboardRevenueTable() {
+            try {
+                const data = await apiCall('/consulting/current-year-projects');
+                if (!data.success) return;
+
+                const { currentYear, nextYear, yearColumns, projects, totals } = data;
+                const thead = document.getElementById('dashboard-revenue-thead');
+                const tbody = document.getElementById('dashboard-revenue-tbody');
+                const tfoot = document.getElementById('dashboard-revenue-tfoot');
+                if (!thead || !tbody || !tfoot) return;
+
+                if (!projects || projects.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: var(--spacing-4);">현재 시행중인 사업이 없습니다.</td></tr>`;
+                    return;
+                }
+
+                // 헤더 생성
+                let headerHtml = `<tr>
+                    <th style="width: 32px; text-align: center; background: var(--color-secondary-100);">연번</th>
+                    <th style="min-width: 180px; position: sticky; left: 0; background: var(--color-secondary-100); z-index: 1;">사업명</th>
+                    <th style="width: 80px; text-align: right; background: var(--color-info-100);">공사지분</th>
+                    <th style="width: 50px; text-align: center; background: var(--color-secondary-100);">구분</th>`;
+                yearColumns.forEach(year => {
+                    const isCur = year === currentYear;
+                    const bg = isCur ? 'var(--color-primary-100)' : 'var(--color-secondary-100)';
+                    headerHtml += `<th style="width: 60px; min-width: 60px; text-align: right; background: ${bg};">'${String(year).slice(-2)}</th>`;
+                });
+                const shortNext = "'" + String(nextYear).slice(-2);
+                headerHtml += `<th style="width: 70px; min-width: 70px; text-align: right; background: var(--color-warning-100);">${shortNext}~</th></tr>`;
+                thead.innerHTML = headerHtml;
+
+                // 바디 생성 (수익행 + 비용행)
+                let bodyHtml = '';
+                projects.forEach((project, idx) => {
+                    const krcBudget = project.krcBudgetInThousands || (project.krcBudget * 1000) || 0;
+                    const fmtKrc = krcBudget > 0 ? formatNumber(Math.round(krcBudget)) : '-';
+                    const shareRatio = project.krcShareRatio > 0 ? `<div style="font-size:10px;color:#6c757d;">(${(project.krcShareRatio*100).toFixed(1)}%)</div>` : '';
+
+                    // 수익 행
+                    bodyHtml += `<tr style="height:28px; border-bottom: none;">
+                        <td rowspan="2" style="width:32px; text-align:center; vertical-align:middle; border-bottom:2px solid var(--color-neutral-300); font-size:var(--font-size-xs); color:var(--color-neutral-600);">${idx + 1}</td>
+                        <td rowspan="2" style="min-width:180px; position:sticky; left:0; background:var(--color-neutral-0); z-index:1; vertical-align:middle; border-bottom:2px solid var(--color-neutral-300); font-size:var(--font-size-xs); padding:4px 8px;">
+                            ${project.titleKr || '-'}
+                            <div style="font-size:10px; color:var(--color-neutral-500);">${project.country || ''}</div>
+                        </td>
+                        <td rowspan="2" style="text-align:right; background:var(--color-info-50); vertical-align:middle; border-bottom:2px solid var(--color-neutral-300); font-size:var(--font-size-xs);">${fmtKrc}${shareRatio}</td>
+                        <td style="text-align:center; font-size:10px; font-weight:600; color:#2563eb; height:28px;">수익</td>`;
+                    yearColumns.forEach(year => {
+                        const rev = (project.revenues && project.revenues[year]) || 0;
+                        const isCur = year === currentYear;
+                        const bg = isCur ? 'background:var(--color-primary-50);' : '';
+                        bodyHtml += `<td style="text-align:right; font-size:var(--font-size-xs); padding:3px 6px; height:28px; ${bg} color:#2563eb;">${rev > 0 ? formatNumber(Math.round(rev)) : '-'}</td>`;
+                    });
+                    const futureRev = project.futureRevenue || 0;
+                    bodyHtml += `<td style="text-align:right; background:var(--color-warning-50); height:28px; color:#2563eb;">${futureRev > 0 ? formatNumber(Math.round(futureRev)) : '-'}</td></tr>`;
+
+                    // 비용 행
+                    bodyHtml += `<tr style="background:var(--color-neutral-50); border-bottom:2px solid var(--color-neutral-300); height:28px;">
+                        <td style="text-align:center; font-size:10px; font-weight:600; color:#dc2626; background:var(--color-neutral-50); height:28px;">비용</td>`;
+                    yearColumns.forEach(year => {
+                        const cost = (project.costs && project.costs[year]) || 0;
+                        const isCur = year === currentYear;
+                        const bg = isCur ? 'background:var(--color-primary-25,#eef2ff);' : 'background:var(--color-neutral-50);';
+                        bodyHtml += `<td style="text-align:right; font-size:var(--font-size-xs); padding:3px 6px; height:28px; ${bg} color:#dc2626;">${cost !== 0 ? formatNumber(Math.round(cost)) : '-'}</td>`;
+                    });
+                    bodyHtml += `<td style="text-align:right; background:var(--color-warning-25,#fef9c3); height:28px; color:#dc2626;">-</td></tr>`;
+                });
+                tbody.innerHTML = bodyHtml;
+
+                // 푸터 (합계)
+                const totalKrc = totals.totalKrcBudget || 0;
+                let footHtml = `<tr style="background:var(--color-secondary-100); font-weight:600; height:28px; border-bottom:none;">
+                    <td rowspan="2" style="text-align:center; background:var(--color-secondary-100); vertical-align:middle; height:56px; font-size:var(--font-size-xs);">-</td>
+                    <td rowspan="2" style="position:sticky; left:0; background:var(--color-secondary-100); z-index:1; vertical-align:middle; height:56px; font-size:var(--font-size-xs);">합계</td>
+                    <td rowspan="2" style="text-align:right; background:var(--color-info-100); vertical-align:middle; height:56px; font-size:var(--font-size-xs);">${totalKrc > 0 ? formatNumber(Math.round(totalKrc)) : '-'}</td>
+                    <td style="text-align:center; font-size:10px; font-weight:600; color:#2563eb; background:var(--color-secondary-100); height:28px;">수익</td>`;
+                yearColumns.forEach(year => {
+                    const total = (totals.byYear && totals.byYear[year]) || 0;
+                    const isCur = year === currentYear;
+                    const bg = isCur ? 'var(--color-primary-100)' : 'var(--color-secondary-100)';
+                    footHtml += `<td style="text-align:right; background:${bg}; font-size:var(--font-size-xs); padding:3px 6px; height:28px; color:#2563eb;">${total > 0 ? formatNumber(Math.round(total)) : '-'}</td>`;
+                });
+                const futureTotal = totals.future || 0;
+                footHtml += `<td style="text-align:right; background:var(--color-warning-100); height:28px; color:#2563eb;">${futureTotal > 0 ? formatNumber(Math.round(futureTotal)) : '-'}</td></tr>`;
+
+                footHtml += `<tr style="background:var(--color-secondary-200); font-weight:600; height:28px;">
+                    <td style="text-align:center; font-size:10px; font-weight:600; color:#dc2626; background:var(--color-secondary-200); height:28px;">비용</td>`;
+                yearColumns.forEach(year => {
+                    const costTotal = (totals.costsByYear && totals.costsByYear[year]) || 0;
+                    const isCur = year === currentYear;
+                    const bg = isCur ? 'var(--color-primary-150,#c7d2fe)' : 'var(--color-secondary-200)';
+                    footHtml += `<td style="text-align:right; background:${bg}; font-size:var(--font-size-xs); padding:3px 6px; height:28px; color:#dc2626;">${costTotal !== 0 ? formatNumber(Math.round(costTotal)) : '-'}</td>`;
+                });
+                footHtml += `<td style="text-align:right; background:var(--color-warning-150,#fde68a); height:28px; color:#dc2626;">-</td></tr>`;
+                tfoot.innerHTML = footHtml;
+
+            } catch (error) {
+                console.error('추진사업 연도별 수익현황 로드 실패:', error);
+            }
+        }
+
+        async function changePage(type, page) {
+            currentPages[type] = page;
+            await loadCurrentYearProjects();
+        }
+
+        function renderOfficeList(offices) {
+            const container = document.getElementById('office-list');
+            if (offices.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--color-neutral-600);">데이터가 없습니다.</p>';
+                return;
+            }
+
+            let html = '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-3);">';
+            offices.forEach(office => {
+                const typeLabel = office.office_type === 'regular' ? '정규사무소' : 'ODA데스크';
+                const typeBadge = office.office_type === 'regular' ? 'badge-primary' : 'badge-info';
+
+                html += `
+                    <div style="padding: var(--spacing-3); background: var(--color-neutral-50); border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <strong style="font-size: var(--font-size-base);">${office.name}</strong>
+                            <span class="badge ${typeBadge}">${typeLabel}</span>
+                        </div>
+                        <div style="font-size: var(--font-size-sm); color: var(--color-neutral-600);">
+                            📍 ${office.country} ${office.city}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // 대시보드 아코디언 초기화 (기본 접힘)
+        document.querySelectorAll('.dashboard-accordion.collapsed .dashboard-accordion-body').forEach(function(body) {
+            body.style.maxHeight = '0';
+        });
+
+        // 대시보드 아코디언 토글
+        function toggleAccordion(headerEl) {
+            if (event && event.target.closest('#proposal-edit-buttons')) return;
+            var accordion = headerEl.closest('.dashboard-accordion');
+            var body = accordion.querySelector('.dashboard-accordion-body');
+            if (accordion.classList.contains('collapsed')) {
+                accordion.classList.remove('collapsed');
+                body.style.maxHeight = body.scrollHeight + 'px';
+                setTimeout(function() { body.style.maxHeight = 'none'; }, 300);
+            } else {
+                body.style.maxHeight = body.scrollHeight + 'px';
+                requestAnimationFrame(function() { body.style.maxHeight = '0'; });
+                accordion.classList.add('collapsed');
+            }
+        }
+
+        // 사업 선택 전환 함수
+        function switchDashboardTab(tabName) {
+            if (tabName === 'consulting') return; // 해외기술용역 비활성화
+            // 모든 버튼 비활성화
+            document.querySelectorAll('.biz-select-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            // 모든 콘텐츠 숨기기
+            document.querySelectorAll('.dashboard-tab-content').forEach(content => {
+                content.style.display = 'none';
+                content.classList.remove('active');
+            });
+            // 선택된 버튼 활성화
+            document.querySelector(`.biz-select-btn[data-tab="${tabName}"]`).classList.add('active');
+            const tabContent = document.getElementById(`tab-${tabName}`);
+            tabContent.style.display = 'block';
+            tabContent.classList.add('active');
+        }
+
+        // 사업제안 및 수주현황 데이터 저장소
+        let proposalStatusData = [];
+        let isProposalEditMode = false;
+
+        const STAGE_KEYS = [
+            { date: 'eoiDate', progress: 'eoiProgress', label: 'EOI제출' },
+            { date: 'shortlistDate', progress: 'shortlistProgress', label: 'Shortlist' },
+            { date: 'proposalDate', progress: 'proposalProgress', label: '제안서제출' },
+            { date: 'negotiationDate', progress: 'negotiationProgress', label: '제안협상' },
+            { date: 'contractDate', progress: 'contractProgress', label: '계약' },
+        ];
+
+        // 수정 권한 확인 및 버튼 표시
+        function checkProposalEditPermission() {
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+            if (!userInfo) return;
+            const user = JSON.parse(userInfo);
+            if (user.role === 'admin' || user.role === 'manager') {
+                document.getElementById('proposalEditBtn').style.display = 'inline-block';
+            }
+        }
+
+        // 파이프라인 HTML 생성
+        // 컨소시엄 HTML 생성 (주관사 강조, KRC에 지분율 표시)
+        function createConsortiumHTML(consortiumStr, shareRatio) {
+            if (!consortiumStr) return '';
+            const parts = consortiumStr.split('/').map(s => s.trim()).filter(Boolean);
+            if (parts.length === 0) return '';
+            // KRC 태그에 지분율 병합
+            const ratioStr = shareRatio ? ` (${shareRatio}%)` : '';
+            const renderName = (name) => {
+                if (name.toUpperCase().includes('KRC') || name.includes('공사')) {
+                    return `<span class="consortium-tag krc">${name}${ratioStr}</span>`;
+                }
+                return `<span class="consortium-tag">${name}</span>`;
+            };
+            if (parts.length === 1) {
+                const name = parts[0];
+                if (name.toUpperCase().includes('KRC') || name.includes('공사')) {
+                    return `<span class="consortium-lead">${name}${ratioStr}</span>`;
+                }
+                return `<span class="consortium-lead">${name}</span>`;
+            }
+            const lead = parts[0];
+            const members = parts.slice(1);
+            const leadIsKRC = lead.toUpperCase().includes('KRC') || lead.includes('공사');
+            return `<div class="consortium-wrap">
+                <span class="consortium-lead">${lead}${leadIsKRC ? ratioStr : ''}</span>
+                <div class="consortium-members">${members.map(m => renderName(m)).join('')}</div>
+            </div>`;
+        }
+
+        function createPipelineHTML(item) {
+            // 각 단계 상태 판별: completed / in-progress / pending
+            const stages = STAGE_KEYS.map(sk => {
+                const date = item[sk.date] || '';
+                const progress = item[sk.progress];
+                let status = 'pending';
+                if (progress) status = 'in-progress';
+                else if (date) status = 'completed';
+                return { ...sk, date, status };
+            });
+            // 이후 단계가 완료/진행중이면 앞선 pending 단계를 자동 완료 처리
+            for (let i = stages.length - 1; i >= 0; i--) {
+                if (stages[i].status === 'completed' || stages[i].status === 'in-progress') {
+                    for (let j = 0; j < i; j++) {
+                        if (stages[j].status === 'pending') {
+                            stages[j].status = 'completed';
+                        }
+                    }
+                    break;
+                }
+            }
+
+            let html = '<div class="pipeline-stepper">';
+            stages.forEach((stage, idx) => {
+                // 점 + 라벨
+                const dateText = stage.date || '';
+                const displayDate = stage.status === 'in-progress' ? '진행중' : dateText;
+                html += `<div class="pipeline-step ${stage.status}">
+                    <span class="pipeline-date">${displayDate}</span>
+                    <span class="pipeline-dot ${stage.status}"></span>
+                    <span class="pipeline-label">${stage.label}</span>
+                </div>`;
+                // 연결선 (마지막 단계 뒤에는 없음)
+                if (idx < stages.length - 1) {
+                    // 라인 상태: 현재와 다음 단계 기준
+                    let lineClass = '';
+                    if (stage.status === 'completed' && (stages[idx + 1].status === 'completed' || stages[idx + 1].status === 'in-progress')) {
+                        lineClass = 'completed';
+                    } else if (stage.status === 'completed' && stages[idx + 1].status === 'pending') {
+                        lineClass = 'half';
+                    } else if (stage.status === 'in-progress') {
+                        lineClass = 'half';
+                    }
+                    html += `<div class="pipeline-line ${lineClass}"></div>`;
+                }
+            });
+            html += '</div>';
+            return html;
+        }
+
+        // 보기 모드 렌더링
+        function renderProposalStatus(data) {
+            const tbody = document.getElementById('proposal-status-list');
+            if (!data || !data.items || data.items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: var(--spacing-4); color: var(--color-neutral-600);">등록된 제안 현황이 없습니다.</td></tr>`;
+                return;
+            }
+            proposalStatusData = data.items;
+
+            // 보기 모드 헤더 복원
+            setViewModeHeader();
+
+            tbody.innerHTML = data.items.map((p, i) => {
+                return `<tr>
+                    <td style="text-align: center; font-size: var(--font-size-xs);">${i + 1}</td>
+                    <td style="font-size: var(--font-size-xs); line-height: 1.4; padding: 8px; font-weight: 500;">${p.projectName || '-'}</td>
+                    <td class="proposal-status-cell">${p.funding || ''}</td>
+                    <td class="consortium-cell">${createConsortiumHTML(p.consortium, p.shareRatio)}</td>
+                    <td class="pipeline-cell">${createPipelineHTML(p)}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // 보기 모드 헤더
+        function setViewModeHeader() {
+            const thead = document.getElementById('proposal-thead');
+            thead.innerHTML = `<tr>
+                <th style="width: 40px; text-align: center;">No</th>
+                <th style="min-width: 180px;">사업명</th>
+                <th style="width: 130px; text-align: center;">재원</th>
+                <th style="width: 200px; text-align: center;">컨소시엄</th>
+                <th style="min-width: 420px; text-align: center;">수주 파이프라인</th>
+            </tr>`;
+        }
+
+        // 편집 모드 헤더
+        function setEditModeHeader() {
+            const thead = document.getElementById('proposal-thead');
+            thead.innerHTML = `<tr>
+                <th style="width: 40px; text-align: center;">No</th>
+                <th style="min-width: 180px;">사업명</th>
+                <th style="width: 130px; text-align: center;">재원</th>
+                <th style="width: 200px; text-align: center;">컨소시엄</th>
+                <th style="width: 100px; text-align: center;">공사<br>지분율</th>
+                <th style="width: 100px; text-align: center;">EOI제출</th>
+                <th style="width: 100px; text-align: center;">SHORT<br>LIST</th>
+                <th style="width: 100px; text-align: center;">제안서제출</th>
+                <th style="width: 100px; text-align: center;">제안협상</th>
+                <th style="width: 100px; text-align: center;">계약</th>
+                <th style="width: 50px; text-align: center;">삭제</th>
+            </tr>`;
+        }
+
+        // 삭제 대기열 (저장 시 실제 삭제)
+        let proposalDeleteIds = [];
+
+        // 수정 모드 렌더링
+        function renderProposalEditMode() {
+            const tbody = document.getElementById('proposal-status-list');
+            // 편집 모드 헤더로 전환 (5컬럼 + 삭제)
+            setEditModeHeader();
+
+            tbody.innerHTML = proposalStatusData.map((p, i) => {
+                return `<tr data-id="${p.id || ''}">
+                    <td style="text-align: center; font-size: var(--font-size-xs);">${i + 1}</td>
+                    <td><input class="proposal-edit-input input-name" data-field="projectName" value="${p.projectName || ''}"></td>
+                    <td><input class="proposal-edit-input" data-field="funding" value="${p.funding || ''}"></td>
+                    <td><input class="proposal-edit-input" data-field="consortium" value="${p.consortium || ''}" placeholder="컨소시엄"></td>
+                    <td><input class="proposal-edit-input" data-field="shareRatio" value="${p.shareRatio || ''}" placeholder="지분율"></td>
+                    ${STAGE_KEYS.map(sk => {
+                        const date = p[sk.date] || '';
+                        const progress = p[sk.progress] || false;
+                        return `<td class="proposal-status-cell">
+                            <input class="proposal-edit-input" data-field="${sk.date}" value="${date}" placeholder="'YY.MM.DD">
+                            <label style="display:flex; align-items:center; justify-content:center; gap:4px; margin-top:4px; font-size:11px; color:var(--color-neutral-600); cursor:pointer;">
+                                <input type="checkbox" class="proposal-progress-check" data-field="${sk.progress}" ${progress ? 'checked' : ''}> 진행중
+                            </label>
+                        </td>`;
+                    }).join('')}
+                    <td style="text-align: center;">
+                        <button class="btn-delete-row" onclick="removeProposalRow(this, ${p.id || 0})">✕</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        // 행 추가
+        function addProposalRow() {
+            const newItem = {
+                id: null, projectName: '', funding: '', consortium: '', shareRatio: '',
+                eoiDate: '', shortlistDate: '', announcementDate: '', proposalDate: '',
+                selectionDate: '', negotiationDate: '', contractDate: '',
+                eoiProgress: false, shortlistProgress: false, announcementProgress: false,
+                proposalProgress: false, selectionProgress: false, negotiationProgress: false, contractProgress: false,
+            };
+            proposalStatusData.push(newItem);
+            renderProposalEditMode();
+            // 새 행의 사업명 input에 포커스
+            const inputs = document.querySelectorAll('#proposal-status-list tr:last-child .input-name');
+            if (inputs.length) inputs[0].focus();
+        }
+
+        // 행 삭제
+        function removeProposalRow(btn, id) {
+            const row = btn.closest('tr');
+            if (id) proposalDeleteIds.push(id);
+            // proposalStatusData에서도 제거
+            const idx = Array.from(row.parentNode.children).indexOf(row);
+            proposalStatusData.splice(idx, 1);
+            renderProposalEditMode();
+        }
+
+        // 수정 모드 진입
+        function startEditProposal() {
+            isProposalEditMode = true;
+            proposalDeleteIds = [];
+            document.getElementById('proposalEditBtn').style.display = 'none';
+            document.getElementById('proposalAddBtn').style.display = 'inline-block';
+            document.getElementById('proposalSaveBtn').style.display = 'inline-block';
+            document.getElementById('proposalCancelBtn').style.display = 'inline-block';
+            renderProposalEditMode();
+        }
+
+        // 수정 취소
+        function cancelEditProposal() {
+            isProposalEditMode = false;
+            proposalDeleteIds = [];
+            document.getElementById('proposalEditBtn').style.display = 'inline-block';
+            document.getElementById('proposalAddBtn').style.display = 'none';
+            document.getElementById('proposalSaveBtn').style.display = 'none';
+            document.getElementById('proposalCancelBtn').style.display = 'none';
+            // 데이터 다시 로드 (헤더도 보기 모드로 복원됨)
+            loadProposalStatus();
+        }
+
+        // 저장
+        async function saveProposalStatus() {
+            // 삭제 처리
+            for (const delId of proposalDeleteIds) {
+                try {
+                    await apiCall(`/consulting/proposal-status/${delId}`, 'DELETE');
+                } catch (e) {
+                    console.error('삭제 오류:', e);
+                }
+            }
+            proposalDeleteIds = [];
+
+            const rows = document.querySelectorAll('#proposal-status-list tr');
+            const items = [];
+
+            rows.forEach((row, i) => {
+                const id = row.dataset.id ? parseInt(row.dataset.id) : null;
+                const item = { id, sortOrder: i + 1 };
+                row.querySelectorAll('.proposal-edit-input').forEach(input => {
+                    item[input.dataset.field] = input.value;
+                });
+                row.querySelectorAll('.proposal-progress-check').forEach(chk => {
+                    item[chk.dataset.field] = chk.checked;
+                });
+                items.push(item);
+            });
+
+            try {
+                const res = await apiCall('/consulting/proposal-status/bulk', 'PUT', { items });
+                if (res.success) {
+                    proposalStatusData = res.data.items;
+                    isProposalEditMode = false;
+                    document.getElementById('proposalEditBtn').style.display = 'inline-block';
+                    document.getElementById('proposalAddBtn').style.display = 'none';
+                    document.getElementById('proposalSaveBtn').style.display = 'none';
+                    document.getElementById('proposalCancelBtn').style.display = 'none';
+                    renderProposalStatus({ items: proposalStatusData });
+                    alert('저장되었습니다.');
+                } else {
+                    alert('저장 실패: ' + (res.message || ''));
+                }
+            } catch (e) {
+                console.error('저장 오류:', e);
+                alert('저장 중 오류가 발생했습니다.');
+            }
+        }
+
+        // API에서 데이터 로드
+        async function loadProposalStatus() {
+            try {
+                const res = await apiCall('/consulting/proposal-status');
+                if (res.success && res.data && res.data.items && res.data.items.length > 0) {
+                    renderProposalStatus(res.data);
+                } else {
+                    renderProposalStatus(null);
+                }
+            } catch (error) {
+                console.error('사업제안 수주현황 로드 실패:', error);
+                renderProposalStatus(null);
+            }
+            checkProposalEditPermission();
+        }
+
+        // 데이터분석 드롭다운 토글
+        function toggleAnalysisMenu(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('analysisDropdown');
+            dropdown.classList.toggle('show');
+        }
+        document.addEventListener('click', function() {
+            const dropdown = document.getElementById('analysisDropdown');
+            if (dropdown) dropdown.classList.remove('show');
+        });
+
+        // Sidebar, Theme, User Dropdown은 initCommonUI()에서 초기화됨 (common.js)
+
+        // Display User Info from Session/LocalStorage
+        function displayUserInfo() {
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+            if (userInfo) {
+                try {
+                    const user = JSON.parse(userInfo);
+                    const initial = user.name ? user.name.charAt(0) : '?';
+                    const roleText = user.role === 'admin' ? '관리자' : '사용자';
+
+                    // Update header
+                    const userNameEl = document.getElementById('userName');
+                    const userAvatarEl = document.getElementById('userAvatar');
+                    if (userNameEl) userNameEl.textContent = user.name || '사용자';
+                    if (userAvatarEl) userAvatarEl.textContent = initial;
+
+                    // Update dropdown
+                    const dropdownName = document.getElementById('dropdownName');
+                    const dropdownAvatar = document.getElementById('dropdownAvatar');
+                    const dropdownRole = document.getElementById('dropdownRole');
+                    const dropdownDept = document.getElementById('dropdownDept');
+
+                    if (dropdownName) dropdownName.textContent = user.name || '사용자';
+                    if (dropdownAvatar) dropdownAvatar.textContent = initial;
+                    if (dropdownRole) dropdownRole.textContent = roleText;
+                    if (dropdownDept) dropdownDept.textContent = user.department || '글로벌사업처';
+                } catch (e) {
+                    console.error('사용자 정보 파싱 오류:', e);
+                }
+            }
+        }
+
+        // 배너 캐러셀
+        let bannerIndex = 0;
+        let bannerInterval = null;
+
+        async function loadBannerCarousel() {
+            try {
+                const res = await apiCall('/banners');
+                if (!res.success || !res.data || res.data.length === 0) return;
+
+                const carousel = document.getElementById('bannerCarousel');
+                const slidesContainer = document.getElementById('bannerSlides');
+                const dotsContainer = document.getElementById('bannerDots');
+                const banners = res.data;
+
+                // API base URL 구하기
+                const host = window.location.hostname || '127.0.0.1';
+                const baseUrl = `http://${host}:5001/api`;
+
+                slidesContainer.innerHTML = banners.map(b =>
+                    `<div class="banner-slide"><img src="${baseUrl}/banners/${b.id}/image" alt="${b.title || '배너'}"></div>`
+                ).join('');
+
+                dotsContainer.innerHTML = banners.map((_, i) =>
+                    `<button class="banner-dot${i === 0 ? ' active' : ''}" onclick="goToBanner(${i})"></button>`
+                ).join('');
+
+                carousel.style.display = 'block';
+
+                if (banners.length > 1) {
+                    bannerInterval = setInterval(() => {
+                        goToBanner((bannerIndex + 1) % banners.length);
+                    }, 5000);
+                }
+            } catch (e) {
+                console.error('배너 로드 실패:', e);
+            }
+        }
+
+        function goToBanner(index) {
+            bannerIndex = index;
+            const slides = document.getElementById('bannerSlides');
+            slides.style.transform = `translateX(-${index * 100}%)`;
+
+            document.querySelectorAll('.banner-dot').forEach((dot, i) => {
+                dot.classList.toggle('active', i === index);
+            });
+        }
+
+        // Call on page load
+        displayUserInfo();
+
+        // Logout function is defined in common.js
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,1837 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수익성분석 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <!-- Chart.js -->
+    <script src="../../assets/lib/chart.min.js"></script>
+
+    <style>
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 500;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        [data-theme="dark"] #userName {
+            color: var(--color-text-secondary, #b0b0b0) !important;
+        }
+
+        /* 수익성분석 전용 스타일 */
+        .profitability-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 1200px) {
+            .profitability-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .profitability-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .profit-stat-card {
+            background: var(--color-neutral-0);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .profit-stat-card.revenue {
+            border-left: 4px solid #4CAF50;
+        }
+
+        .profit-stat-card.cost {
+            border-left: 4px solid #f44336;
+        }
+
+        .profit-stat-card.profit {
+            border-left: 4px solid #2196F3;
+        }
+
+        .profit-stat-card.rate {
+            border-left: 4px solid #FF9800;
+        }
+
+        .profit-stat-label {
+            font-size: 14px;
+            color: var(--color-neutral-500);
+        }
+
+        .profit-stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-neutral-900);
+        }
+
+        .profit-stat-value.negative {
+            color: #f44336;
+        }
+
+        .profit-stat-value.positive {
+            color: #4CAF50;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 992px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: var(--color-neutral-0);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-card h4 {
+            margin: 0 0 16px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-neutral-800);
+        }
+
+        .chart-card canvas {
+            width: 100% !important;
+            height: 300px !important;
+        }
+
+        /* 데이터 입력 모달 */
+        .import-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .import-modal.show {
+            display: flex;
+        }
+
+        .import-modal-content {
+            background: var(--color-neutral-0);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow: auto;
+            padding: 32px;
+        }
+
+        .import-modal h3 {
+            margin: 0 0 24px 0;
+            font-size: 20px;
+        }
+
+        .import-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .import-form-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .import-form-group {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .import-form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .import-form-group input,
+        .import-form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .import-textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 8px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+
+        .import-preview {
+            background: var(--color-neutral-50);
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 200px;
+            overflow: auto;
+        }
+
+        .import-preview-table {
+            width: 100%;
+            font-size: 12px;
+            border-collapse: collapse;
+        }
+
+        .import-preview-table th,
+        .import-preview-table td {
+            padding: 6px 8px;
+            text-align: left;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+
+        .import-preview-table th {
+            background: var(--color-neutral-100);
+            font-weight: 600;
+        }
+
+        .import-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        /* 데이터 테이블 스타일 */
+        .profit-table th,
+        .profit-table td {
+            padding: 12px 8px;
+            text-align: right;
+            font-size: 13px;
+            height: 44px;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+
+        .profit-table th:first-child,
+        .profit-table td:first-child,
+        .profit-table th:nth-child(2),
+        .profit-table td:nth-child(2),
+        .profit-table th:nth-child(3),
+        .profit-table td:nth-child(3) {
+            text-align: left;
+        }
+
+        /* 열 너비 설정 */
+        .profit-table th:nth-child(1),
+        .profit-table td:nth-child(1) {
+            width: 70px;
+            min-width: 70px;
+        }
+        .profit-table th:nth-child(2),
+        .profit-table td:nth-child(2) {
+            width: 100px;
+            min-width: 100px;
+        }
+        .profit-table th:nth-child(3),
+        .profit-table td:nth-child(3) {
+            width: 280px;
+            min-width: 280px;
+        }
+        .profit-table th:nth-child(n+4),
+        .profit-table td:nth-child(n+4) {
+            width: 90px;
+            min-width: 90px;
+        }
+
+        .profit-table .year-cell {
+            font-weight: 600;
+            color: var(--color-primary-600);
+        }
+
+        .profit-table .category-row {
+            background: var(--color-neutral-50);
+            font-weight: 600;
+        }
+
+        .profit-table .total-row {
+            background: var(--color-primary-50);
+            font-weight: 700;
+        }
+
+        .profit-table .negative {
+            color: #f44336;
+        }
+
+        .profit-table .positive {
+            color: #4CAF50;
+        }
+
+        /* 로딩 상태 */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--color-neutral-200);
+            border-top-color: var(--color-primary-500);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .profitability-stats,
+        .chart-grid,
+        .card {
+            position: relative;
+        }
+
+        /* 필터 상태 표시 */
+        .filter-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--color-primary-50);
+            border-radius: 16px;
+            font-size: 13px;
+            color: var(--color-primary-700);
+            font-weight: 500;
+        }
+
+        /* 뷰 모드 전환 버튼 */
+        .view-mode-buttons {
+            display: flex;
+            gap: 8px;
+            background: var(--color-neutral-100);
+            padding: 4px;
+            border-radius: 8px;
+            margin-left: auto;
+        }
+
+        .view-mode-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--color-neutral-600);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .view-mode-btn:hover {
+            background: var(--color-neutral-200);
+            color: var(--color-neutral-900);
+        }
+
+        .view-mode-btn.active {
+            background: var(--color-neutral-0);
+            color: var(--color-primary-600);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 프로젝트 그룹 스타일 */
+        .profit-table .project-group-row {
+            background: var(--color-primary-50);
+            font-weight: 700;
+            border-top: 2px solid var(--color-primary-200);
+        }
+
+        .profit-table .project-year-row {
+            background: var(--color-neutral-0);
+        }
+
+        .profit-table .project-year-row:hover {
+            background: var(--color-neutral-50);
+        }
+
+        /* 커스텀 confirm 다이얼로그 */
+        .custom-confirm-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .custom-confirm-overlay.show {
+            display: flex;
+        }
+
+        .custom-confirm-dialog {
+            background: var(--color-neutral-0);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 400px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            animation: confirmSlideIn 0.2s ease-out;
+        }
+
+        @keyframes confirmSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .custom-confirm-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .custom-confirm-message {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--color-neutral-700);
+            margin-bottom: 24px;
+            white-space: pre-line;
+        }
+
+        .custom-confirm-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .custom-confirm-buttons button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .custom-confirm-cancel {
+            background: var(--color-neutral-200);
+            color: var(--color-neutral-700);
+        }
+
+        .custom-confirm-cancel:hover {
+            background: var(--color-neutral-300);
+        }
+
+        .custom-confirm-ok {
+            background: var(--color-primary-500);
+            color: white;
+        }
+
+        .custom-confirm-ok:hover {
+            background: var(--color-primary-600);
+        }
+
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../admin/users.html" class="user-dropdown-item"><span>👤</span> 사용자 관리</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link" aria-expanded="false">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../expansion/company-management.html">기업관리</a></li>
+                                <li><a href="../expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="../expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="../expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="../expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="../expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="../expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="../expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="../projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="../projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../admin/offices.html">해외사무소 등</a></li>
+</ul>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li><a href="profitability.html" class="active">수익성분석</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../../pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../dashboard.html">홈</a></li>
+                    <li><a href="#">예산/정산</a></li>
+                    <li aria-current="page">수익성분석</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">수익성분석</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 필터 영역 -->
+            <section class="search-section card">
+                <h3 class="visually-hidden">검색 조건</h3>
+                <form class="search-form" id="filterForm">
+                    <div class="form-group">
+                        <label for="filter-year">조회년도</label>
+                        <select id="filter-year">
+                            <option value="">전체</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="filter-category">사업구분</label>
+                        <select id="filter-category">
+                            <option value="">전체</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="resetFilterBtn">🔄 초기화</button>
+                        <button type="button" class="btn btn-secondary" id="importBtn" style="display: none;">
+                            📥 HTML 파일 업로드
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- 통계 카드 -->
+            <section class="profitability-stats" id="statsSection">
+                <div class="loading-overlay" id="statsLoading">
+                    <div class="loading-spinner"></div>
+                </div>
+                <article class="profit-stat-card revenue">
+                    <span class="profit-stat-label">총 수익</span>
+                    <span class="profit-stat-value" id="statRevenue">-</span>
+                </article>
+                <article class="profit-stat-card cost">
+                    <span class="profit-stat-label">총 비용</span>
+                    <span class="profit-stat-value" id="statCost">-</span>
+                </article>
+                <article class="profit-stat-card profit">
+                    <span class="profit-stat-label">순손익</span>
+                    <span class="profit-stat-value" id="statProfit">-</span>
+                </article>
+                <article class="profit-stat-card rate">
+                    <span class="profit-stat-label">수익률</span>
+                    <span class="profit-stat-value" id="statRate">-</span>
+                </article>
+            </section>
+
+            <!-- 차트 영역 -->
+            <section class="chart-grid" id="chartsSection">
+                <div class="loading-overlay" id="chartsLoading">
+                    <div class="loading-spinner"></div>
+                </div>
+                <div class="chart-card">
+                    <h4>📊 사업별 손익 비교</h4>
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h4>📈 수익/비용 구조</h4>
+                    <canvas id="structureChart"></canvas>
+                </div>
+            </section>
+
+            <!-- 데이터 테이블 -->
+            <section class="card" id="tableSection">
+                <div class="loading-overlay" id="tableLoading">
+                    <div class="loading-spinner"></div>
+                </div>
+                <header class="section-header">
+                    <h3>프로젝트별 수익성</h3>
+                    <div class="section-actions" style="display: flex; align-items: center; gap: 12px;">
+                        <span id="filterStatus"></span>
+                        <span id="dataInfo"
+                            style="font-size: 13px; color: var(--color-neutral-500);"></span>
+                        <div class="view-mode-buttons">
+                            <button class="view-mode-btn active" id="viewByYear" onclick="setViewMode('year')">
+                                📅 연도별 수익표
+                            </button>
+                            <button class="view-mode-btn" id="viewByProject" onclick="setViewMode('project')">
+                                📊 프로젝트별 수익표
+                            </button>
+                        </div>
+                    </div>
+                </header>
+                <div class="table-container">
+                    <table class="data-table profit-table">
+                        <thead>
+                            <tr>
+                                <th>연도</th>
+                                <th>사업구분</th>
+                                <th>프로젝트명</th>
+                                <th>수익(A)</th>
+                                <th>직접비(B)</th>
+                                <th>인건비</th>
+                                <th>경비</th>
+                                <th>합계(C)</th>
+                                <th>사업손익</th>
+                                <th>가득수익</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            <tr>
+                                <td colspan="10"
+                                    style="text-align: center; padding: 60px; color: var(--color-neutral-400);">
+                                    조회년도를 선택하여 데이터를 불러오세요
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- 커스텀 confirm 다이얼로그 -->
+    <div class="custom-confirm-overlay" id="customConfirm">
+        <div class="custom-confirm-dialog">
+            <div class="custom-confirm-title">💾 데이터 저장 확인</div>
+            <div class="custom-confirm-message" id="customConfirmMessage"></div>
+            <div class="custom-confirm-buttons">
+                <button class="custom-confirm-cancel" id="customConfirmCancel">취소</button>
+                <button class="custom-confirm-ok" id="customConfirmOk">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 데이터 입력 모달 (관리자 전용) -->
+    <div class="import-modal" id="importModal">
+        <div class="import-modal-content" id="importModalContent">
+            <h3>📥 수익성분석 데이터 입력</h3>
+            <div class="import-form">
+                <div class="import-form-row">
+                    <div class="import-form-group">
+                        <label for="import-year">조회년도 *</label>
+                        <input type="number" id="import-year" value="2025" min="2000" max="2100" required>
+                    </div>
+                    <div class="import-form-group">
+                        <label for="import-month-from">시작월</label>
+                        <select id="import-month-from">
+                            <option value="1" selected>1월</option>
+                            <option value="2">2월</option>
+                            <option value="3">3월</option>
+                            <option value="4">4월</option>
+                            <option value="5">5월</option>
+                            <option value="6">6월</option>
+                            <option value="7">7월</option>
+                            <option value="8">8월</option>
+                            <option value="9">9월</option>
+                            <option value="10">10월</option>
+                            <option value="11">11월</option>
+                            <option value="12">12월</option>
+                        </select>
+                    </div>
+                    <div class="import-form-group">
+                        <label for="import-month-to">종료월</label>
+                        <select id="import-month-to">
+                            <option value="1">1월</option>
+                            <option value="2">2월</option>
+                            <option value="3">3월</option>
+                            <option value="4">4월</option>
+                            <option value="5">5월</option>
+                            <option value="6">6월</option>
+                            <option value="7">7월</option>
+                            <option value="8">8월</option>
+                            <option value="9">9월</option>
+                            <option value="10">10월</option>
+                            <option value="11">11월</option>
+                            <option value="12" selected>12월</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="padding: 16px; background: var(--color-neutral-50); border-radius: 8px; border: 2px dashed var(--color-neutral-300); text-align: center; cursor: pointer;"
+                    id="fileDropZone">
+                    <input type="file" id="htmlFileInput" accept=".htm,.html" style="display: none;" />
+                    <div style="padding: 32px 16px;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">📄</div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">HTML 파일을 여기에 드래그하거나 클릭하세요</div>
+                        <div style="font-size: 12px; color: var(--color-neutral-500);">지원 형식: .htm, .html (최대 10MB)
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label>또는 SAP 리포트 HTML 직접 입력</label>
+                    <textarea class="import-textarea" id="importHtml"
+                        placeholder="SAP ERP에서 복사한 HTML을 여기에 붙여넣거나 위의 드래그 영역에 파일을 업로드하세요..."></textarea>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-secondary" id="previewBtn">미리보기</button>
+                </div>
+                <div class="import-preview" id="previewArea" style="display: none;">
+                    <h4 style="margin: 0 0 12px 0; font-size: 14px;">파싱 결과</h4>
+                    <div id="previewSummary" style="margin-bottom: 12px; font-size: 13px;"></div>
+                    <div id="previewTable"></div>
+                </div>
+                <div class="import-actions">
+                    <button type="button" class="btn btn-secondary" id="closeModalBtn">취소</button>
+                    <button type="button" class="btn btn-primary" id="saveDataBtn" disabled>저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../assets/js/common.js"></script>
+    <script>
+                /**
+         * 서브메뉴 토글 함수
+         */        // toggleSubmenu 함수는 common.js에 정의되어 있음
+
+
+// API 모듈
+        const API = {
+            get BASE_URL() {
+                return `${window.location.protocol}//${window.location.host}/api`;
+            },
+            async request(endpoint, options = {}) {
+                const url = `${this.BASE_URL}${endpoint}`;
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const headers = { 'Content-Type': 'application/json', ...options.headers };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+                try {
+                    const response = await fetch(url, { ...options, headers });
+                    if (response.status === 401) {
+                        localStorage.removeItem('gbms_token');
+                        window.location.href = '../../index.html';
+                        throw new Error('인증이 만료되었습니다.');
+                    }
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => ({}));
+                        throw new Error(errData.error || `API 요청 실패: ${response.status}`);
+                    }
+                    return response.json();
+                } catch (error) {
+                    console.error('API 요청 오류:', error);
+                    throw error;
+                }
+            },
+            async get(endpoint, params = {}) {
+                const queryString = new URLSearchParams(params).toString();
+                const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+                return this.request(url, { method: 'GET' });
+            },
+            async post(endpoint, data = {}) {
+                return this.request(endpoint, { method: 'POST', body: JSON.stringify(data) });
+            }
+        };
+
+        // 전역 상태
+        let currentUserRole = 'user';
+        let categoryChart = null;
+        let structureChart = null;
+        let parsedData = null;
+        let modalBackgroundClickHandler = null; // 모달 외부 클릭 핸들러
+        let currentViewMode = 'year'; // 'year' 또는 'project'
+        let currentTableData = []; // 현재 로드된 데이터 저장
+
+        // 숫자 포맷 (천원 → 백만원)
+        function formatMillion(value) {
+            if (!value) return '0';
+            const millions = value / 1000;
+            return millions.toLocaleString('ko-KR', { maximumFractionDigits: 0 });
+        }
+
+        // 숫자 포맷 (부호 포함)
+        function formatWithSign(value) {
+            if (!value) return '0';
+            const millions = value / 1000;
+            const formatted = Math.abs(millions).toLocaleString('ko-KR', { maximumFractionDigits: 0 });
+            return millions < 0 ? `-${formatted}` : formatted;
+        }
+
+        // 커스텀 confirm 다이얼로그
+        function customConfirm(message) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('customConfirm');
+                const messageEl = document.getElementById('customConfirmMessage');
+                const okBtn = document.getElementById('customConfirmOk');
+                const cancelBtn = document.getElementById('customConfirmCancel');
+
+                messageEl.textContent = message;
+                overlay.classList.add('show');
+
+                // 확인 버튼 클릭
+                const handleOk = () => {
+                    cleanup();
+                    resolve(true);
+                };
+
+                // 취소 버튼 클릭
+                const handleCancel = () => {
+                    cleanup();
+                    resolve(false);
+                };
+
+                // ESC 키로 취소
+                const handleEsc = (e) => {
+                    if (e.key === 'Escape') {
+                        cleanup();
+                        resolve(false);
+                    }
+                };
+
+                // 정리 함수
+                const cleanup = () => {
+                    overlay.classList.remove('show');
+                    okBtn.removeEventListener('click', handleOk);
+                    cancelBtn.removeEventListener('click', handleCancel);
+                    document.removeEventListener('keydown', handleEsc);
+                };
+
+                okBtn.addEventListener('click', handleOk);
+                cancelBtn.addEventListener('click', handleCancel);
+                document.addEventListener('keydown', handleEsc);
+
+                // 확인 버튼에 포커스
+                setTimeout(() => okBtn.focus(), 100);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // 인증 확인
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                window.location.href = '../../index.html';
+                return;
+            }
+
+            // 사용자 정보 설정
+            try {
+                const user = JSON.parse(userInfo);
+                currentUserRole = user.role || 'user';
+
+                document.getElementById('userName').textContent = user.name || '사용자';
+                document.getElementById('userAvatar').textContent = (user.name || '사')[0];
+                document.getElementById('dropdownName').textContent = user.name || '사용자';
+                document.getElementById('dropdownRole').textContent = user.role === 'admin' ? '관리자' : '사용자';
+                document.getElementById('dropdownAvatar').textContent = (user.name || '사')[0];
+
+                // 관리자 메뉴 표시
+                if (user.role === 'admin') {
+                    document.getElementById('adminMenuUser').style.display = 'block';
+                    document.getElementById('importBtn').style.display = 'inline-flex';
+                }
+            } catch (e) {
+                console.error('사용자 정보 파싱 오류:', e);
+            }
+
+            // UI 초기화
+            if (typeof initCommonUI === 'function') initCommonUI();
+
+            // 사이드바 토글
+            document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+                document.getElementById('sidebar')?.classList.toggle('open');
+            });
+
+            // 연도 목록 로드
+            loadYears();
+
+            // 사이드바 서브메뉴 토글 로직 추가
+            const submenuButtons = document.querySelectorAll('.nav-item.has-submenu > .nav-link');
+            submenuButtons.forEach(button => {
+                button.addEventListener('click', function (e) {
+                    // 현재 클릭한 메뉴가 이미 active 상태라면 기본 동작(링크 이동 등)을 허용할 수도 있지만,
+                    // 보통 Accordion 메뉴는 토글 동작을 우선합니다.
+                    // 현재 구조상 button 안에 a 태그가 있는게 아니라 button 자체가 클릭 대상임.
+
+                    const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                    this.setAttribute('aria-expanded', !isExpanded);
+                });
+            });
+
+            // 차트 초기화
+            initCharts();
+
+            // 이벤트 리스너
+            // 연도 변경 시 카테고리 업데이트 및 자동 필터링
+            document.getElementById('filter-year')?.addEventListener('change', () => {
+                loadCategories();
+                loadData();
+            });
+
+            // 사업구분 변경 시 자동 필터링
+            document.getElementById('filter-category')?.addEventListener('change', () => {
+                loadData();
+            });
+
+            // 필터 초기화 버튼
+            document.getElementById('resetFilterBtn')?.addEventListener('click', resetFilters);
+
+            document.getElementById('importBtn')?.addEventListener('click', () => {
+                document.getElementById('importModal').classList.add('show');
+            });
+
+            document.getElementById('closeModalBtn')?.addEventListener('click', () => {
+                document.getElementById('importModal').classList.remove('show');
+            });
+
+            // 파일 드래그 앤 드롭
+            setupFileHandling();
+
+            // 모달 컨텐츠 내부 클릭 시 이벤트 전파 방지
+            document.getElementById('importModalContent')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+
+            document.getElementById('previewBtn')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                previewImport();
+            });
+
+            document.getElementById('saveDataBtn')?.addEventListener('click', (e) => {
+                e.preventDefault();
+                saveImport();
+            });
+
+            // 모달 외부 클릭 핸들러 정의
+            modalBackgroundClickHandler = (e) => {
+                if (e.target === e.currentTarget && !window.isConfirming) {
+                    document.getElementById('importModal').classList.remove('show');
+                }
+            };
+
+            // 모달 외부 클릭 이벤트 등록
+            document.getElementById('importModal')?.addEventListener('click', modalBackgroundClickHandler);
+        });
+
+        // 연도 목록 로드
+        async function loadYears() {
+            try {
+                const data = await API.get('/profitability/years');
+                if (data.success && data.years.length > 0) {
+                    const select = document.getElementById('filter-year');
+                    data.years.forEach(year => {
+                        const option = document.createElement('option');
+                        option.value = year;
+                        option.textContent = year + '년';
+                        select.appendChild(option);
+                    });
+                    // 최신 연도 자동 선택 후 카테고리 로드 및 데이터 로드
+                    select.value = data.years[0];
+                    await loadCategories();
+                    loadData();
+                }
+            } catch (error) {
+                console.error('연도 목록 로드 실패:', error);
+            }
+        }
+
+        // 카테고리 목록 로드 (선택된 연도 기준)
+        async function loadCategories() {
+            const year = document.getElementById('filter-year').value;
+            const categorySelect = document.getElementById('filter-category');
+            const currentCategory = categorySelect.value;
+
+            // 카테고리 드롭다운 초기화
+            categorySelect.innerHTML = '<option value="">전체</option>';
+
+            if (!year) return;
+
+            try {
+                // 선택된 연도의 데이터 가져오기
+                const data = await API.get('/profitability', { year });
+                if (data.success && data.data.length > 0) {
+                    // 고유한 카테고리 추출
+                    const categories = [...new Set(data.data.map(item => item.category))].sort();
+
+                    // 카테고리 옵션 추가
+                    categories.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category;
+                        option.textContent = category;
+                        categorySelect.appendChild(option);
+                    });
+
+                    // 이전에 선택했던 카테고리가 있으면 유지
+                    if (currentCategory && categories.includes(currentCategory)) {
+                        categorySelect.value = currentCategory;
+                    }
+                }
+            } catch (error) {
+                console.error('카테고리 로드 실패:', error);
+            }
+        }
+
+        // 필터 초기화
+        function resetFilters() {
+            const yearSelect = document.getElementById('filter-year');
+            const categorySelect = document.getElementById('filter-category');
+
+            // 첫 번째 연도로 설정
+            if (yearSelect.options.length > 1) {
+                yearSelect.selectedIndex = 1; // "전체" 다음의 첫 번째 연도
+            }
+
+            // 카테고리 초기화
+            categorySelect.value = '';
+
+            // 카테고리 목록 새로고침 및 데이터 로드
+            loadCategories();
+            loadData();
+        }
+
+        // 데이터 로드
+        async function loadData() {
+            const year = document.getElementById('filter-year').value;
+            const category = document.getElementById('filter-category').value;
+
+            // 필터 상태 업데이트
+            updateFilterStatus(year, category);
+
+            if (!year) {
+                document.getElementById('dataTableBody').innerHTML =
+                    '<tr><td colspan="9" style="text-align:center;padding:60px;color:var(--color-neutral-400);">조회년도를 선택하세요</td></tr>';
+                return;
+            }
+
+            // 로딩 상태 표시
+            showLoading(true);
+
+            try {
+                // 통계 로드
+                const stats = await API.get('/profitability/stats', { year, category });
+                if (stats.success) {
+                    updateStats(stats.summary);
+                    updateCharts(stats.byCategory);
+                }
+
+                // 데이터 로드
+                const data = await API.get('/profitability', { year, category });
+                if (data.success) {
+                    updateTable(data.data, year, category);
+                    document.getElementById('dataInfo').textContent = `${data.total}개 프로젝트`;
+                }
+            } catch (error) {
+                console.error('데이터 로드 실패:', error);
+                document.getElementById('dataTableBody').innerHTML =
+                    `<tr><td colspan="9" style="text-align:center;padding:60px;color:#dc3545;">❌ 데이터 로드 실패: ${error.message}</td></tr>`;
+            } finally {
+                // 로딩 상태 해제
+                showLoading(false);
+            }
+        }
+
+        // 로딩 상태 표시/숨김
+        function showLoading(show) {
+            const loadingElements = ['statsLoading', 'chartsLoading', 'tableLoading'];
+            loadingElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    if (show) {
+                        element.classList.add('show');
+                    } else {
+                        element.classList.remove('show');
+                    }
+                }
+            });
+        }
+
+        // 필터 상태 표시 업데이트
+        function updateFilterStatus(year, category) {
+            const statusEl = document.getElementById('filterStatus');
+            if (!statusEl) return;
+
+            const filters = [];
+            if (year) filters.push(`📅 ${year}년`);
+            if (category) filters.push(`🏢 ${category}`);
+
+            if (filters.length > 0) {
+                statusEl.innerHTML = `<span class="filter-status">${filters.join(' ')}</span>`;
+            } else {
+                statusEl.innerHTML = '';
+            }
+        }
+
+        // 뷰 모드 전환
+        function setViewMode(mode) {
+            currentViewMode = mode;
+
+            // 버튼 활성화 상태 업데이트
+            document.getElementById('viewByYear').classList.toggle('active', mode === 'year');
+            document.getElementById('viewByProject').classList.toggle('active', mode === 'project');
+
+            // 현재 데이터로 테이블 다시 렌더링
+            const year = document.getElementById('filter-year').value;
+            const category = document.getElementById('filter-category').value;
+            updateTable(currentTableData, year, category);
+        }
+
+        // 통계 업데이트
+        function updateStats(summary) {
+            document.getElementById('statRevenue').textContent = formatMillion(summary.totalRevenue) + ' 백만원';
+            document.getElementById('statCost').textContent = formatMillion(summary.totalCost) + ' 백만원';
+
+            const profitEl = document.getElementById('statProfit');
+            profitEl.textContent = formatWithSign(summary.totalProfit) + ' 백만원';
+            profitEl.className = 'profit-stat-value ' + (summary.totalProfit >= 0 ? 'positive' : 'negative');
+
+            document.getElementById('statRate').textContent = summary.profitRate + '%';
+        }
+
+        // 차트 초기화
+        function initCharts() {
+            const categoryCtx = document.getElementById('categoryChart')?.getContext('2d');
+            const structureCtx = document.getElementById('structureChart')?.getContext('2d');
+
+            if (categoryCtx) {
+                categoryChart = new Chart(categoryCtx, {
+                    type: 'bar',
+                    data: { labels: [], datasets: [] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+
+            if (structureCtx) {
+                structureChart = new Chart(structureCtx, {
+                    type: 'doughnut',
+                    data: { labels: [], datasets: [] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'right' } }
+                    }
+                });
+            }
+        }
+
+        // 차트 업데이트
+        function updateCharts(byCategory) {
+            if (!categoryChart || !structureChart) return;
+
+            const labels = byCategory.map(c => c.category);
+            const revenues = byCategory.map(c => c.revenue / 1000);
+            const profits = byCategory.map(c => c.profit / 1000);
+
+            categoryChart.data = {
+                labels: labels,
+                datasets: [
+                    { label: '수익', data: revenues, backgroundColor: '#4CAF50', borderRadius: 4 },
+                    { label: '손익', data: profits, backgroundColor: '#2196F3', borderRadius: 4 }
+                ]
+            };
+            categoryChart.update();
+
+            // 비용 구조 차트
+            const totalLaborCost = byCategory.reduce((sum, c) => sum + (c.laborCost || 0), 0);
+            const totalDirectCost = byCategory.reduce((sum, c) => sum + (c.directCost || 0), 0);
+            const totalExpense = byCategory.reduce((sum, c) => sum + (c.expense || 0), 0);
+
+            structureChart.data = {
+                labels: ['직접비', '인건비', '경비'],
+                datasets: [{
+                    data: [totalDirectCost / 1000, totalLaborCost / 1000, totalExpense / 1000],
+                    backgroundColor: ['#f44336', '#FF9800', '#9C27B0']
+                }]
+            };
+            structureChart.update();
+        }
+
+        // 테이블 업데이트
+        function updateTable(data, year, category) {
+            const tbody = document.getElementById('dataTableBody');
+
+            // 현재 데이터 저장
+            currentTableData = data || [];
+
+            if (!data || data.length === 0) {
+                // 필터 상태에 따른 빈 상태 메시지
+                let emptyMessage = '데이터가 없습니다';
+                if (year && category) {
+                    emptyMessage = `${year}년 ${category} 사업의 데이터가 없습니다`;
+                } else if (year) {
+                    emptyMessage = `${year}년 데이터가 없습니다`;
+                } else if (category) {
+                    emptyMessage = `${category} 사업의 데이터가 없습니다`;
+                }
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:60px;color:var(--color-neutral-400);">📊 ${emptyMessage}</td></tr>`;
+                return;
+            }
+
+            // 뷰 모드에 따라 다른 렌더링
+            if (currentViewMode === 'year') {
+                renderTableByYear(data, year);
+            } else {
+                renderTableByProject(data, year);
+            }
+        }
+
+        // 연도별 수익표 렌더링
+        function renderTableByYear(data, filterYear) {
+            const tbody = document.getElementById('dataTableBody');
+
+            // 연도별 -> 카테고리별 그룹화
+            const groupedByYear = {};
+            data.forEach(item => {
+                const itemYear = item.year || filterYear; // 데이터에 연도가 없으면 필터 연도 사용
+                if (!groupedByYear[itemYear]) groupedByYear[itemYear] = {};
+                if (!groupedByYear[itemYear][item.category]) groupedByYear[itemYear][item.category] = [];
+                groupedByYear[itemYear][item.category].push(item);
+            });
+
+            let html = '';
+
+            // 연도를 내림차순으로 정렬
+            const years = Object.keys(groupedByYear).sort((a, b) => b - a);
+
+            years.forEach(yearKey => {
+                const categoriesInYear = groupedByYear[yearKey];
+
+                Object.keys(categoriesInYear).forEach(categoryKey => {
+                    const items = categoriesInYear[categoryKey];
+                    const totals = items.reduce((acc, item) => {
+                        acc.revenue += item.revenue || 0;
+                        acc.directCost += item.directCost || 0;
+                        acc.laborCost += item.laborCost || 0;
+                        acc.expense += item.expense || 0;
+                        acc.totalCost += item.totalCost || 0;
+                        acc.profit += item.profit || 0;
+                        acc.earnedRevenue += item.earnedRevenue || 0;
+                        return acc;
+                    }, { revenue: 0, directCost: 0, laborCost: 0, expense: 0, totalCost: 0, profit: 0, earnedRevenue: 0 });
+
+                    // 비용 합계 계산 (직접비 + 인건비 + 경비)
+                    const totalsCostSum = totals.directCost + totals.laborCost + totals.expense;
+
+                    // 카테고리 합계 행 (연도 포함)
+                    html += `<tr class="category-row">
+                        <td class="year-cell">${yearKey}년</td>
+                        <td><strong>${categoryKey}</strong></td>
+                        <td><strong>${items.length}건</strong></td>
+                        <td>${formatMillion(totals.revenue)}</td>
+                        <td>${formatMillion(totals.directCost)}</td>
+                        <td>${formatMillion(totals.laborCost)}</td>
+                        <td>${formatMillion(totals.expense)}</td>
+                        <td>${formatMillion(totalsCostSum)}</td>
+                        <td class="${totals.profit >= 0 ? 'positive' : 'negative'}">${formatWithSign(totals.profit)}</td>
+                        <td>${formatMillion(totals.earnedRevenue)}</td>
+                    </tr>`;
+
+                    // 개별 프로젝트 행
+                    items.forEach(item => {
+                        // 개별 항목 비용 합계 (직접비 + 인건비 + 경비)
+                        const itemCostSum = (item.directCost || 0) + (item.laborCost || 0) + (item.expense || 0);
+                        html += `<tr>
+                            <td></td>
+                            <td></td>
+                            <td title="${item.wbsCode || ''}">${item.projectName}</td>
+                            <td>${formatMillion(item.revenue)}</td>
+                            <td>${formatMillion(item.directCost)}</td>
+                            <td>${formatMillion(item.laborCost)}</td>
+                            <td>${formatMillion(item.expense)}</td>
+                            <td>${formatMillion(itemCostSum)}</td>
+                            <td class="${item.profit >= 0 ? 'positive' : 'negative'}">${formatWithSign(item.profit)}</td>
+                            <td>${formatMillion(item.earnedRevenue)}</td>
+                        </tr>`;
+                    });
+                });
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // 프로젝트별 수익표 렌더링
+        function renderTableByProject(data, filterYear) {
+            const tbody = document.getElementById('dataTableBody');
+
+            // 프로젝트명으로 그룹화
+            const groupedByProject = {};
+            data.forEach(item => {
+                const projectKey = item.projectName || 'Unknown';
+                if (!groupedByProject[projectKey]) {
+                    groupedByProject[projectKey] = {
+                        category: item.category,
+                        wbsCode: item.wbsCode,
+                        years: []
+                    };
+                }
+                groupedByProject[projectKey].years.push({
+                    year: item.year || filterYear,
+                    revenue: item.revenue || 0,
+                    directCost: item.directCost || 0,
+                    laborCost: item.laborCost || 0,
+                    expense: item.expense || 0,
+                    totalCost: item.totalCost || 0,
+                    profit: item.profit || 0,
+                    earnedRevenue: item.earnedRevenue || 0
+                });
+            });
+
+            let html = '';
+
+            // 프로젝트를 카테고리별로 정렬
+            const sortedProjects = Object.keys(groupedByProject).sort((a, b) => {
+                const catA = groupedByProject[a].category;
+                const catB = groupedByProject[b].category;
+                if (catA !== catB) return catA.localeCompare(catB);
+                return a.localeCompare(b);
+            });
+
+            sortedProjects.forEach(projectName => {
+                const projectData = groupedByProject[projectName];
+                const yearData = projectData.years;
+
+                // 연도별 데이터를 내림차순 정렬
+                yearData.sort((a, b) => b.year - a.year);
+
+                // 프로젝트 전체 합계 계산
+                const projectTotals = yearData.reduce((acc, item) => {
+                    acc.revenue += item.revenue;
+                    acc.directCost += item.directCost;
+                    acc.laborCost += item.laborCost;
+                    acc.expense += item.expense;
+                    acc.totalCost += item.totalCost;
+                    acc.profit += item.profit;
+                    acc.earnedRevenue += item.earnedRevenue;
+                    return acc;
+                }, { revenue: 0, directCost: 0, laborCost: 0, expense: 0, totalCost: 0, profit: 0, earnedRevenue: 0 });
+
+                // 프로젝트 비용 합계 (직접비 + 인건비 + 경비)
+                const projectCostSum = projectTotals.directCost + projectTotals.laborCost + projectTotals.expense;
+
+                // 프로젝트 그룹 헤더 행
+                html += `<tr class="project-group-row">
+                    <td colspan="3">
+                        <strong>📁 ${projectName}</strong>
+                        <span style="margin-left: 12px; font-size: 12px; font-weight: 500; color: var(--color-neutral-600);">
+                            [${projectData.category}] ${yearData.length}개년
+                        </span>
+                    </td>
+                    <td>${formatMillion(projectTotals.revenue)}</td>
+                    <td>${formatMillion(projectTotals.directCost)}</td>
+                    <td>${formatMillion(projectTotals.laborCost)}</td>
+                    <td>${formatMillion(projectTotals.expense)}</td>
+                    <td>${formatMillion(projectCostSum)}</td>
+                    <td class="${projectTotals.profit >= 0 ? 'positive' : 'negative'}">${formatWithSign(projectTotals.profit)}</td>
+                    <td>${formatMillion(projectTotals.earnedRevenue)}</td>
+                </tr>`;
+
+                // 연도별 데이터 행
+                yearData.forEach((yearItem, index) => {
+                    // 연도별 비용 합계 (직접비 + 인건비 + 경비)
+                    const yearCostSum = yearItem.directCost + yearItem.laborCost + yearItem.expense;
+                    html += `<tr class="project-year-row">
+                        <td class="year-cell" style="padding-left: 24px;">${yearItem.year}년</td>
+                        <td style="color: var(--color-neutral-400); font-size: 12px;">${projectData.category}</td>
+                        <td style="color: var(--color-neutral-500); font-size: 12px;" title="${projectData.wbsCode || ''}">
+                            ${index === 0 ? projectData.wbsCode || '-' : ''}
+                        </td>
+                        <td>${formatMillion(yearItem.revenue)}</td>
+                        <td>${formatMillion(yearItem.directCost)}</td>
+                        <td>${formatMillion(yearItem.laborCost)}</td>
+                        <td>${formatMillion(yearItem.expense)}</td>
+                        <td>${formatMillion(yearCostSum)}</td>
+                        <td class="${yearItem.profit >= 0 ? 'positive' : 'negative'}">${formatWithSign(yearItem.profit)}</td>
+                        <td>${formatMillion(yearItem.earnedRevenue)}</td>
+                    </tr>`;
+                });
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // 미리보기
+        async function previewImport() {
+            const htmlContent = document.getElementById('importHtml').value;
+            if (!htmlContent.trim()) {
+                alert('HTML 데이터를 입력하세요.');
+                return;
+            }
+
+            try {
+                const result = await API.post('/profitability/parse-preview', { htmlContent });
+                if (result.success) {
+                    parsedData = result.projects;
+
+                    // 요약 표시
+                    let summaryHtml = `<strong>총 ${result.total}개 프로젝트</strong><br>`;
+                    Object.entries(result.summary).forEach(([cat, count]) => {
+                        summaryHtml += `• ${cat}: ${count}개<br>`;
+                    });
+                    document.getElementById('previewSummary').innerHTML = summaryHtml;
+
+                    // 테이블 미리보기 (상위 5개)
+                    let tableHtml = '<table class="import-preview-table"><thead><tr><th>사업구분</th><th>프로젝트명</th><th>수익</th><th>손익</th></tr></thead><tbody>';
+                    result.projects.slice(0, 5).forEach(p => {
+                        tableHtml += `<tr><td>${p.category}</td><td>${p.project_name?.substring(0, 30)}...</td><td>${(p.revenue / 1000).toLocaleString()}</td><td>${(p.profit / 1000).toLocaleString()}</td></tr>`;
+                    });
+                    if (result.total > 5) {
+                        tableHtml += `<tr><td colspan="4" style="text-align:center;color:var(--color-neutral-400);">... 외 ${result.total - 5}개</td></tr>`;
+                    }
+                    tableHtml += '</tbody></table>';
+                    document.getElementById('previewTable').innerHTML = tableHtml;
+
+                    document.getElementById('previewArea').style.display = 'block';
+                    document.getElementById('saveDataBtn').disabled = false;
+                } else {
+                    alert(result.error || '파싱 실패');
+                }
+            } catch (error) {
+                alert('파싱 오류: ' + error.message);
+            }
+        }
+
+        // 저장
+        async function saveImport() {
+            console.log('[saveImport] 함수 시작');
+
+            const year = parseInt(document.getElementById('import-year').value);
+            const monthFrom = parseInt(document.getElementById('import-month-from').value);
+            const monthTo = parseInt(document.getElementById('import-month-to').value);
+            const htmlContent = document.getElementById('importHtml').value;
+            const saveBtn = document.getElementById('saveDataBtn');
+
+            if (!year || !htmlContent.trim()) {
+                alert('연도와 HTML 데이터를 입력하세요.');
+                return;
+            }
+
+            console.log('[saveImport] 커스텀 confirm 팝업 표시');
+
+            // 커스텀 confirm 다이얼로그 사용
+            const confirmed = await customConfirm(`${year}년 데이터를 저장하시겠습니까?\n기존 ${year}년 데이터는 삭제됩니다.`);
+
+            console.log('[saveImport] confirm 결과:', confirmed);
+
+            if (!confirmed) {
+                console.log('[saveImport] 사용자가 취소함');
+                return;
+            }
+
+            console.log('[saveImport] 저장 진행 중...');
+
+
+            // 로딩 상태 표시
+            saveBtn.disabled = true;
+            const originalText = saveBtn.textContent;
+            saveBtn.textContent = '저장 중...';
+
+            try {
+                console.log('[저장 시작]', {year, monthFrom, monthTo, contentLength: htmlContent.length});
+
+                const result = await API.post('/profitability/batch', {
+                    year,
+                    monthFrom,
+                    monthTo,
+                    htmlContent,
+                    overwrite: true
+                });
+
+                console.log('[저장 완료]', result);
+
+                if (result.success) {
+                    alert(`✅ ${result.savedCount}개 프로젝트 데이터가 저장되었습니다.`);
+
+                    // 모달 닫기 및 폼 초기화
+                    document.getElementById('importModal').classList.remove('show');
+                    document.getElementById('importHtml').value = '';
+                    document.getElementById('previewArea').style.display = 'none';
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = originalText;
+
+                    // 연도 목록 새로고침
+                    await loadYears();
+
+                    // 방금 저장한 연도의 데이터 로드
+                    document.getElementById('filter-year').value = year;
+                    await loadData();
+                } else {
+                    alert('❌ 저장 실패: ' + (result.error || result.message || '알 수 없는 오류'));
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = originalText;
+                }
+            } catch (error) {
+                console.error('[저장 오류]', error);
+                alert('❌ 저장 오류: ' + error.message);
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
+            }
+        }
+
+        // 파일 업로드 처리
+        function setupFileHandling() {
+            const dropZone = document.getElementById('fileDropZone');
+            const fileInput = document.getElementById('htmlFileInput');
+            const htmlTextarea = document.getElementById('importHtml');
+
+            if (!dropZone || !fileInput) return;
+
+            // 클릭으로 파일 선택
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            // 파일 입력 변경
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    loadFileContent(file);
+                }
+            });
+
+            // 드래그 오버/리브
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.style.background = 'var(--color-primary-50)';
+                dropZone.style.borderColor = 'var(--color-primary-500)';
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.style.background = 'var(--color-neutral-50)';
+                dropZone.style.borderColor = 'var(--color-neutral-300)';
+            });
+
+            // 드롭
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.background = 'var(--color-neutral-50)';
+                dropZone.style.borderColor = 'var(--color-neutral-300)';
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type === 'text/html' || file.name.endsWith('.htm') || file.name.endsWith('.html')) {
+                        loadFileContent(file);
+                    } else {
+                        alert('HTML 파일(.htm, .html)만 업로드 가능합니다.');
+                    }
+                }
+            });
+
+            // 문서 전체에서 드래그 오버 처리 (브라우저 기본 동작 방지)
+            document.addEventListener('dragover', (e) => {
+                if (document.getElementById('importModal').classList.contains('show')) {
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('drop', (e) => {
+                if (document.getElementById('importModal').classList.contains('show')) {
+                    e.preventDefault();
+                }
+            });
+        }
+
+        function loadFileContent(file) {
+            if (file.size > 10 * 1024 * 1024) {
+                alert('파일 크기는 10MB 이하여야 합니다.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                document.getElementById('importHtml').value = content;
+
+                // 파일명 표시
+                const dropZone = document.getElementById('fileDropZone');
+                const children = dropZone.querySelector('div');
+                children.querySelector('div:nth-child(2)').textContent = `✅ 파일 선택됨: ${file.name}`;
+
+                // 자동 미리보기 실행
+                setTimeout(() => previewImport(), 500);
+            };
+            reader.onerror = () => {
+                alert('파일을 읽을 수 없습니다.');
+            };
+            reader.readAsText(file, 'utf-8');
+        }
+
+        // 로그아웃 함수는 common.js에 정의되어 있음
+    </script>
+</body>
+
+</html>

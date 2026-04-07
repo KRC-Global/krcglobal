@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사후관리대장 - KRC Global</title>
+    <link rel="stylesheet" href="../../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../../assets/css/base.css">
+    <link rel="stylesheet" href="../../../assets/css/components.css">
+    <link rel="stylesheet" href="../../../assets/css/pages.css">
+    <style>
+        /* 서브메뉴 토글 - 폰트는 components.css에서 통일 관리 */
+        .submenu-toggle {
+            cursor: pointer;
+        }
+
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 500;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        .long-text {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 필터 영역 일관성 스타일 */
+        .search-form {
+            display: flex;
+            gap: var(--spacing-4);
+            align-items: flex-end;
+            flex-wrap: wrap;
+            padding: var(--spacing-4);
+            background: var(--color-neutral-50);
+            border-radius: 8px;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .search-form .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 180px;
+            flex: 0 0 auto;
+        }
+
+        .search-form .form-group label {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--color-neutral-700);
+        }
+
+        .search-form .form-group input,
+        .search-form .form-group select {
+            padding: 8px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 6px;
+            font-size: var(--font-size-sm);
+            min-height: 38px;
+            background: white;
+        }
+
+        .search-form .form-group input::placeholder {
+            color: var(--color-neutral-400);
+        }
+
+        .search-form .form-actions {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            margin-left: auto;
+        }
+
+        .search-form .form-actions .btn {
+            min-height: 38px;
+            padding: 8px 16px;
+            font-size: var(--font-size-sm);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../../admin/users.html" class="user-dropdown-item"><span>👤</span> 사용자 관리</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle active" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../company-management.html">기업관리</a></li>
+                                <li><a href="../loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle active" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="post-management.html" class="active">사후관리대장</a></li>
+                                        <li><a href="mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../../projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="../../projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="../../projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../../admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../../gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="app-main" id="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">사후관리대장</h1>
+        </div>
+
+        <!-- Page Content -->
+        <div class="page-content">
+            <!-- 검색/필터 영역 -->
+            <section class="search-section card">
+                <h3 class="visually-hidden">검색 조건</h3>
+                <form class="search-form" onsubmit="event.preventDefault(); loadData(1);">
+                    <div class="form-group">
+                        <label for="yearFilter">연도</label>
+                        <select id="yearFilter" onchange="loadData(1)">
+                            <option value="">전체</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="searchInput">검색</label>
+                        <input type="text" id="searchInput" placeholder="사업자명 검색" onkeyup="handleSearch(event)">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">검색</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetFilters()">초기화</button>
+                        <button type="button" class="btn btn-primary" id="uploadBtn" onclick="openUploadModal()"
+                            style="display:none;">📁 Excel 업로드</button>
+                        <button type="button" class="btn btn-outline" onclick="downloadExcel()">Excel 다운로드</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- 테이블 -->
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>연도</th>
+                            <th>사업자</th>
+                            <th>융자금액<br>(천원)</th>
+                            <th>융자일자</th>
+                            <th>상환완료<br>예정일</th>
+                            <th>연도별<br>상환일</th>
+                            <th>담보제공자</th>
+                            <th>담보부동산</th>
+                            <th>설정한권리</th>
+                            <th>나대지<br>여부</th>
+                            <th>지상권<br>설정여부</th>
+                            <th>비고</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="12" style="text-align: center; padding: var(--spacing-6);">
+                                데이터를 불러오는 중...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 페이지네이션 -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </main>
+
+    <!-- 업로드 모달 -->
+    <div class="modal-overlay" id="uploadModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div class="modal" style="background: white; padding: 24px; border-radius: 12px; max-width: 500px; width: 90%;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; margin-bottom: 16px;">
+                <h3 style="margin: 0;">📁 Excel 파일 업로드</h3>
+                <button onclick="closeUploadModal()"
+                    style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Excel 파일 선택</label>
+                    <input type="file" id="excelFile" accept=".xlsx,.xls" style="padding: 8px; width: 100%;">
+                    <small style="color: var(--color-neutral-600); margin-top: 8px; display: block;">* 사후관리대장 양식에 맞는
+                        Excel 파일을 업로드하세요</small>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+                <button class="btn btn-secondary" onclick="closeUploadModal()">취소</button>
+                <button class="btn btn-primary" onclick="uploadExcel()">업로드</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../../assets/js/api.js"></script>
+    <script src="../../../assets/js/common.js"></script>
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        const perPage = 20;
+
+        // 페이지 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+            if (userInfo) {
+                const currentUser = JSON.parse(userInfo);
+                const userPermission = currentUser.permissionScope || currentUser.permission_scope || 'readonly';
+                const canEdit = currentUser.role === 'admin' || userPermission === 'expansion' || userPermission === 'all';
+                if (canEdit) {
+                    document.getElementById('uploadBtn').style.display = 'inline-flex';
+                }
+            }
+
+            initCommonUI();
+            populateYearFilter();
+            loadData(1);
+        });
+
+        // 연도 필터 생성
+        function populateYearFilter() {
+            const yearFilter = document.getElementById('yearFilter');
+            const currentYear = new Date().getFullYear();
+            for (let year = currentYear; year >= 2000; year--) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearFilter.appendChild(option);
+            }
+        }
+
+        // 데이터 로드
+        async function loadData(page = 1) {
+            currentPage = page;
+            const year = document.getElementById('yearFilter').value;
+            const search = document.getElementById('searchInput').value.trim();
+
+            let url = `/expansion/post-management?page=${page}&perPage=${perPage}`;
+            if (year) url += `&year=${year}`;
+            if (search) url += `&businessOperator=${encodeURIComponent(search)}`;
+
+            try {
+                const response = await apiCall(url, 'GET');
+                if (response.success) {
+                    renderTable(response.data);
+                    totalPages = response.totalPages || 1;
+                    renderPagination();
+                } else {
+                    Toast.error(response.message || '데이터를 불러오는데 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Error loading data:', error);
+                Toast.error('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // 테이블 렌더링
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="12" style="text-align: center; padding: var(--spacing-6);">
+                            데이터가 없습니다.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = data.map(item => `
+                <tr>
+                    <td>${item.year || '-'}</td>
+                    <td>${item.businessOperator || '-'}</td>
+                    <td style="text-align: right;">${formatNumber(item.loanAmount)}</td>
+                    <td>${formatDate(item.loanDate)}</td>
+                    <td>${formatDate(item.repaymentCompletionDate)}</td>
+                    <td>${formatDate(item.annualRepaymentDate)}</td>
+                    <td>${item.collateralProvider || '-'}</td>
+                    <td class="long-text" title="${item.collateralProperty || '-'}">${item.collateralProperty || '-'}</td>
+                    <td>${item.establishedRight || '-'}</td>
+                    <td>${renderBadge(item.isBareLand)}</td>
+                    <td>${renderBadge(item.isSuperficiesSet)}</td>
+                    <td class="long-text" title="${item.notes || '-'}">${item.notes || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 날짜 포맷팅
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            return dateStr.split('T')[0];
+        }
+
+        // 숫자 포맷팅
+        function formatNumber(num) {
+            if (!num && num !== 0) return '-';
+            return num.toLocaleString('ko-KR');
+        }
+
+        // Y/N 배지 렌더링
+        function renderBadge(value) {
+            if (!value) return '-';
+            if (value === 'Y') {
+                return '<span class="badge badge-success">Y</span>';
+            } else if (value === 'N') {
+                return '<span class="badge badge-secondary">N</span>';
+            }
+            return value;
+        }
+
+        // 페이지네이션 렌더링
+        function renderPagination() {
+            const pagination = document.getElementById('pagination');
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+
+            // 이전 버튼
+            html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''}
+                     onclick="loadData(${currentPage - 1})">이전</button>`;
+
+            // 페이지 번호
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                html += `<button class="page-btn" onclick="loadData(1)">1</button>`;
+                if (startPage > 2) html += '<span>...</span>';
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="page-btn ${i === currentPage ? 'active' : ''}"
+                         onclick="loadData(${i})">${i}</button>`;
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += '<span>...</span>';
+                html += `<button class="page-btn" onclick="loadData(${totalPages})">${totalPages}</button>`;
+            }
+
+            // 다음 버튼
+            html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''}
+                     onclick="loadData(${currentPage + 1})">다음</button>`;
+
+            pagination.innerHTML = html;
+        }
+
+        // 검색 핸들러
+        function handleSearch(event) {
+            if (event.key === 'Enter') {
+                loadData(1);
+            }
+        }
+
+        // 필터 초기화
+        function resetFilters() {
+            document.getElementById('yearFilter').value = '';
+            document.getElementById('searchInput').value = '';
+            loadData(1);
+        }
+
+        // Excel 다운로드
+        async function downloadExcel() {
+            try {
+                const year = document.getElementById('yearFilter').value;
+                const search = document.getElementById('searchInput').value.trim();
+
+                let url = `/expansion/post-management?page=1&perPage=10000`;
+                if (year) url += `&year=${year}`;
+                if (search) url += `&businessOperator=${encodeURIComponent(search)}`;
+
+                const response = await apiCall(url, 'GET');
+                if (!response.success || !response.data || response.data.length === 0) {
+                    Toast.warning('다운로드할 데이터가 없습니다.');
+                    return;
+                }
+
+                const headers = [
+                    '연도', '사업자', '융자금액(천원)', '융자일자', '상환완료예정일',
+                    '연도별상환일', '담보제공자', '담보부동산', '설정한권리',
+                    '나대지여부', '지상권설정여부', '비고'
+                ];
+
+                const rows = response.data.map(item => [
+                    item.year || '',
+                    item.businessOperator || '',
+                    item.loanAmount || 0,
+                    formatDate(item.loanDate),
+                    formatDate(item.repaymentCompletionDate),
+                    formatDate(item.annualRepaymentDate),
+                    item.collateralProvider || '',
+                    item.collateralProperty || '',
+                    item.establishedRight || '',
+                    item.isBareLand || '',
+                    item.isSuperficiesSet || '',
+                    item.notes || ''
+                ]);
+
+                const csv = [
+                    '\uFEFF' + headers.join(','),
+                    ...rows.map(row => row.join(','))
+                ].join('\n');
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const urlObj = URL.createObjectURL(blob);
+                link.setAttribute('href', urlObj);
+                link.setAttribute('download', `사후관리대장_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                Toast.success('Excel 파일이 다운로드되었습니다.');
+            } catch (error) {
+                console.error('Error downloading Excel:', error);
+                Toast.error('다운로드에 실패했습니다.');
+            }
+        }
+
+        // 업로드 모달
+        function openUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('excelFile').value = '';
+        }
+
+        async function uploadExcel() {
+            const fileInput = document.getElementById('excelFile');
+            if (!fileInput.files.length) {
+                alert('파일을 선택해주세요.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await apiCallFormData('/expansion/post-management/upload', formData);
+                if (response.success) {
+                    alert(response.message || '업로드 완료!');
+                    closeUploadModal();
+                    loadData(1);
+                } else {
+                    alert(response.message || '업로드 실패');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('업로드 중 오류가 발생했습니다.');
+            }
+        }
+    </script>
+</body>
+
+</html>

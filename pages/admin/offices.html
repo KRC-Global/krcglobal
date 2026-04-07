@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="한국농어촌공사 글로벌사업관리시스템 - 해외사무소 등 관리">
+    <title>해외사무소 등 관리 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <style>
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li {
+            list-style: none;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        /* 직접 서브메뉴 아이템 활성화 스타일 */
+        .submenu > li > a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-nested-level4 {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested-level4 li {
+            list-style: none;
+        }
+
+        .submenu-nested-level4 li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested-level4 li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 500;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        /* Modal visibility control */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        #officeModal .modal-content {
+            background: var(--color-neutral-0);
+            border-radius: 16px;
+            max-width: 800px;
+            width: 95%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #officeModal .form-group {
+            margin-bottom: 0;
+        }
+
+        #officeModal .form-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-neutral-700);
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        #officeModal .form-label.required::after {
+            content: '*';
+            color: var(--color-error-500);
+            margin-left: 4px;
+        }
+
+        #officeModal .form-input,
+        #officeModal .form-select {
+            font-size: 14px;
+            padding: 10px 12px;
+        }
+
+        #officeModal .modal-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--color-neutral-500);
+            padding: 8px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #officeModal .modal-close:hover {
+            background: var(--color-neutral-100);
+            color: var(--color-neutral-700);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글" aria-expanded="false"
+                aria-controls="sidebar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName"
+                        style="font-size: var(--font-size-sm); color: var(--color-neutral-700);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">Administrator</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;">
+                        <span>🚪</span> 로그아웃
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+
+                <li class="nav-item has-submenu">
+                    <button class="nav-link" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../expansion/company-management.html">기업관리</a></li>
+                                <li><a href="../expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="../expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="../expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="../expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="../expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="../expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="../expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="../projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="../projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="offices.html" class="active">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../../pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+
+
+
+
+
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../dashboard.html">홈</a></li>
+                    <li><a href="#">사업관리</a></li>
+                    <li aria-current="page">해외사무소 등</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">해외사무소 등 관리</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 필터 및 액션 바 -->
+            <section class="card">
+                <div class="section-header">
+                    <h3>사무소 목록</h3>
+                    <div class="section-actions" id="sectionActions" style="display: none;">
+                        <button class="btn btn-primary" id="addOfficeBtn" onclick="openAddOfficeModal()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M12 5v14M5 12h14" />
+                            </svg>
+                            사무소 등록
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-bar"
+                    style="padding: var(--spacing-4); border-bottom: 1px solid var(--color-neutral-200);">
+                    <div style="display: flex; gap: var(--spacing-3); flex-wrap: wrap;">
+                        <select id="filterRegion" class="form-select" style="width: 180px;">
+                            <option value="">전체 지역</option>
+                            <option value="아시아">아시아</option>
+                            <option value="아프리카">아프리카</option>
+                            <option value="중남미">중남미</option>
+                            <option value="중동">중동</option>
+                            <option value="유럽/CIS">유럽/CIS</option>
+                            <option value="오세아니아">오세아니아</option>
+                        </select>
+                        <select id="filterType" class="form-select" style="width: 150px;">
+                            <option value="">전체 유형</option>
+                            <option value="ODA사무소">ODA사무소</option>
+                            <option value="센터">센터</option>
+                            <option value="국제기구">국제기구</option>
+                            <option value="해외사무소">해외사무소 등</option>
+                        </select>
+                        <select id="filterStatus" class="form-select" style="width: 150px;">
+                            <option value="">전체 상태</option>
+                            <option value="파견중">파견중</option>
+                            <option value="미파견">미파견</option>
+                        </select>
+                        <button class="btn btn-outline" onclick="loadOffices()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            조회
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col" style="width: 180px; text-align: center;">사무소명</th>
+                                <th scope="col" style="width: 100px; text-align: center;">유형</th>
+                                <th scope="col" style="width: 120px; text-align: center;">국가/도시</th>
+                                <th scope="col" style="width: 350px; text-align: center;">주소</th>
+                                <th scope="col" style="width: 100px; text-align: center;">사무소장</th>
+                                <th scope="col" style="width: 160px; text-align: center;">연락처</th>
+                                <th scope="col" style="width: 100px; text-align: center;">설립일</th>
+                                <th scope="col" style="width: 80px; text-align: center;">상태</th>
+                                <th scope="col" style="width: 100px; text-align: center;">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="offices-list">
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 2rem;">데이터를 불러오는 중입니다...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- 사무소 등록/수정 모달 -->
+    <div id="officeModal" class="modal-overlay" role="dialog" aria-labelledby="officeModalTitle" aria-modal="true"
+        onclick="event.target === this && closeOfficeModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header"
+                style="padding: var(--spacing-5); border-bottom: 1px solid var(--color-neutral-200);">
+                <h3 id="officeModalTitle"
+                    style="margin: 0; font-size: 20px; font-weight: 700; color: var(--color-neutral-900);">해외사무소 등록</h3>
+                <button class="modal-close" onclick="closeOfficeModal()" aria-label="닫기">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding: var(--spacing-5);">
+                <form id="officeForm" onsubmit="submitOffice(event)">
+                    <input type="hidden" id="officeId">
+
+                    <!-- 기본 정보 -->
+                    <div style="margin-bottom: var(--spacing-5);">
+                        <h4
+                            style="font-size: 15px; font-weight: 600; color: var(--color-neutral-700); margin: 0 0 var(--spacing-3) 0; padding-bottom: var(--spacing-2); border-bottom: 2px solid var(--color-primary-500);">
+                            📍 기본 정보
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-3);">
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label for="officeName" class="form-label required">사무소명</label>
+                                <input type="text" id="officeName" class="form-input" required
+                                    placeholder="예: 베트남 ODA오피스">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="officeCountry" class="form-label required">국가</label>
+                                <input type="text" id="officeCountry" class="form-input" required placeholder="예: 베트남">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="officeCity" class="form-label">도시</label>
+                                <input type="text" id="officeCity" class="form-input" placeholder="예: 하노이">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="officeRegion" class="form-label">지역</label>
+                                <select id="officeRegion" class="form-select">
+                                    <option value="">선택</option>
+                                    <option value="아시아">아시아</option>
+                                    <option value="아프리카">아프리카</option>
+                                    <option value="중남미">중남미</option>
+                                    <option value="중동">중동</option>
+                                    <option value="유럽/CIS">유럽/CIS</option>
+                                    <option value="오세아니아">오세아니아</option>
+                                    <option value="중앙아시아">중앙아시아</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="officeType" class="form-label">유형</label>
+                                <select id="officeType" class="form-select">
+                                    <option value="ODA사무소">ODA사무소</option>
+                                    <option value="센터">센터</option>
+                                    <option value="국제기구">국제기구</option>
+                                    <option value="해외사무소">해외사무소 등</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="officeStatus" class="form-label">상태</label>
+                                <select id="officeStatus" class="form-select">
+                                    <option value="파견중">파견중</option>
+                                    <option value="미파견">미파견</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label for="officeAddress" class="form-label">주소</label>
+                                <input type="text" id="officeAddress" class="form-input" placeholder="상세 주소">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 사무소장 정보 -->
+                    <div style="margin-bottom: var(--spacing-5);">
+                        <h4
+                            style="font-size: 15px; font-weight: 600; color: var(--color-neutral-700); margin: 0 0 var(--spacing-3) 0; padding-bottom: var(--spacing-2); border-bottom: 2px solid var(--color-primary-500);">
+                            👤 사무소장 정보
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-3);">
+                            <div class="form-group">
+                                <label for="officeContactPerson" class="form-label">사무소장명</label>
+                                <input type="text" id="officeContactPerson" class="form-input" placeholder="이름">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="officeContactPhone" class="form-label">연락처</label>
+                                <input type="tel" id="officeContactPhone" class="form-input" placeholder="전화번호">
+                            </div>
+
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label for="officeContactEmail" class="form-label">이메일</label>
+                                <input type="email" id="officeContactEmail" class="form-input"
+                                    placeholder="email@example.com">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 운영 정보 -->
+                    <div style="margin-bottom: var(--spacing-5);">
+                        <h4
+                            style="font-size: 15px; font-weight: 600; color: var(--color-neutral-700); margin: 0 0 var(--spacing-3) 0; padding-bottom: var(--spacing-2); border-bottom: 2px solid var(--color-primary-500);">
+                            💼 운영 정보
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-3);">
+                            <div class="form-group">
+                                <label for="officeEstablishedDate" class="form-label">설립일</label>
+                                <input type="date" id="officeEstablishedDate" class="form-input">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="officeAnnualBudget" class="form-label">연간 예산 (원)</label>
+                                <input type="number" id="officeAnnualBudget" class="form-input"
+                                    placeholder="150,000,000">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 좌표 정보 -->
+                    <div
+                        style="background: linear-gradient(135deg, #f8f9ff 0%, #fff5f5 100%); border: 2px solid var(--color-primary-200); border-radius: var(--radius-lg); padding: var(--spacing-4);">
+                        <h4
+                            style="font-size: 15px; font-weight: 600; color: var(--color-primary-700); margin: 0 0 var(--spacing-2) 0; display: flex; align-items: center; gap: 8px;">
+                            🌍 글로벌맵 좌표
+                            <span
+                                style="font-size: 12px; font-weight: 400; color: var(--color-neutral-500);">(선택사항)</span>
+                        </h4>
+                        <p style="font-size: 13px; color: var(--color-neutral-600); margin: 0 0 var(--spacing-3) 0;">
+                            위도/경도를 입력하면 글로벌맵에 사무소 위치가 표시됩니다.
+                            <a href="https://www.google.com/maps" target="_blank"
+                                style="color: var(--color-primary-600); text-decoration: underline; font-weight: 500;">Google
+                                Maps</a>에서 좌표를 확인하세요.
+                        </p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-3);">
+                            <div class="form-group" style="margin: 0;">
+                                <label for="officeLatitude" class="form-label">위도 (Latitude)</label>
+                                <input type="number" id="officeLatitude" class="form-input" step="0.0000001" min="-90"
+                                    max="90" placeholder="21.0285">
+                            </div>
+
+                            <div class="form-group" style="margin: 0;">
+                                <label for="officeLongitude" class="form-label">경도 (Longitude)</label>
+                                <input type="number" id="officeLongitude" class="form-input" step="0.0000001" min="-180"
+                                    max="180" placeholder="105.8542">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer"
+                        style="margin-top: var(--spacing-5); padding-top: var(--spacing-4); border-top: 1px solid var(--color-neutral-200); display: flex; gap: var(--spacing-3); justify-content: flex-end;">
+                        <button type="button" class="btn btn-outline" onclick="closeOfficeModal()">취소</button>
+                        <button type="submit" class="btn btn-primary">저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 비밀번호 입력 모달 -->
+    <div id="passwordModal" class="password-modal-overlay">
+        <div class="password-modal">
+            <div class="password-modal-icon">🔐</div>
+            <h3 class="password-modal-title">접근 권한 확인</h3>
+            <p class="password-modal-desc">해외사무소 페이지에 접근하려면 비밀번호를 입력하세요.</p>
+            <form id="passwordForm" onsubmit="verifyPassword(event)">
+                <div class="password-input-wrapper">
+                    <input type="password" id="accessPassword" class="password-input" placeholder="비밀번호 입력"
+                        autocomplete="off" autofocus>
+                </div>
+                <div class="password-modal-buttons">
+                    <button type="button" class="btn btn-outline" onclick="goBack()">취소</button>
+                    <button type="submit" class="btn btn-primary">확인</button>
+                </div>
+            </form>
+            <p id="passwordError" class="password-error" style="display: none;">비밀번호가 올바르지 않습니다.</p>
+        </div>
+    </div>
+
+    <style>
+        .password-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            backdrop-filter: blur(4px);
+        }
+
+        .password-modal-overlay.hidden {
+            display: none;
+        }
+
+        .password-modal {
+            background: var(--color-neutral-0);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .password-modal-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .password-modal-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--color-neutral-900);
+            margin: 0 0 8px 0;
+        }
+
+        .password-modal-desc {
+            font-size: 14px;
+            color: var(--color-neutral-600);
+            margin: 0 0 24px 0;
+        }
+
+        .password-input-wrapper {
+            margin-bottom: 20px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 14px 16px;
+            font-size: 16px;
+            border: 2px solid var(--color-neutral-300);
+            border-radius: 10px;
+            text-align: center;
+            letter-spacing: 4px;
+            transition: all 0.2s;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 4px rgba(var(--color-primary-500-rgb), 0.15);
+        }
+
+        .password-input::placeholder {
+            letter-spacing: normal;
+        }
+
+        .password-modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .password-modal-buttons .btn {
+            flex: 1;
+            padding: 12px 24px;
+        }
+
+        .password-error {
+            color: var(--color-error-600);
+            font-size: 13px;
+            margin: 16px 0 0 0;
+            animation: shake 0.4s ease-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            20%,
+            60% {
+                transform: translateX(-8px);
+            }
+
+            40%,
+            80% {
+                transform: translateX(8px);
+            }
+        }
+    </style>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="../../assets/js/api.js"></script>
+    <script src="../../assets/js/components/toast.js"></script>
+    <script>
+        /**
+ * 서브메뉴 토글 함수
+ */        // toggleSubmenu 함수는 common.js에 정의되어 있음
+
+        // 해외사무소 접근 비밀번호
+        const OFFICE_ACCESS_PASSWORD = 'karico2055';
+        let isPasswordVerified = false;
+
+        // 비밀번호 확인 함수
+        function verifyPassword(event) {
+            event.preventDefault();
+            const enteredPassword = document.getElementById('accessPassword').value;
+            const errorEl = document.getElementById('passwordError');
+
+            if (enteredPassword === OFFICE_ACCESS_PASSWORD) {
+                // 비밀번호 인증 성공
+                sessionStorage.setItem('office_access_verified', 'true');
+                document.getElementById('passwordModal').classList.add('hidden');
+                isPasswordVerified = true;
+                initPage();
+            } else {
+                // 비밀번호 틀림
+                errorEl.style.display = 'block';
+                document.getElementById('accessPassword').value = '';
+                document.getElementById('accessPassword').focus();
+                // 애니메이션 리셋
+                errorEl.style.animation = 'none';
+                setTimeout(() => { errorEl.style.animation = 'shake 0.4s ease-out'; }, 10);
+            }
+        }
+
+        // 취소 - 이전 페이지로 이동
+        function goBack() {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = '../../dashboard.html';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            // 비밀번호 확인 (세션에 인증 상태가 없는 경우만)
+            if (sessionStorage.getItem('office_access_verified')) {
+                document.getElementById('passwordModal').classList.add('hidden');
+                isPasswordVerified = true;
+                initPage();
+            } else {
+                // 비밀번호 모달 표시, 입력 필드에 포커스
+                document.getElementById('accessPassword').focus();
+            }
+        });
+
+        async function initPage() {
+
+            // Initialize Common UI (메뉴, 테마, 사용자 정보)
+
+            initCommonUI();
+            // Check authentication
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                window.location.href = '../../index.html';
+                return;
+            }
+
+            const user = JSON.parse(userInfo);
+            document.getElementById('userName').textContent = user.name;
+
+            // Store current user globally for role checks
+            window.currentUserRole = user.role;
+
+            // Show admin-only features
+            if (user.role === 'admin') {
+                const adminMenu = document.getElementById('adminMenuUser');
+                if (adminMenu) {
+                    adminMenu.style.display = 'block';
+                }
+                // Show 사무소 등록 button
+                const sectionActions = document.getElementById('sectionActions');
+                if (sectionActions) {
+                    sectionActions.style.display = 'flex';
+                }
+            }
+
+            // Load offices
+            await loadOffices();
+        }
+
+        async function loadOffices() {
+            try {
+                const region = document.getElementById('filterRegion').value;
+                const officeType = document.getElementById('filterType').value;
+                const status = document.getElementById('filterStatus').value;
+
+                let url = '/offices?';
+                if (region) url += `region=${region}&`;
+                if (officeType) url += `office_type=${encodeURIComponent(officeType)}&`;
+                if (status) url += `status=${encodeURIComponent(status)}&`;
+
+                const response = await apiCall(url);
+                if (response.success) {
+                    renderOffices(response.data);
+                }
+            } catch (error) {
+                console.error('Failed to load offices:', error);
+                showToast('사무소 목록을 불러오는데 실패했습니다.', 'error');
+            }
+        }
+
+        function renderOffices(offices) {
+            const tbody = document.getElementById('offices-list');
+            tbody.innerHTML = '';
+
+            if (offices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem;">등록된 해외사무소가 없습니다.</td></tr>';
+                return;
+            }
+
+            offices.forEach(office => {
+                const tr = document.createElement('tr');
+
+                const statusLabel = office.status === '파견중' ? '파견중' : '미파견';
+                const statusBadge = office.status === '파견중' ? 'badge-success' : 'badge-neutral';
+
+                // 유형 뱃지 스타일
+                const officeType = office.officeType || office.office_type || '-';
+                let typeBadgeClass = 'badge-info';
+                if (officeType === 'ODA사무소') typeBadgeClass = 'badge-warning';
+                else if (officeType === '센터') typeBadgeClass = 'badge-info';
+                else if (officeType === '국제기구') typeBadgeClass = 'badge-primary';
+                else if (officeType === '해외사무소') typeBadgeClass = 'badge-success';
+
+                tr.innerHTML = `
+                    <td><strong>${office.name}</strong></td>
+                    <td style="text-align: center;"><span class="badge ${typeBadgeClass}">${officeType}</span></td>
+                    <td style="text-align: center;">${office.country} ${office.city ? '/' + office.city : ''}</td>
+                    <td style="font-size: var(--font-size-sm); white-space: normal; word-wrap: break-word;">${office.address || '-'}</td>
+                    <td style="text-align: center;">${office.contactPerson || office.contact_person || '-'}</td>
+                    <td style="text-align: center;">
+                        ${(office.contactEmail || office.contact_email) ? `<div style="font-size: var(--font-size-sm);">${office.contactEmail || office.contact_email}</div>` : ''}
+                        ${(office.contactPhone || office.contact_phone) ? `<div style="font-size: var(--font-size-xs); color: var(--color-neutral-600);">${office.contactPhone || office.contact_phone}</div>` : '-'}
+                    </td>
+                    <td style="text-align: center;">${office.establishedDate || office.established_date || '-'}</td>
+                    <td style="text-align: center;"><span class="badge ${statusBadge}">${statusLabel}</span></td>
+                    <td>
+                        ${window.currentUserRole === 'admin' ? `
+                        <div style="display: flex; gap: 4px;">
+                            <button class="btn btn-sm btn-outline" onclick="editOffice(${office.id})" title="수정">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteOffice(${office.id}, '${office.name}')" title="삭제">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                </svg>
+                            </button>
+                        </div>` : '<span style="color: var(--color-neutral-400); font-size: 12px;">조회 전용</span>'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openAddOfficeModal() {
+            document.getElementById('officeModalTitle').textContent = '해외사무소 등록';
+            document.getElementById('officeForm').reset();
+            document.getElementById('officeId').value = '';
+            document.getElementById('officeModal').classList.add('show');
+        }
+
+        async function editOffice(officeId) {
+            try {
+                const response = await apiCall(`/offices/${officeId}`);
+                if (response.success) {
+                    const office = response.data;
+
+                    document.getElementById('officeModalTitle').textContent = '해외사무소 수정';
+                    document.getElementById('officeId').value = office.id;
+                    document.getElementById('officeName').value = office.name;
+                    document.getElementById('officeCountry').value = office.country;
+                    document.getElementById('officeCity').value = office.city || '';
+                    document.getElementById('officeRegion').value = office.region || '';
+                    document.getElementById('officeType').value = office.officeType || office.office_type;
+                    document.getElementById('officeAddress').value = office.address || '';
+                    document.getElementById('officeContactPerson').value = office.contactPerson || office.contact_person || '';
+                    document.getElementById('officeContactEmail').value = office.contactEmail || office.contact_email || '';
+                    document.getElementById('officeContactPhone').value = office.contactPhone || office.contact_phone || '';
+                    document.getElementById('officeEstablishedDate').value = office.establishedDate || office.established_date || '';
+                    document.getElementById('officeAnnualBudget').value = office.annualBudget || office.annual_budget || '';
+                    document.getElementById('officeStatus').value = office.status;
+                    document.getElementById('officeLatitude').value = office.latitude || '';
+                    document.getElementById('officeLongitude').value = office.longitude || '';
+
+                    document.getElementById('officeModal').classList.add('show');
+                }
+            } catch (error) {
+                console.error('Failed to load office:', error);
+                showToast('사무소 정보를 불러오는데 실패했습니다.', 'error');
+            }
+        }
+
+        async function submitOffice(event) {
+            event.preventDefault();
+
+            const officeId = document.getElementById('officeId').value;
+            const isEdit = !!officeId;
+
+            const latitude = document.getElementById('officeLatitude').value;
+            const longitude = document.getElementById('officeLongitude').value;
+
+            const data = {
+                name: document.getElementById('officeName').value,
+                country: document.getElementById('officeCountry').value,
+                city: document.getElementById('officeCity').value,
+                region: document.getElementById('officeRegion').value,
+                officeType: document.getElementById('officeType').value,
+                address: document.getElementById('officeAddress').value,
+                contactPerson: document.getElementById('officeContactPerson').value,
+                contactEmail: document.getElementById('officeContactEmail').value,
+                contactPhone: document.getElementById('officeContactPhone').value,
+                establishedDate: document.getElementById('officeEstablishedDate').value,
+                annualBudget: parseFloat(document.getElementById('officeAnnualBudget').value) || null,
+                status: document.getElementById('officeStatus').value,
+                latitude: latitude ? parseFloat(latitude) : null,
+                longitude: longitude ? parseFloat(longitude) : null
+            };
+
+            try {
+                const url = isEdit ? `/offices/${officeId}` : '/offices';
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const response = await apiCall(url, method, data);
+
+                if (response.success) {
+                    showToast(response.message, 'success');
+                    closeOfficeModal();
+                    await loadOffices();
+                } else {
+                    showToast(response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Failed to save office:', error);
+                showToast('사무소 정보 저장에 실패했습니다.', 'error');
+            }
+        }
+
+        async function deleteOffice(officeId, officeName) {
+            if (!confirm(`"${officeName}" 사무소를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+                return;
+            }
+
+            try {
+                const response = await apiCall(`/offices/${officeId}`, 'DELETE');
+
+                if (response.success) {
+                    showToast(response.message, 'success');
+                    await loadOffices();
+                } else {
+                    showToast(response.message, 'error');
+                }
+            } catch (error) {
+                console.error('Failed to delete office:', error);
+                showToast('사무소 삭제에 실패했습니다.', 'error');
+            }
+        }
+
+        function closeOfficeModal() {
+            document.getElementById('officeModal').classList.remove('show');
+        }
+
+        // Sidebar, Theme, Submenu는 initCommonUI()에서 초기화됨 (common.js)
+    </script>
+</body>
+
+</html>

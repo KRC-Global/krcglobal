@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="한국농어촌공사 글로벌사업관리시스템 - 사용자 관리">
+    <title>사용자 관리 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <!-- System Font (내부망 최적화) -->
+
+    <style>
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li {
+            list-style: none;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-nested-level4 {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested-level4 li {
+            list-style: none;
+        }
+
+        .submenu-nested-level4 li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested-level4 li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 500;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        [data-theme="dark"] #userName {
+            color: var(--color-text-secondary, #b0b0b0) !important;
+        }
+
+        .user-avatar-large {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--color-primary-100);
+            color: var(--color-primary-600);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .role-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .role-admin {
+            background: var(--color-danger-100);
+            color: var(--color-danger-700);
+        }
+
+        .role-user {
+            background: var(--color-neutral-200);
+            color: var(--color-neutral-700);
+        }
+
+        .badge-danger {
+            background: var(--color-danger-100);
+            color: var(--color-danger-700);
+        }
+
+        .badge-primary {
+            background: var(--color-primary-100);
+            color: var(--color-primary-700);
+        }
+
+        .badge-info {
+            background: #E0F2FE;
+            color: #0369A1;
+        }
+
+        .badge-warning {
+            background: #FEF3C7;
+            color: #B45309;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* 모달 오버레이 - components.css와 충돌 방지를 위해 고유 클래스명 사용 */
+        .user-modal-overlay {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .user-modal-overlay.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-modal-box {
+            background-color: var(--color-neutral-0);
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .user-modal-box form {
+            padding: 0 32px 24px;
+        }
+
+        .user-modal-box .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 32px 16px;
+        }
+
+        .user-modal-box .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--color-neutral-900);
+            margin: 0;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--color-neutral-500);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--color-neutral-700);
+        }
+
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px var(--color-primary-100);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 8px;
+            padding-top: 16px;
+            border-top: 1px solid var(--color-neutral-200);
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글" aria-expanded="false"
+                aria-controls="sidebar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName"
+                        style="font-size: var(--font-size-sm); color: var(--color-neutral-700);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../../dashboard.html" class="user-dropdown-item"><span>📊</span> 대시보드</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+
+                <li class="nav-item has-submenu">
+                    <button class="nav-link" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../expansion/company-management.html">기업관리</a></li>
+                                <li><a href="../expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="../expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="../expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="../expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="../expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="../expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="../expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="../projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="../projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../../pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+
+
+
+
+
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser">
+                    <a href="users.html" class="nav-link active">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../dashboard.html">홈</a></li>
+                    <li><a href="#">관리</a></li>
+                    <li aria-current="page">사용자 관리</li>
+                </ol>
+            </nav>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2 class="page-title">사용자 관리</h2>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary" onclick="openAddUserModal()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="margin-right: 4px;">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg>
+                        사용자 추가
+                    </button>
+                    <button class="btn btn-secondary" onclick="openAccessLogModal()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="margin-right: 4px;">
+                            <path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        접속자 로그
+                    </button>
+                    <button class="btn btn-secondary" id="uploadExcelBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="margin-right: 4px;">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                        </svg>
+                        Excel 업로드
+                    </button>
+                    <button class="btn btn-secondary" id="downloadTemplateBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="margin-right: 4px;">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                        </svg>
+                        템플릿 다운로드
+                    </button>
+                    <button class="btn btn-secondary" onclick="openBannerModal()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" style="margin-right: 4px;">
+                            <rect x="2" y="3" width="20" height="14" rx="2" />
+                            <path d="M8 21h8M12 17v4" />
+                        </svg>
+                        배너관리
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="page-content">
+            <!-- 사용자 목록 -->
+            <section class="card">
+                <header class="section-header">
+                    <h3>전체 사용자</h3>
+                    <div class="section-actions" style="display: flex; gap: 8px; align-items: center;">
+                        <select id="departmentFilter" class="form-input" style="width: 180px;">
+                            <option value="">전체 부서</option>
+                            <option value="gad">글로벌농업개발부</option>
+                            <option value="gb">글로벌사업부</option>
+                            <option value="aidc">농식품국제개발협력센터</option>
+                        </select>
+                        <input type="text" id="searchInput" placeholder="이름/사번 검색..." class="form-input"
+                            style="width: 200px;">
+                    </div>
+                </header>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">사번</th>
+                                <th scope="col">이름</th>
+                                <th scope="col">부서</th>
+                                <th scope="col">직급</th>
+                                <th scope="col">역할</th>
+                                <th scope="col">수정권한</th>
+                                <th scope="col">상태</th>
+                                <th scope="col">작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 40px;">
+                                    로딩 중...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- 사용자 추가/수정 모달 -->
+    <div id="userModal" class="user-modal-overlay">
+        <div class="user-modal-box">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">사용자 추가</h3>
+                <button class="close-btn" onclick="closeUserModal()">&times;</button>
+            </div>
+            <form id="userForm">
+                <input type="hidden" id="userId">
+                <div class="form-group">
+                    <label class="form-label" for="userEmployeeId">사번 *</label>
+                    <input type="text" id="userEmployeeId" class="form-input" required placeholder="예: EMP001">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="userFullName">이름 *</label>
+                    <input type="text" id="userFullName" class="form-input" required placeholder="예: 홍길동">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="userDepartment">부서 *</label>
+                    <select id="userDepartment" class="form-select" required>
+                        <option value="">선택하세요</option>
+                        <option value="gad">글로벌농업개발부</option>
+                        <option value="gb">글로벌사업부</option>
+                        <option value="aidc">농식품국제개발협력센터</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="userPosition">직급</label>
+                    <input type="text" id="userPosition" class="form-input" placeholder="예: 과장">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="userPhone">전화번호</label>
+                    <input type="tel" id="userPhone" class="form-input" placeholder="예: 010-1234-5678">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="userRole">역할 *</label>
+                    <select id="userRole" class="form-select" required>
+                        <option value="user">일반 사용자</option>
+                        <option value="admin">관리자</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="userPermissionScope">수정 권한</label>
+                    <select id="userPermissionScope" class="form-select">
+                        <option value="readonly">조회만</option>
+                        <option value="overseas_tech">해외기술용역</option>
+                        <option value="expansion">해외진출지원사업</option>
+                        <option value="oda">국제협력사업</option>
+                        <option value="all">전체</option>
+                    </select>
+                </div>
+                <div class="form-group" id="passwordGroup">
+                    <label class="form-label" for="userPassword">비밀번호 *</label>
+                    <input type="password" id="userPassword" class="form-input" placeholder="8자 이상">
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="userIsActive" checked style="margin-right: 8px;">
+                        <span>활성 상태</span>
+                    </label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closeUserModal()">취소</button>
+                    <button type="submit" class="btn btn-primary">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 비밀번호 재설정 모달 -->
+    <div id="passwordModal" class="user-modal-overlay">
+        <div class="user-modal-box">
+            <div class="modal-header">
+                <h3 class="modal-title">비밀번호 재설정</h3>
+                <button class="close-btn" onclick="closePasswordModal()">&times;</button>
+            </div>
+            <form id="passwordForm">
+                <input type="hidden" id="passwordUserId">
+                <div class="form-group">
+                    <label class="form-label" for="newPassword">새 비밀번호 *</label>
+                    <input type="password" id="newPassword" class="form-input" required placeholder="8자 이상">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="confirmPassword">비밀번호 확인 *</label>
+                    <input type="password" id="confirmPassword" class="form-input" required placeholder="비밀번호 재입력">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline" onclick="closePasswordModal()">취소</button>
+                    <button type="submit" class="btn btn-primary">재설정</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 접속 로그 모달 -->
+    <div id="accessLogModal" class="user-modal-overlay">
+        <div class="user-modal-box" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3 class="modal-title">접속자 로그</h3>
+                <button class="close-btn" onclick="closeAccessLogModal()">&times;</button>
+            </div>
+            <div style="padding: 0 32px 24px;">
+                <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+                    <input type="text" id="accessLogSearch" class="form-input" placeholder="사용자 ID 검색..." style="width: 200px;">
+                    <select id="accessLogFilter" class="form-select" style="width: 150px;">
+                        <option value="">전체 액션</option>
+                        <option value="login">로그인 성공</option>
+                        <option value="login_failed">로그인 실패</option>
+                        <option value="logout">로그아웃</option>
+                        <option value="guest_login">일반직원 접속</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="loadAccessLogs()">조회</button>
+                </div>
+                <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+                    <table class="data-table">
+                        <thead style="position: sticky; top: 0; background: var(--color-neutral-0); z-index: 1;">
+                            <tr>
+                                <th scope="col">시간</th>
+                                <th scope="col">사용자 ID</th>
+                                <th scope="col">이름</th>
+                                <th scope="col">IP 주소</th>
+                                <th scope="col">액션</th>
+                                <th scope="col">결과</th>
+                                <th scope="col">메시지</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accessLogTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 40px;">
+                                    조회 버튼을 클릭하세요.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="accessLogPagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../assets/js/common.js"></script>
+    <script src="../../assets/js/api.js"></script>
+    <script>
+        /**
+ * 서브메뉴 토글 함수
+ */        // toggleSubmenu 함수는 common.js에 정의되어 있음
+
+
+        console.log('=== users.html script loaded ===');
+        let currentUsers = [];
+        let editingUserId = null;
+
+        // showToast fallback 함수
+        function showToast(message, type = 'info') {
+            if (typeof Toast !== 'undefined' && Toast.show) {
+                Toast.show(message, type);
+            } else {
+                // toast.js가 없을 경우 alert 사용
+                alert(message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('=== DOMContentLoaded fired ===');
+            // 관리자 권한 확인 (common.js의 checkAdminRole 사용)
+            if (typeof checkAdminRole === 'function') {
+                checkAdminRole();
+            } else {
+                // Fallback: common.js가 로드되지 않았을 경우
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+                if (!token || !userInfo) {
+                    window.location.href = '../../index.html';
+                    return;
+                }
+
+                try {
+                    const user = JSON.parse(userInfo);
+                    if (user.role !== 'admin') {
+                        alert('관리자 권한이 필요한 페이지입니다.');
+                        window.location.href = '../../dashboard.html';
+                        return;
+                    }
+                    // 사용자 이름 표시
+                    document.getElementById('userName').textContent = user.name;
+                } catch (e) {
+                    window.location.href = '../../index.html';
+                    return;
+                }
+            }
+
+            // Initialize
+            console.log('=== Starting initialization ===');
+
+            // 관리자 권한 체크 (관리자가 아니면 대시보드로 리다이렉트)
+            if (!checkAdminRole('../../dashboard.html')) {
+                return;
+            }
+
+            // Initialize Common UI (메뉴, 테마, 사용자 정보)
+            initCommonUI();
+
+            loadUsers();
+            setupEventListeners();
+            console.log('=== Initialization complete ===');
+        });
+
+        function setupEventListeners() {
+            console.log('=== setupEventListeners called ===');
+
+            // Search & Department Filter
+            document.getElementById('searchInput').addEventListener('input', function () {
+                applyFilters();
+            });
+            document.getElementById('departmentFilter').addEventListener('change', function () {
+                applyFilters();
+            });
+
+            function applyFilters() {
+                const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+                const deptFilter = document.getElementById('departmentFilter').value;
+                filterUsers(searchTerm, deptFilter);
+            }
+
+            // User form submit
+            const userForm = document.getElementById('userForm');
+            console.log('userForm element:', userForm);
+            if (userForm) {
+                console.log('Attaching submit event listener to userForm');
+                userForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    console.log('=== Form submit event fired ===');
+                    console.log('editingUserId:', editingUserId);
+                    if (editingUserId) {
+                        console.log('Calling updateUser()');
+                        updateUser();
+                    } else {
+                        console.log('Calling createUser()');
+                        createUser();
+                    }
+                });
+
+                // Backup: Direct click handler on submit button
+                const submitBtn = userForm.querySelector('button[type="submit"]');
+                console.log('submit button element:', submitBtn);
+                if (submitBtn) {
+                    submitBtn.addEventListener('click', function (e) {
+                        console.log('=== Submit button clicked ===');
+                        console.log('editingUserId:', editingUserId);
+                    });
+                }
+            } else {
+                console.error('userForm not found!');
+            }
+
+            // Password form submit
+            const passwordForm = document.getElementById('passwordForm');
+            if (passwordForm) {
+                passwordForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    resetPassword();
+                });
+            }
+
+            console.log('=== setupEventListeners completed ===');
+        }
+
+        async function loadUsers() {
+            try {
+                const response = await apiCall('/users');
+                if (response.success) {
+                    currentUsers = response.data;
+                    renderUsers(currentUsers);
+                }
+            } catch (error) {
+                console.error('Failed to load users:', error);
+                alert('사용자 목록을 불러오는데 실패했습니다.');
+            }
+        }
+
+        function renderUsers(users) {
+            const tbody = document.getElementById('usersTableBody');
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;">사용자가 없습니다.</td></tr>';
+                return;
+            }
+
+            // 수정권한 표시 함수
+            function getPermissionBadge(scope) {
+                const permissions = {
+                    'all': { label: '전체', class: 'badge-danger' },
+                    'overseas_tech': { label: '해외기술용역', class: 'badge-primary' },
+                    'expansion': { label: '해외진출지원', class: 'badge-info' },
+                    'oda': { label: '국제협력사업', class: 'badge-warning' },
+                    'readonly': { label: '조회만', class: 'badge-secondary' }
+                };
+                const perm = permissions[scope] || permissions['readonly'];
+                return `<span class="badge ${perm.class}">${perm.label}</span>`;
+            }
+
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td><strong>${user.userId || '-'}</strong></td>
+                    <td>${user.name}</td>
+                    <td>${user.departmentName || user.department || '-'}</td>
+                    <td>${user.position || '-'}</td>
+                    <td>
+                        <span class="role-badge ${user.role === 'admin' ? 'role-admin' : 'role-user'}">
+                            ${user.role === 'admin' ? '관리자' : '사용자'}
+                        </span>
+                    </td>
+                    <td>${getPermissionBadge(user.permissionScope)}</td>
+                    <td>
+                        <span class="badge ${user.isActive ? 'badge-success' : 'badge-secondary'}">
+                            ${user.isActive ? '활성' : '비활성'}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-outline" onclick="editUser(${user.id})" title="수정">
+                                ✏️
+                            </button>
+                            <button class="btn btn-sm btn-outline" onclick="openPasswordModal(${user.id})" title="비밀번호 재설정">
+                                🔑
+                            </button>
+                            <button class="btn btn-sm btn-outline" onclick="deleteUser(${user.id}, '${user.name}')" title="삭제" style="color: var(--color-danger-600);">
+                                🗑️
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterUsers(searchTerm, deptFilter) {
+            const filtered = currentUsers.filter(user => {
+                const matchesSearch = !searchTerm ||
+                    user.name.toLowerCase().includes(searchTerm) ||
+                    (user.userId && user.userId.toLowerCase().includes(searchTerm));
+                const matchesDept = !deptFilter || user.department === deptFilter;
+                return matchesSearch && matchesDept;
+            });
+            renderUsers(filtered);
+        }
+
+        function openAddUserModal() {
+            console.log('openAddUserModal called');
+            editingUserId = null;
+            console.log('editingUserId set to null');
+            document.getElementById('modalTitle').textContent = '사용자 추가';
+            document.getElementById('userForm').reset();
+            document.getElementById('userEmployeeId').disabled = false;
+            document.getElementById('passwordGroup').style.display = 'block';
+            document.getElementById('userPassword').required = true;
+            document.getElementById('userModal').classList.add('show');
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.remove('show');
+        }
+
+        async function createUser() {
+            const data = {
+                userId: document.getElementById('userEmployeeId').value.trim(),
+                name: document.getElementById('userFullName').value.trim(),
+                department: document.getElementById('userDepartment').value,
+                position: document.getElementById('userPosition').value.trim() || undefined,
+                phone: document.getElementById('userPhone').value.trim() || undefined,
+                role: document.getElementById('userRole').value,
+                permissionScope: document.getElementById('userPermissionScope').value,
+                password: document.getElementById('userPassword').value,
+                isActive: document.getElementById('userIsActive').checked
+            };
+
+            try {
+                const response = await apiCall('/users', 'POST', data);
+                if (response.success) {
+                    showToast('사용자가 추가되었습니다.', 'success');
+                    closeUserModal();
+                    await loadUsers();
+                } else {
+                    showToast(response.message || '사용자 추가에 실패했습니다.', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to create user:', error);
+                showToast('사용자 추가 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        async function editUser(userId) {
+            console.log('=== editUser START ===');
+            console.log('userId parameter:', userId);
+            console.log('currentUsers array:', currentUsers);
+
+            const user = currentUsers.find(u => u.id === userId);
+            if (!user) {
+                console.error('ERROR: User not found:', userId);
+                alert('사용자를 찾을 수 없습니다.');
+                return;
+            }
+
+            console.log('Found user object:', JSON.stringify(user, null, 2));
+
+            editingUserId = userId;
+            console.log('editingUserId GLOBALLY set to:', editingUserId);
+            console.log('Verify - window.editingUserId:', window.editingUserId);
+
+            console.log('Setting form values...');
+            document.getElementById('modalTitle').textContent = '사용자 수정';
+            document.getElementById('userId').value = user.id;
+            document.getElementById('userEmployeeId').value = user.userId || '';
+            document.getElementById('userEmployeeId').disabled = true;
+            document.getElementById('userFullName').value = user.name || '';
+            document.getElementById('userDepartment').value = user.department || '';
+            document.getElementById('userPosition').value = user.position || '';
+            document.getElementById('userPhone').value = user.phone || '';
+            document.getElementById('userRole').value = user.role || 'user';
+            document.getElementById('userPermissionScope').value = user.permissionScope || 'readonly';
+            document.getElementById('userIsActive').checked = user.isActive !== false;
+            document.getElementById('passwordGroup').style.display = 'none';
+            document.getElementById('userPassword').required = false;
+
+            console.log('Form populated, opening modal...');
+            const modal = document.getElementById('userModal');
+            console.log('Modal element:', modal);
+            modal.classList.add('show');
+            console.log('Modal classList after add:', modal.classList);
+            console.log('=== editUser END ===');
+        }
+
+        async function updateUser() {
+            console.log('=== updateUser START ===');
+            console.log('editingUserId:', editingUserId);
+
+            const userId = editingUserId;
+            if (!userId) {
+                console.error('ERROR: No userId to update');
+                alert('사용자 ID가 없습니다.');
+                return;
+            }
+
+            console.log('Getting form values...');
+            const nameField = document.getElementById('userFullName');
+            const deptField = document.getElementById('userDepartment');
+            const posField = document.getElementById('userPosition');
+            const phoneField = document.getElementById('userPhone');
+            const roleField = document.getElementById('userRole');
+            const activeField = document.getElementById('userIsActive');
+
+            console.log('Form field elements:', {
+                nameField, deptField, posField, phoneField, roleField, activeField
+            });
+
+            const data = {
+                name: nameField?.value.trim(),
+                department: deptField?.value,
+                position: posField?.value.trim() || undefined,
+                phone: phoneField?.value.trim() || undefined,
+                role: roleField?.value,
+                permissionScope: document.getElementById('userPermissionScope')?.value || 'readonly',
+                isActive: activeField?.checked
+            };
+
+            console.log('Collected data:', JSON.stringify(data, null, 2));
+
+            // 유효성 검사
+            if (!data.name) {
+                console.error('Validation failed: name is required');
+                alert('이름은 필수 항목입니다.');
+                return;
+            }
+            if (!data.department) {
+                console.error('Validation failed: department is required');
+                alert('부서는 필수 항목입니다.');
+                return;
+            }
+
+            console.log('Validation passed, calling API...');
+
+            try {
+                console.log('API Call Details:', {
+                    endpoint: `/users/${userId}`,
+                    method: 'PUT',
+                    data: data
+                });
+
+                const response = await apiCall(`/users/${userId}`, 'PUT', data);
+                console.log('API response received:', response);
+
+                if (response.success) {
+                    console.log('Update successful!');
+                    alert('사용자 정보가 수정되었습니다.');
+                    closeUserModal();
+                    await loadUsers();
+                } else {
+                    console.error('Update failed:', response);
+                    alert(response.message || '사용자 수정에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('EXCEPTION in updateUser:', error);
+                console.error('Error stack:', error.stack);
+                alert('사용자 수정 중 오류가 발생했습니다: ' + error.message);
+            }
+
+            console.log('=== updateUser END ===');
+        }
+
+        function openPasswordModal(userId) {
+            document.getElementById('passwordUserId').value = userId;
+            document.getElementById('passwordForm').reset();
+            document.getElementById('passwordModal').classList.add('show');
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').classList.remove('show');
+        }
+
+        async function resetPassword() {
+            const userId = document.getElementById('passwordUserId').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                alert('비밀번호가 일치하지 않습니다.');
+                return;
+            }
+
+            if (newPassword.length < 8) {
+                alert('비밀번호는 8자 이상이어야 합니다.');
+                return;
+            }
+
+            try {
+                const response = await apiCall(`/users/${userId}/password`, 'PUT', {
+                    newPassword: newPassword
+                });
+                console.log('Password reset response:', response);
+                if (response.success) {
+                    alert('비밀번호가 재설정되었습니다.');
+                    closePasswordModal();
+                } else {
+                    alert(response.message || '비밀번호 재설정에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Failed to reset password:', error);
+                console.error('Error details:', error.message, error.stack);
+                alert('비밀번호 재설정 중 오류가 발생했습니다: ' + error.message);
+            }
+        }
+
+        async function deleteUser(userId, userName) {
+            if (!confirm(`정말 "${userName}" 사용자를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+                return;
+            }
+
+            try {
+                const response = await apiCall(`/users/${userId}`, 'DELETE');
+                if (response.success) {
+                    showToast('사용자가 삭제되었습니다.', 'success');
+                    await loadUsers();
+                } else {
+                    showToast(response.message || '사용자 삭제에 실패했습니다.', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to delete user:', error);
+                showToast('사용자 삭제 중 오류가 발생했습니다.', 'error');
+            }
+        }
+
+        // Toast helper function
+        function showToast(message, type = 'info') {
+            console.log('showToast called:', message, type);
+            // common.js에 showToast가 있으면 사용, 없으면 alert 사용
+            if (typeof window.showToast === 'function') {
+                console.log('Using window.showToast');
+                window.showToast(message, type);
+            } else {
+                console.log('Using alert');
+                alert(message);
+            }
+        }
+
+        // Excel 업로드 관련 기능
+        document.getElementById('uploadExcelBtn')?.addEventListener('click', function () {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.xlsx,.xls';
+            input.onchange = async function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await apiCallFormData('/users/upload', 'POST', formData);
+                    if (response.success) {
+                        alert(response.message);
+                        if (response.data && response.data.errors && response.data.errors.length > 0) {
+                            console.log('업로드 오류:', response.data.errors);
+                            alert('일부 항목에 오류가 있습니다. 콘솔을 확인하세요.');
+                        }
+                        loadUsers();
+                    } else {
+                        alert(response.message || 'Excel 업로드에 실패했습니다.');
+                    }
+                } catch (error) {
+                    console.error('Failed to upload Excel:', error);
+                    alert('Excel 업로드 중 오류가 발생했습니다.');
+                }
+            };
+            input.click();
+        });
+
+        // ===== 접속 로그 관련 함수 =====
+        let accessLogCurrentPage = 1;
+
+        function openAccessLogModal() {
+            document.getElementById('accessLogModal').classList.add('show');
+            loadAccessLogs();
+        }
+
+        function closeAccessLogModal() {
+            document.getElementById('accessLogModal').classList.remove('show');
+        }
+
+        async function loadAccessLogs(page = 1) {
+            accessLogCurrentPage = page;
+            const username = document.getElementById('accessLogSearch').value.trim();
+            const action = document.getElementById('accessLogFilter').value;
+
+            try {
+                let url = `/auth/access-logs?page=${page}&perPage=30`;
+                if (username) url += `&username=${encodeURIComponent(username)}`;
+                if (action) url += `&action=${encodeURIComponent(action)}`;
+
+                const response = await apiCall(url);
+                if (response.success) {
+                    renderAccessLogs(response.data);
+                    renderAccessLogPagination(response.currentPage, response.pages, response.total);
+                } else {
+                    alert(response.message || '접속 로그를 불러오는데 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('Failed to load access logs:', error);
+                alert('접속 로그를 불러오는데 실패했습니다.');
+            }
+        }
+
+        function renderAccessLogs(logs) {
+            const tbody = document.getElementById('accessLogTableBody');
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">접속 로그가 없습니다.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = logs.map(log => {
+                const createdAt = log.createdAt ? new Date(log.createdAt).toLocaleString('ko-KR') : '-';
+                const actionText = {
+                    'login': '로그인',
+                    'login_failed': '로그인 실패',
+                    'logout': '로그아웃',
+                    'guest_login': '일반직원 접속'
+                }[log.action] || log.action;
+                const displayName = log.action === 'guest_login' ? '일반직원' : (log.userName || '-');
+                const displayUsername = log.action === 'guest_login' ? '-' : (log.username || '-');
+                const successBadge = log.success
+                    ? '<span class="badge badge-success">성공</span>'
+                    : '<span class="badge badge-danger">실패</span>';
+
+                return `
+                    <tr>
+                        <td style="white-space: nowrap; font-size: 13px;">${createdAt}</td>
+                        <td><strong>${displayUsername}</strong></td>
+                        <td>${displayName}</td>
+                        <td style="font-family: monospace; font-size: 13px;">${log.ipAddress || '-'}</td>
+                        <td>${actionText}</td>
+                        <td>${successBadge}</td>
+                        <td style="font-size: 13px; color: var(--color-neutral-600);">${log.message || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderAccessLogPagination(currentPage, totalPages, total) {
+            const container = document.getElementById('accessLogPagination');
+            if (totalPages <= 1) {
+                container.innerHTML = `<span style="color: var(--color-neutral-500); font-size: 13px;">총 ${total}건</span>`;
+                return;
+            }
+
+            let html = `<span style="color: var(--color-neutral-500); font-size: 13px; margin-right: 12px;">총 ${total}건</span>`;
+
+            // 이전 페이지
+            if (currentPage > 1) {
+                html += `<button class="btn btn-sm btn-outline" onclick="loadAccessLogs(${currentPage - 1})">이전</button>`;
+            }
+
+            // 페이지 번호
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === currentPage) {
+                    html += `<button class="btn btn-sm btn-primary">${i}</button>`;
+                } else {
+                    html += `<button class="btn btn-sm btn-outline" onclick="loadAccessLogs(${i})">${i}</button>`;
+                }
+            }
+
+            // 다음 페이지
+            if (currentPage < totalPages) {
+                html += `<button class="btn btn-sm btn-outline" onclick="loadAccessLogs(${currentPage + 1})">다음</button>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // 템플릿 다운로드
+        document.getElementById('downloadTemplateBtn')?.addEventListener('click', function () {
+            // permission_scope 옵션: readonly(조회만), overseas_tech(해외기술용역), expansion(해외진출지원사업), oda(국제협력사업), all(전체)
+            const template = [
+                ['username', 'name', 'department', 'phone', 'position', 'role', 'permission_scope', 'is_active'],
+                ['user001', '홍길동', '글로벌사업처', '010-1234-5678', '팀장', 'user', '조회만', true],
+                ['user002', '김철수', '글로벌사업처', '010-2345-6789', '대리', 'user', '해외기술용역', true],
+                ['user003', '이영희', '글로벌사업처', '010-3456-7890', '과장', 'user', '해외진출지원사업', true],
+                ['user004', '박민수', '글로벌사업처', '010-4567-8901', '차장', 'user', '국제협력사업', true],
+                ['user005', '최관리', '글로벌사업처', '010-5678-9012', '부장', 'admin', '전체', true],
+                ['# ===== permission_scope(수정 권한) 옵션 설명 ====='],
+                ['# 조회만: 모든 메뉴 조회 가능 / 수정 불가'],
+                ['# 해외기술용역: 해외기술용역 관련 메뉴 수정 가능'],
+                ['# 해외진출지원사업: 해외진출지원사업 관련 메뉴 수정 가능'],
+                ['# 국제협력사업: 국제협력사업(ODA) 관련 메뉴 수정 가능'],
+                ['# 전체: 모든 메뉴 수정 가능 (관리자 권한 필요)']
+            ];
+
+            const csvContent = template.map(row => row.join(',')).join('\n');
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = '사용자_업로드_템플릿.csv';
+            link.click();
+        });
+
+        // apiCall 함수 수정 (FormData 지원)
+        async function apiCall(endpoint, method = 'GET', data = null, isFormData = false) {
+            const baseUrl = `${window.location.protocol}//${window.location.host}/api`;
+            const url = `${baseUrl}${endpoint}`;
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+
+            const options = {
+                method: method,
+                headers: {}
+            };
+
+            if (token) {
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            if (data) {
+                if (isFormData) {
+                    options.body = data;
+                } else {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify(data);
+                }
+            }
+
+            const response = await fetch(url, options);
+
+            if (response.status === 401) {
+                localStorage.removeItem('gbms_token');
+                sessionStorage.removeItem('gbms_token');
+                window.location.href = '../../index.html';
+                throw new Error('인증이 만료되었습니다.');
+            }
+
+            return response.json();
+        }
+
+        // ===== 배너 관리 =====
+        let bannerList = [];
+
+        async function openBannerModal() {
+            document.getElementById('bannerModal').style.display = 'flex';
+            await loadBannerList();
+        }
+
+        function closeBannerModal() {
+            document.getElementById('bannerModal').style.display = 'none';
+        }
+
+        async function loadBannerList() {
+            try {
+                const res = await apiCall('/banners/all');
+                if (res.success) {
+                    bannerList = res.data;
+                    renderBannerList();
+                }
+            } catch (e) {
+                console.error('배너 목록 로드 실패:', e);
+            }
+        }
+
+        function renderBannerList() {
+            const container = document.getElementById('bannerListContainer');
+            if (bannerList.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--color-neutral-500); padding: 24px;">등록된 배너가 없습니다.</p>';
+                return;
+            }
+
+            const imgBase = `${window.location.protocol}//${window.location.host}/api`;
+            container.innerHTML = bannerList.map((b, i) => `
+                <div class="banner-item" data-id="${b.id}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--color-neutral-200); border-radius: 8px; margin-bottom: 8px;">
+                    <img src="${imgBase}/banners/${b.id}/image" alt="${b.title || ''}" style="width: 120px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 600; font-size: 14px;">${b.title || '(제목 없음)'}</div>
+                        <div style="font-size: 12px; color: var(--color-neutral-500);">순서: ${b.displayOrder}</div>
+                    </div>
+                    <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                        <button onclick="moveBanner(${b.id}, 'up')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" ${i === 0 ? 'disabled' : ''}>▲</button>
+                        <button onclick="moveBanner(${b.id}, 'down')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" ${i === bannerList.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button onclick="deleteBanner(${b.id})" class="btn" style="padding: 4px 8px; font-size: 12px; background: var(--color-danger-500); color: white; border: none; border-radius: 4px;">삭제</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function uploadBanner() {
+            const fileInput = document.getElementById('bannerFileInput');
+            const titleInput = document.getElementById('bannerTitleInput');
+
+            if (!fileInput.files.length) {
+                alert('이미지 파일을 선택해주세요.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            formData.append('title', titleInput.value || '');
+
+            try {
+                const res = await apiCall('/banners', 'POST', formData, true);
+                if (res.success) {
+                    fileInput.value = '';
+                    titleInput.value = '';
+                    await loadBannerList();
+                } else {
+                    alert(res.message || '업로드 실패');
+                }
+            } catch (e) {
+                alert('업로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        async function moveBanner(id, direction) {
+            const idx = bannerList.findIndex(b => b.id === id);
+            if (idx < 0) return;
+
+            const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+            if (swapIdx < 0 || swapIdx >= bannerList.length) return;
+
+            // 순서 교환
+            const orders = bannerList.map((b, i) => ({
+                id: b.id,
+                displayOrder: i === idx ? bannerList[swapIdx].displayOrder : (i === swapIdx ? bannerList[idx].displayOrder : b.displayOrder)
+            }));
+
+            try {
+                const res = await apiCall('/banners/reorder', 'PUT', { orders });
+                if (res.success) {
+                    await loadBannerList();
+                }
+            } catch (e) {
+                console.error('순서 변경 실패:', e);
+            }
+        }
+
+        async function deleteBanner(id) {
+            if (!confirm('이 배너를 삭제하시겠습니까?')) return;
+
+            try {
+                const res = await apiCall(`/banners/${id}`, 'DELETE');
+                if (res.success) {
+                    await loadBannerList();
+                } else {
+                    alert(res.message || '삭제 실패');
+                }
+            } catch (e) {
+                alert('삭제 중 오류가 발생했습니다.');
+            }
+        }
+    </script>
+
+    <!-- 배너 관리 모달 -->
+    <div id="bannerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; border-radius: 12px; width: 600px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--color-neutral-200);">
+                <h3 style="font-size: 18px; font-weight: 600; margin: 0;">배너 관리</h3>
+                <button onclick="closeBannerModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--color-neutral-500);">&times;</button>
+            </div>
+            <div style="padding: 20px 24px; overflow-y: auto; flex: 1;">
+                <!-- 새 배너 추가 -->
+                <div style="margin-bottom: 20px; padding: 16px; background: var(--color-neutral-50); border-radius: 8px;">
+                    <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">새 배너 추가</h4>
+                    <div style="display: flex; gap: 8px; align-items: flex-end;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 12px; color: var(--color-neutral-600); display: block; margin-bottom: 4px;">제목 (선택)</label>
+                            <input type="text" id="bannerTitleInput" class="form-input" placeholder="배너 제목" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: var(--color-neutral-600); display: block; margin-bottom: 4px;">이미지</label>
+                            <input type="file" id="bannerFileInput" accept="image/jpeg,image/png,image/gif,image/webp" style="font-size: 13px;">
+                        </div>
+                        <button onclick="uploadBanner()" class="btn btn-primary" style="white-space: nowrap;">업로드</button>
+                    </div>
+                </div>
+                <!-- 배너 목록 -->
+                <div id="bannerListContainer">
+                    <p style="text-align: center; color: var(--color-neutral-500); padding: 24px;">로딩 중...</p>
+                </div>
+            </div>
+            <div style="padding: 16px 24px; border-top: 1px solid var(--color-neutral-200); text-align: right;">
+                <button onclick="closeBannerModal()" class="btn btn-secondary">닫기</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
