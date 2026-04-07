@@ -2,13 +2,13 @@
 Cloudflare R2 Storage Utility
 S3 호환 API를 사용한 파일 업로드/다운로드
 """
-import boto3
-from botocore.config import Config as BotoConfig
 from flask import current_app
 
 
 def get_r2_client():
     """R2 S3 클라이언트 생성"""
+    import boto3
+    from botocore.config import Config as BotoConfig
     return boto3.client(
         's3',
         endpoint_url=current_app.config['R2_ENDPOINT'],
