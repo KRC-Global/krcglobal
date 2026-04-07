@@ -588,12 +588,15 @@
                         <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
                         <div class="user-dropdown-info">
                             <div class="user-dropdown-name" id="dropdownName">관리자</div>
-                            <div class="user-dropdown-role" id="dropdownRole">Administrator</div>
-                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                            <div class="user-dropdown-email" id="dropdownEmail" style="font-size: 11px; color: var(--color-neutral-500); margin-top: 2px;"></div>
+                            <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
+                                <span class="user-dropdown-role" id="dropdownRole" style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--color-primary-100, #e0ecf5); color: var(--color-primary-700, #1A4B7C);">관리자</span>
+                                <span class="user-dropdown-dept" id="dropdownDept" style="font-size: 11px; color: var(--color-neutral-500);">글로벌사업처</span>
+                            </div>
                         </div>
                     </div>
                     <div class="user-dropdown-divider"></div>
-                    <a href="pages/admin/users.html" class="user-dropdown-item">
+                    <a href="pages/admin/users.html" class="user-dropdown-item" id="adminDropdownLink" style="display: none;">
                         <span>👤</span> 사용자 관리
                     </a>
                     <a href="#" class="user-dropdown-item" onclick="logout(); return false;">
@@ -655,7 +658,16 @@
                             </ul>
                         </li>
                         <li class="has-submenu">
-                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외기술용역 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="pages/projects/overseas-tech.html">사업현황</a></li>
+                                <li><a href="pages/projects/overseas-tech-proposals.html">제안서관리</a></li>
+                                <li><a href="pages/projects/overseas-tech-tor-rfp.html">TOR/RFP</a></li>
+                                <li><a href="pages/projects/overseas-tech-bidding.html">입찰관리</a></li>
+                                <li><a href="pages/projects/overseas-tech-contracts.html">계약관리</a></li>
+                                <li><a href="pages/projects/overseas-tech-performance.html">실적관리</a></li>
+                                <li><a href="pages/projects/overseas-tech-board.html">기타</a></li>
+                            </ul>
                         </li>
                         <li class="has-submenu">
                             <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>

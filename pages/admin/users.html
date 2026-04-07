@@ -433,7 +433,16 @@
                             </ul>
                         </li>
                         <li class="has-submenu">
-                            <span class="submenu-toggle disabled" style="color: #999; pointer-events: none; cursor: default;">해외기술용역 (준비중)</span>
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외기술용역 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../projects/overseas-tech.html">사업현황</a></li>
+                                <li><a href="../projects/overseas-tech-proposals.html">제안서관리</a></li>
+                                <li><a href="../projects/overseas-tech-tor-rfp.html">TOR/RFP</a></li>
+                                <li><a href="../projects/overseas-tech-bidding.html">입찰관리</a></li>
+                                <li><a href="../projects/overseas-tech-contracts.html">계약관리</a></li>
+                                <li><a href="../projects/overseas-tech-performance.html">실적관리</a></li>
+                                <li><a href="../projects/overseas-tech-board.html">기타</a></li>
+                            </ul>
                         </li>
                         <li class="has-submenu">
                             <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
@@ -900,6 +909,7 @@
                     <div style="flex: 1;">
                         <div style="font-weight: 600;">${user.name}</div>
                         <div style="font-size: 12px; color: #92400e;">${user.userId || user.email || '-'}</div>
+                        <div style="font-size: 11px; color: #b45309;">가입: ${user.createdAt ? new Date(user.createdAt).toLocaleDateString('ko-KR') : '-'}</div>
                     </div>
                     <select id="approveScope_${user.id}" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #d1d5db; font-size: 12px;">
                         <option value="readonly">승인(조회)</option>

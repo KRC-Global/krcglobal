@@ -8,7 +8,8 @@ from flask_cors import CORS
 from config import config
 
 # Create Flask app
-app = Flask(__name__)
+# static_folder를 프로젝트 루트로 설정 (KRDS 디자인 시스템, HTML 파일 서빙)
+app = Flask(__name__, static_folder='..', static_url_path='')
 
 # Load configuration
 config_name = os.environ.get('FLASK_ENV') or 'default'

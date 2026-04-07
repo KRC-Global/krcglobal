@@ -24,9 +24,22 @@
 
             <div style="margin-top: var(--spacing-6); padding: var(--spacing-4); background: var(--color-info-100, #e8f4fd); border-radius: var(--radius-md); text-align: left;">
                 <p style="font-size: var(--font-size-sm); color: var(--color-neutral-700); line-height: 1.6;">
-                    <strong id="pendingUserName"></strong>님, 로그인이 완료되었습니다.<br>
-                    관리자가 계정을 승인한 후 시스템을 이용할 수 있습니다.
+                    로그인이 완료되었습니다.<br>
+                    관리자가 계정을 승인한 후 시스템을 이용할 수 있습니다.<br>
+                    아래에서 이름을 확인하고 필요시 수정해주세요.
                 </p>
+                <div style="margin-top: var(--spacing-3);">
+                    <label style="font-size: var(--font-size-xs); color: var(--color-neutral-600); font-weight: 600;">이름</label>
+                    <div style="display: flex; gap: 8px; margin-top: 4px;">
+                        <input type="text" id="pendingUserNameInput" class="form-input"
+                               maxlength="100" placeholder="이름을 입력하세요"
+                               style="flex: 1;">
+                        <button type="button" class="btn btn-primary" onclick="saveName()" id="saveNameBtn">
+                            저장
+                        </button>
+                    </div>
+                    <div id="saveNameMsg" style="font-size: var(--font-size-xs); margin-top: 4px; min-height: 18px;"></div>
+                </div>
                 <p style="font-size: var(--font-size-xs); color: var(--color-neutral-500); margin-top: var(--spacing-2);">
                     계정: <strong id="pendingUserEmail"></strong>
                 </p>
@@ -53,9 +66,52 @@
     <script src="assets/js/supabase-config.js"></script>
     <script src="assets/js/api.js"></script>
     <script>
+        async function saveName() {
+            const nameInput = document.getElementById('pendingUserNameInput');
+            const msgEl = document.getElementById('saveNameMsg');
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                msgEl.style.color = 'var(--color-danger-600, #dc2626)';
+                msgEl.textContent = '이름을 입력해주세요.';
+                return;
+            }
+
+            try {
+                document.getElementById('saveNameBtn').disabled = true;
+                const token = localStorage.getItem('gbms_token');
+                const response = await fetch(`${API_BASE_URL}/auth/me`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ name: name })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    const userInfo = JSON.parse(localStorage.getItem('gbms_user') || '{}');
+                    userInfo.name = data.user.name;
+                    localStorage.setItem('gbms_user', JSON.stringify(userInfo));
+
+                    msgEl.style.color = 'var(--color-success-600, #16a34a)';
+                    msgEl.textContent = '이름이 저장되었습니다.';
+                } else {
+                    msgEl.style.color = 'var(--color-danger-600, #dc2626)';
+                    msgEl.textContent = data.message || '저장에 실패했습니다.';
+                }
+            } catch (e) {
+                msgEl.style.color = 'var(--color-danger-600, #dc2626)';
+                msgEl.textContent = '서버 연결에 실패했습니다.';
+            } finally {
+                document.getElementById('saveNameBtn').disabled = false;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             const userInfo = JSON.parse(localStorage.getItem('gbms_user') || '{}');
-            document.getElementById('pendingUserName').textContent = userInfo.name || '사용자';
+            document.getElementById('pendingUserNameInput').value = userInfo.name || '';
             document.getElementById('pendingUserEmail').textContent = userInfo.email || userInfo.userId || '';
 
             // 이미 승인된 사용자가 이 페이지에 온 경우

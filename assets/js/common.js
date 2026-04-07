@@ -364,7 +364,7 @@ function initUserDropdown() {
 }
 
 /**
- * 사용자 정보 표시
+ * 사용자 정보 표시 + admin 메뉴 제어
  */
 function displayUserInfo() {
     const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
@@ -373,7 +373,8 @@ function displayUserInfo() {
     try {
         const user = JSON.parse(userInfo);
         const initial = user.name ? user.name.charAt(0) : '?';
-        const roleText = user.role === 'admin' ? '관리자' : '사용자';
+        const isAdmin = user.role === 'admin' || user.permissionScope === 'all';
+        const roleText = isAdmin ? '관리자' : '사용자';
 
         // 헤더 업데이트
         const userNameEl = document.getElementById('userName');
@@ -386,11 +387,25 @@ function displayUserInfo() {
         const dropdownAvatar = document.getElementById('dropdownAvatar');
         const dropdownRole = document.getElementById('dropdownRole');
         const dropdownDept = document.getElementById('dropdownDept');
+        const dropdownEmail = document.getElementById('dropdownEmail');
 
         if (dropdownName) dropdownName.textContent = user.name || '사용자';
         if (dropdownAvatar) dropdownAvatar.textContent = initial;
         if (dropdownRole) dropdownRole.textContent = roleText;
         if (dropdownDept) dropdownDept.textContent = user.department || '글로벌사업처';
+        if (dropdownEmail) dropdownEmail.textContent = user.email || '';
+
+        // admin 사이드바 메뉴 표시
+        const adminMenu = document.getElementById('adminMenuUser');
+        if (adminMenu) {
+            adminMenu.style.display = isAdmin ? 'block' : 'none';
+        }
+
+        // 드롭다운 사용자관리 링크: admin만 표시
+        const adminDropdownLink = document.getElementById('adminDropdownLink');
+        if (adminDropdownLink) {
+            adminDropdownLink.style.display = isAdmin ? 'flex' : 'none';
+        }
     } catch (e) {
         console.error('사용자 정보 파싱 오류:', e);
     }

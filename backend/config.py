@@ -9,7 +9,7 @@ from datetime import timedelta
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # Supabase PostgreSQL (Transaction Pooler)
-DEFAULT_DATABASE_URL = 'postgresql://postgres.zzypdvwdwgwocczpaaiu:gksshdrhdshddjchs1!@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres'
+DEFAULT_DATABASE_URL = 'postgresql://postgres.zzypdvwdwgwocczpaaiu:KrcGlobal2026!DB@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres'
 
 
 class Config:

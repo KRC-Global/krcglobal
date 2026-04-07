@@ -324,6 +324,31 @@ def get_current_user(current_user):
     })
 
 
+@auth_bp.route('/me', methods=['PUT'])
+@token_required
+def update_current_user(current_user):
+    """승인 대기 중인 사용자가 자기 이름을 수정"""
+    if current_user.permission_scope != 'pending':
+        return jsonify({'success': False, 'message': '이미 승인된 사용자는 이 기능을 사용할 수 없습니다.'}), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': '요청 데이터가 없습니다.'}), 400
+
+    name = data.get('name', '').strip()
+    if not name or len(name) > 100:
+        return jsonify({'success': False, 'message': '이름을 1~100자로 입력해주세요.'}), 400
+
+    current_user.name = name
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': '이름이 저장되었습니다.',
+        'user': current_user.to_dict()
+    })
+
+
 @auth_bp.route('/debug-token', methods=['GET'])
 def debug_token():
     """디버그용: 토큰 검증 상세 정보 (배포 안정화 후 제거)"""
