@@ -51,18 +51,26 @@ def verify_token(token):
             # 관리자 이메일 체크
             is_admin = email in ADMIN_EMAILS
 
-            current_user = User(
-                user_id=email,
-                name=full_name,
-                email=email,
-                department='',
-                role='admin' if is_admin else 'user',
-                permission_scope='all' if is_admin else 'pending',
-                is_active=True
-            )
-            current_user.set_password(sub)  # Supabase UUID를 임시 비밀번호로 설정
-            db.session.add(current_user)
-            db.session.commit()
+            try:
+                current_user = User(
+                    user_id=email,
+                    name=full_name,
+                    email=email,
+                    department='',
+                    role='admin' if is_admin else 'user',
+                    permission_scope='all' if is_admin else 'pending',
+                    is_active=True
+                )
+                current_user.set_password(sub or 'oauth-user')
+                db.session.add(current_user)
+                db.session.commit()
+                print(f"[AUTH] 사용자 생성 완료: {email}, admin={is_admin}")
+            except Exception as e:
+                db.session.rollback()
+                print(f"[AUTH] 사용자 생성 실패: {email}, error={e}")
+                import traceback
+                traceback.print_exc()
+                return None
 
         # 기존 사용자가 ADMIN_EMAILS에 포함되면 자동 승격
         if email in ADMIN_EMAILS and (current_user.role != 'admin' or current_user.permission_scope != 'all'):
