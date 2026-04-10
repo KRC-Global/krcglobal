@@ -295,6 +295,7 @@ function requireAuth(loginPath) {
         } else {
             window.location.href = 'pending.html';
         }
+        return;
     }
 }
 
