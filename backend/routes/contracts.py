@@ -16,8 +16,11 @@ contracts_bp = Blueprint('contracts', __name__)
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'contracts')
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'zip'}
 
-# 업로드 폴더 생성
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# 업로드 폴더 생성 (Vercel 등 읽기 전용 파일시스템에서는 무시)
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+except OSError:
+    pass
 
 
 def allowed_file(filename):

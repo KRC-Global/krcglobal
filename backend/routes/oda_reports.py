@@ -17,9 +17,12 @@ UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'upload
 NOTE_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'oda_notes')
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'hwp', 'txt', 'jpg', 'jpeg', 'png', 'gif', 'zip'}
 
-# 업로드 폴더 생성
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(NOTE_UPLOAD_FOLDER, exist_ok=True)
+# 업로드 폴더 생성 (Vercel 등 읽기 전용 파일시스템에서는 무시)
+try:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(NOTE_UPLOAD_FOLDER, exist_ok=True)
+except OSError:
+    pass
 
 def allowed_file(filename):
     """파일 확장자 검증"""
