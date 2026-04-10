@@ -344,8 +344,13 @@ def update_current_user(current_user):
     if not name or len(name) > 100:
         return jsonify({'success': False, 'message': '이름을 1~100자로 입력해주세요.'}), 400
 
-    current_user.name = name
-    db.session.commit()
+    try:
+        current_user.name = name
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"이름 저장 오류: {e}")
+        return jsonify({'success': False, 'message': '이름 저장에 실패했습니다.'}), 500
 
     return jsonify({
         'success': True,
