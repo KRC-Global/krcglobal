@@ -1628,38 +1628,7 @@
             if (dropdown) dropdown.classList.remove('show');
         });
 
-        // Sidebar, Theme, User Dropdown은 initCommonUI()에서 초기화됨 (common.js)
-
-        // Display User Info from Session/LocalStorage
-        function displayUserInfo() {
-            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
-            if (userInfo) {
-                try {
-                    const user = JSON.parse(userInfo);
-                    const initial = user.name ? user.name.charAt(0) : '?';
-                    const roleText = user.role === 'admin' ? '관리자' : '사용자';
-
-                    // Update header
-                    const userNameEl = document.getElementById('userName');
-                    const userAvatarEl = document.getElementById('userAvatar');
-                    if (userNameEl) userNameEl.textContent = user.name || '사용자';
-                    if (userAvatarEl) userAvatarEl.textContent = initial;
-
-                    // Update dropdown
-                    const dropdownName = document.getElementById('dropdownName');
-                    const dropdownAvatar = document.getElementById('dropdownAvatar');
-                    const dropdownRole = document.getElementById('dropdownRole');
-                    const dropdownDept = document.getElementById('dropdownDept');
-
-                    if (dropdownName) dropdownName.textContent = user.name || '사용자';
-                    if (dropdownAvatar) dropdownAvatar.textContent = initial;
-                    if (dropdownRole) dropdownRole.textContent = roleText;
-                    if (dropdownDept) dropdownDept.textContent = user.department || '글로벌사업처';
-                } catch (e) {
-                    console.error('사용자 정보 파싱 오류:', e);
-                }
-            }
-        }
+        // Sidebar, Theme, User Dropdown, displayUserInfo()는 initCommonUI()에서 초기화됨 (common.js)
 
         // 배너 캐러셀
         let bannerIndex = 0;

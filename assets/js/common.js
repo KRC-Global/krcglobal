@@ -374,7 +374,15 @@ function displayUserInfo() {
         const user = JSON.parse(userInfo);
         const initial = user.name ? user.name.charAt(0) : '?';
         const isAdmin = user.role === 'admin' || user.permissionScope === 'all';
-        const roleText = isAdmin ? '관리자' : '사용자';
+        const scopeMap = {
+            'all': '관리자',
+            'overseas_tech': '해외기술용역',
+            'expansion': '해외진출지원',
+            'oda': '국제협력사업',
+            'readonly': '조회전용',
+            'pending': '승인대기'
+        };
+        const roleText = scopeMap[user.permissionScope] || (isAdmin ? '관리자' : '사용자');
 
         // 헤더 업데이트
         const userNameEl = document.getElementById('userName');
@@ -392,7 +400,12 @@ function displayUserInfo() {
         if (dropdownName) dropdownName.textContent = user.name || '사용자';
         if (dropdownAvatar) dropdownAvatar.textContent = initial;
         if (dropdownRole) dropdownRole.textContent = roleText;
-        if (dropdownDept) dropdownDept.textContent = user.department || '글로벌사업처';
+        const deptMap = {
+            'gad': '글로벌농업개발부',
+            'gb': '글로벌사업부',
+            'aidc': '농식품국제개발협력센터'
+        };
+        if (dropdownDept) dropdownDept.textContent = deptMap[user.department] || user.department || '글로벌사업처';
         if (dropdownEmail) dropdownEmail.textContent = user.email || '';
 
         // admin 사이드바 메뉴 표시
@@ -995,32 +1008,10 @@ async function submitPasswordChange() {
 }
 
 /**
- * 사용자 드롭다운에 비밀번호 변경 메뉴 추가
+ * 비밀번호 변경 메뉴 (Google OAuth 사용으로 비활성화)
  */
 function addPasswordChangeMenu() {
-    const userDropdown = document.getElementById('userDropdown');
-    if (!userDropdown) return;
-
-    // 이미 추가되었는지 확인
-    if (userDropdown.querySelector('[data-action="change-password"]')) return;
-
-    // 로그아웃 버튼 찾기
-    const logoutLink = userDropdown.querySelector('a[onclick*="logout"]');
-    if (logoutLink) {
-        // 비밀번호 변경 메뉴 생성
-        const passwordChangeLink = document.createElement('a');
-        passwordChangeLink.href = '#';
-        passwordChangeLink.className = 'user-dropdown-item';
-        passwordChangeLink.setAttribute('data-action', 'change-password');
-        passwordChangeLink.innerHTML = '<span>🔐</span> 비밀번호 변경';
-        passwordChangeLink.onclick = function(e) {
-            e.preventDefault();
-            openPasswordChangeModal();
-        };
-
-        // 로그아웃 버튼 앞에 삽입
-        logoutLink.parentNode.insertBefore(passwordChangeLink, logoutLink);
-    }
+    // Google OAuth 로그인 사용 — 비밀번호 변경 불필요
 }
 
 /**
