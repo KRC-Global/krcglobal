@@ -140,6 +140,75 @@
     border-bottom: none;
 }
 
+/* ─── 모바일 카드형 테이블 ─── */
+@media (max-width: 768px) {
+    .table-container:not(.no-mobile-card) {
+        overflow-x: visible;
+    }
+    .table-container:not(.no-mobile-card) .data-table thead {
+        display: none;
+    }
+    .table-container:not(.no-mobile-card) .data-table,
+    .table-container:not(.no-mobile-card) .data-table tbody {
+        display: block;
+    }
+    .table-container:not(.no-mobile-card) .data-table tbody tr {
+        display: block;
+        border: 1px solid var(--color-neutral-200);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--spacing-3);
+        padding: var(--spacing-3);
+        background: var(--color-neutral-0);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    .table-container:not(.no-mobile-card) .data-table tbody tr:hover {
+        background: var(--color-neutral-0);
+    }
+    .table-container:not(.no-mobile-card) .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    .table-container:not(.no-mobile-card) .data-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--spacing-2);
+        padding: var(--spacing-1) 0;
+        border-bottom: 1px solid var(--color-neutral-100);
+        font-size: var(--font-size-sm);
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .table-container:not(.no-mobile-card) .data-table td:last-child {
+        border-bottom: none;
+    }
+    /* data-label → ::before 로 레이블 자동 표시 */
+    .table-container:not(.no-mobile-card) .data-table td[data-label]::before {
+        content: attr(data-label);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-neutral-500);
+        min-width: 64px;
+        flex-shrink: 0;
+        font-size: var(--font-size-xs);
+        padding-top: 2px;
+    }
+    /* 사업명 컬럼 → 카드 헤더 (1행) */
+    .table-container:not(.no-mobile-card) .data-table td.col-title {
+        display: block;
+        font-weight: var(--font-weight-semibold);
+        font-size: var(--font-size-base);
+        color: var(--color-neutral-900);
+        padding-bottom: var(--spacing-2);
+        margin-bottom: var(--spacing-2);
+        border-bottom: 2px solid #1A4B7C;
+        width: 100%;
+    }
+    /* colspan 빈 행 */
+    .table-container:not(.no-mobile-card) .data-table td[colspan] {
+        display: block;
+        text-align: center;
+    }
+}
+
 /* ─── 배지 ─── */
 .badge {
     display: inline-flex;

@@ -1548,15 +1548,15 @@
 
                 html += `<tr class="project-row" data-id="${project.id}">
                     <td style="text-align:center;vertical-align:middle;color:var(--color-neutral-500);font-size:12px;">${rowNum}</td>
-                    <td style="text-align:center;vertical-align:middle;font-size:13px;color:#374151;">${project.contractYear || '-'}</td>
-                    <td style="vertical-align:middle;">
+                    <td data-label="연도" style="text-align:center;vertical-align:middle;font-size:13px;color:#374151;">${project.contractYear || '-'}</td>
+                    <td class="col-title" style="vertical-align:middle;">
                         <a href="#" onclick="viewProject(${project.id});return false;" style="color:#0066cc;font-weight:500;">${project.titleKr || '-'}</a>
                         ${project.titleEn ? `<div style="font-size:11px;color:#6c757d;margin-top:2px;">${project.titleEn}</div>` : ''}
                     </td>
-                    <td style="text-align:center;vertical-align:middle;"><span class="badge ${statusClass}">${statusText}</span></td>
-                    <td style="text-align:center;vertical-align:middle;">${createTypeBadgesHTML(project)}</td>
-                    <td style="text-align:center;vertical-align:middle;">${project.budget ? project.budget.toLocaleString() : '-'}</td>
-                    <td style="text-align:center;vertical-align:middle;">${krcHtml}</td>
+                    <td data-label="상태" style="text-align:center;vertical-align:middle;"><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td data-label="형태" style="text-align:center;vertical-align:middle;">${createTypeBadgesHTML(project)}</td>
+                    <td data-label="용역비" style="text-align:center;vertical-align:middle;">${project.budget ? project.budget.toLocaleString() : '-'}</td>
+                    <td data-label="지분" style="text-align:center;vertical-align:middle;">${krcHtml}</td>
                     <td class="pipeline-cell lifecycle-row" data-project-id="${project.id}" style="vertical-align:middle;">${pipelineHtml}</td>
                     ${actionCell}
                 </tr>`;

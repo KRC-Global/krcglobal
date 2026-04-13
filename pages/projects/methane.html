@@ -583,7 +583,7 @@
                         </div>
                         <div style="font-size: 12px; color: var(--color-neutral-600);">(단위: 백만원)</div>
                     </div>
-                    <div class="table-container" style="overflow-x: auto;">
+                    <div class="table-container no-mobile-card" style="overflow-x: auto;">
                         <table class="data-table" id="currentYearProjectsTable"
                             style="width: 100%; table-layout: fixed;">
                             <thead id="currentYearTableHead">
@@ -1404,20 +1404,20 @@
                 return `
                     <tr>
                         <td><input type="checkbox" aria-label="선택" data-id="${project.id}" ${currentUserRole === 'guest' ? 'disabled' : ''}></td>
-                        <td>
+                        <td class="col-title">
                             <a href="#" onclick="viewProject(${project.id}); return false;" style="color: #0066cc; font-weight: 700;">${displayTitle}</a>
                             ${project.titleEn ? `<div style="font-size: 12px; color: #6c757d; margin-top: 4px;">${project.titleEn}</div>` : ''}
                         </td>
-                        <td>${project.country || '-'}</td>
-                        <td>${period}</td>
-                        <td>${project.budget ? project.budget.toLocaleString() : '-'}</td>
-                        <td>
+                        <td data-label="국가">${project.country || '-'}</td>
+                        <td data-label="기간">${period}</td>
+                        <td data-label="용역비">${project.budget ? project.budget.toLocaleString() : '-'}</td>
+                        <td data-label="진행률">
                             <div class="progress" style="width: 80px;">
                                 <div class="progress-bar ${progress >= 100 ? 'success' : ''}" style="width: ${progress}%"></div>
                             </div>
                             <small>${progress}%</small>
                         </td>
-                        <td><span class="badge ${statusClass}">${statusText}</span></td>
+                        <td data-label="상태"><span class="badge ${statusClass}">${statusText}</span></td>
                         <td>${actionButtons}</td>
                     </tr>
                 `;

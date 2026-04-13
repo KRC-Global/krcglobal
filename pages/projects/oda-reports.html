@@ -1187,16 +1187,16 @@
 
                 return `
                     <tr>
-                        <td>${(currentPage - 1) * 20 + index + 1}</td>
-                        <td>
+                        <td style="color:var(--color-neutral-500);font-size:12px;">${(currentPage - 1) * 20 + index + 1}</td>
+                        <td class="col-title">
                             <span class="project-name" onclick="showProjectDetail(${project.id})">
                                 ${project.title}
                             </span>
                         </td>
-                        <td>${project.country || ''}</td>
-                        <td>${project.period || '-'}</td>
-                        <td style="text-align: right;">${project.budget ? formatNumber(project.budget) : '-'}</td>
-                        <td>${getStatusBadge(project.period, project.status)}</td>
+                        <td data-label="국가">${project.country || ''}</td>
+                        <td data-label="기간">${project.period || '-'}</td>
+                        <td data-label="예산" style="text-align: right;">${project.budget ? formatNumber(project.budget) : '-'}</td>
+                        <td data-label="상태">${getStatusBadge(project.period, project.status)}</td>
                         <td class="pipeline-cell">${createOdaPipelineHTML(project.id, project.reports)}</td>
                         ${noteCell}
                     </tr>
