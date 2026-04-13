@@ -120,9 +120,9 @@ def token_required(f):
         if not current_user:
             return jsonify({'message': '유효하지 않은 토큰입니다.'}), 401
 
-        # pending 사용자는 /api/auth/me만 허용, 나머지 API 차단
+        # pending 사용자는 /auth/me만 허용, 나머지 API 차단
         if current_user.permission_scope == 'pending':
-            if request.path != '/api/auth/me':
+            if not request.path.endswith('/auth/me'):
                 return jsonify({'success': False, 'message': '관리자 승인 대기 중입니다.'}), 403
 
         return f(current_user, *args, **kwargs)
