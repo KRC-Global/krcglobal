@@ -1292,40 +1292,15 @@
         }
 
         // PDF 미리보기
-        async function previewOdaReport(reportId, fileName) {
-            try {
-                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
-                const baseUrl = getApiBaseUrl();
+        function previewOdaReport(reportId, fileName) {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const baseUrl = getApiBaseUrl();
+            const url = `${baseUrl}/api/oda-reports/preview/${reportId}?token=${encodeURIComponent(token)}`;
 
-                const response = await fetch(`${baseUrl}/api/oda-reports/preview/${reportId}?token=${token}`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (!response.ok) throw new Error('PDF를 불러올 수 없습니다.');
-
-                const blob = await response.blob();
-                const blobUrl = window.URL.createObjectURL(blob);
-
-                const width = Math.min(1400, window.screen.width * 0.8);
-                const height = Math.min(900, window.screen.height * 0.9);
-                const left = (window.screen.width - width) / 2;
-                const top = (window.screen.height - height) / 2;
-
-                const newWindow = window.open(
-                    blobUrl,
-                    `PDF 미리보기`,
-                    `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
-                );
-
-                if (newWindow) {
-                    newWindow.focus();
-                } else {
-                    window.open(blobUrl, '_blank');
-                }
-            } catch (error) {
-                console.error('PDF 미리보기 실패:', error);
-                Toast.error('PDF를 불러올 수 없습니다.');
+            const newWindow = window.open(url, '_blank');
+            if (!newWindow) {
+                // 팝업 차단 시 현재 탭에서 열기
+                window.location.href = url;
             }
         }
 
