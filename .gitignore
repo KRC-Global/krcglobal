@@ -78,8 +78,7 @@ docs/조지아_실적모음/
 .claude/
 .playwright-mcp/
 
-# Legacy app entry (root level only)
-/app.py
+# (app.py is now the main entry point with DispatcherMiddleware)
 
 # Misc
 GEMINI.md
