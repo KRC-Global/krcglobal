@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>계약서/최종보고서 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <style>
+        /* 중첩 서브메뉴 스타일 */
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* Level 4 중첩 서브메뉴 스타일 */
+        .submenu-nested-level4 {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested-level4 li a {
+            font-size: 12px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested-level4 li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        /* 통계 카드 */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--color-neutral-0);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stat-card .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-primary-600);
+        }
+
+        .stat-card .stat-label {
+            font-size: 13px;
+            color: var(--color-neutral-600);
+            margin-top: 4px;
+        }
+
+        /* 계약서 테이블 스타일 */
+        .contracts-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            margin-top: 4px;
+        }
+
+        .contracts-table thead {
+            background: var(--color-primary-50);
+        }
+
+        .contracts-table th {
+            padding: 8px 8px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-neutral-800);
+            border-bottom: 2px solid var(--color-neutral-200);
+        }
+
+        .contracts-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--color-neutral-100);
+            font-size: 13px;
+            text-align: center;
+        }
+
+        /* 사업명 컬럼만 왼쪽 정렬 */
+        .contracts-table td:nth-child(2) {
+            text-align: left;
+        }
+
+        /* 금액 컬럼 오른쪽 정렬 */
+        .contracts-table td:nth-child(4),
+        .contracts-table td:nth-child(5) {
+            text-align: right;
+        }
+
+        .contracts-table tbody tr:hover {
+            background: var(--color-neutral-50);
+        }
+
+        .project-name {
+            color: var(--color-primary-600);
+            font-weight: 600;
+            display: block;
+        }
+
+        .project-period {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+            font-weight: 400;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: var(--radius-md);
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* 시행중 - 초록색 */
+        .status-ongoing {
+            background: var(--color-success-100);
+            color: var(--color-success-700);
+        }
+
+        /* 준공 - 레드와인색 */
+        .status-completed {
+            background: #FCE4EC;
+            color: #8B4049;
+        }
+
+        /* 제안서제출 - 주황색 */
+        .status-proposal {
+            background: #FFF3E0;
+            color: #F57C00;
+        }
+
+        /* EOI제출 - 보라색 */
+        .status-eoi {
+            background: #F3E5F5;
+            color: #7B1FA2;
+        }
+
+        .contract-cell {
+            text-align: center;
+        }
+
+        .contract-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-icon {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: var(--radius-md);
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 90px;
+        }
+
+        .btn-preview {
+            color: var(--color-primary-600);
+            border: 1.5px solid var(--color-primary-600);
+        }
+
+        .btn-preview:hover {
+            background: var(--color-primary-50);
+        }
+
+        .btn-download {
+            color: var(--color-neutral-600);
+            border: 1.5px solid var(--color-neutral-400);
+        }
+
+        .btn-download:hover {
+            background: var(--color-neutral-50);
+        }
+
+        /* 차수 번호 버튼 스타일 */
+        .contract-order-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: var(--color-primary-500);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin: 0 4px;
+        }
+
+        .contract-order-btn:hover {
+            background: var(--color-primary-700);
+            transform: scale(1.1);
+        }
+
+        .btn-delete {
+            background: #8B1538;
+            color: white;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            border: none;
+        }
+
+        .btn-delete:hover {
+            background: #6B0F2A;
+        }
+
+        /* 필터 바 */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-bar select,
+        .filter-bar input {
+            padding: 10px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+        }
+
+        .filter-bar .btn-primary {
+            padding: 10px 20px;
+            margin-left: auto;
+            border-radius: var(--radius-lg);
+        }
+
+        /* 모달 스타일 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
+            display: none;
+            position: fixed !important;
+            inset: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            height: 100% !important;
+            max-height: none !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+            z-index: 10000 !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .modal.show {
+            display: flex !important;
+        }
+
+        .modal-content {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-neutral-800);
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: var(--color-neutral-500);
+            cursor: pointer;
+        }
+
+        .modal-close:hover {
+            color: var(--color-neutral-700);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            padding: 16px 24px;
+            border-top: 1px solid var(--color-neutral-200);
+            background: var(--color-neutral-50);
+        }
+
+        /* 폼 스타일 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--color-neutral-700);
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+        }
+
+        /* 파일 업로드 영역 */
+        .file-upload-area {
+            border: 2px dashed var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--color-neutral-50);
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--color-primary-500);
+            background: var(--color-primary-50);
+        }
+
+        .file-upload-area.has-file {
+            border-color: var(--color-success-500);
+            background: var(--color-success-100);
+        }
+
+        .file-upload-area.has-file div {
+            color: var(--color-success-600);
+            font-weight: 600;
+        }
+
+        .no-contract {
+            color: var(--color-neutral-400);
+            font-size: 12px;
+        }
+
+        .contract-delete-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            background: #EF4444;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        .contract-delete-btn:hover {
+            background: #DC2626;
+            transform: scale(1.1);
+        }
+
+        /* 사용자 드롭다운 */
+        .user-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            min-width: 240px;
+            z-index: 1000;
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--color-primary-500);
+            color: var(--color-neutral-0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-neutral-800);
+            margin-bottom: 4px;
+        }
+
+        .user-dropdown-role {
+            font-size: 13px;
+            color: var(--color-primary-600);
+            margin-bottom: 2px;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-600);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-50);
+        }
+
+        /* 검색 가능한 선택 드롭다운 스타일 */
+        .searchable-select {
+            position: relative;
+            width: 100%;
+        }
+
+        .searchable-select-trigger {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            background: var(--color-neutral-0);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .searchable-select-trigger:hover {
+            border-color: var(--color-primary-500);
+        }
+
+        .searchable-select-trigger.active {
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px rgba(26, 75, 124, 0.1);
+        }
+
+        .searchable-select-trigger .arrow {
+            transition: transform 0.2s;
+        }
+
+        .searchable-select-trigger.active .arrow {
+            transform: rotate(180deg);
+        }
+
+        .searchable-select-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            max-height: 300px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .searchable-select-dropdown.show {
+            display: block;
+        }
+
+        .searchable-select-search {
+            padding: 8px;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+
+        .searchable-select-search input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+        }
+
+        .searchable-select-search input:focus {
+            outline: none;
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px rgba(26, 75, 124, 0.1);
+        }
+
+        .searchable-select-options {
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        .searchable-select-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .searchable-select-option:hover {
+            background: var(--color-primary-50);
+        }
+
+        .searchable-select-option.selected {
+            background: var(--color-primary-100);
+            color: var(--color-primary-700);
+            font-weight: 600;
+        }
+
+        .searchable-select-option .option-main {
+            font-weight: 500;
+            color: var(--color-neutral-800);
+        }
+
+        .searchable-select-option .option-sub {
+            font-size: 12px;
+            color: var(--color-neutral-600);
+            margin-top: 2px;
+        }
+
+        .searchable-select-option.no-results {
+            text-align: center;
+            color: var(--color-neutral-500);
+            cursor: default;
+        }
+
+        .searchable-select-option.no-results:hover {
+            background: transparent;
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../admin/users.html" class="user-dropdown-item" id="adminDropdownLink" style="display: none;"><span>👤</span> 사용자 관리</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../expansion/company-management.html">기업관리</a></li>
+                                <li><a href="../expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="../expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="../expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="../expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="../expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="../expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="../expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외기술용역 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="overseas-tech.html">사업현황</a></li>
+                                <li><a href="overseas-tech-proposals.html">제안서관리</a></li>
+                                <li><a href="overseas-tech-tor-rfp.html">TOR/RFP</a></li>
+                                <li><a href="overseas-tech-bidding.html">입찰관리</a></li>
+                                <li><a href="overseas-tech-contracts.html">계약관리</a></li>
+                                <li><a href="overseas-tech-performance.html">실적관리</a></li>
+                                <li><a href="overseas-tech-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="international-cooperation.html">사업현황</a></li>
+                                <li><a href="oda-reports.html">보고서관리</a></li>
+                                <li><a href="intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../../pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../dashboard.html">홈</a></li>
+                    <li><a href="#">사업관리</a></li>
+                    <li><a href="overseas-tech.html">해외기술용역</a></li>
+                    <li aria-current="page">계약서/최종보고서</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">계약서/최종보고서</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 통계 카드 -->
+            <div class="stats-cards">
+                <div class="stat-card">
+                    <div class="stat-value" id="statTotalContracts">0</div>
+                    <div class="stat-label">전체 계약서</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statThisYear" style="color: #10B981;">0</div>
+                    <div class="stat-label">올해 등록</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statProjectsWithContracts" style="color: #3B82F6;">0</div>
+                    <div class="stat-label">계약서 있는 사업</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statTotalProjects">0</div>
+                    <div class="stat-label">전체 사업</div>
+                </div>
+            </div>
+
+            <!-- 필터 바 -->
+            <div class="filter-bar">
+                <select id="countryFilter">
+                    <option value="">전체 국가</option>
+                </select>
+
+                <input type="text" id="searchInput" placeholder="사업명 검색">
+
+                <button class="btn btn-primary" id="btnUpload" style="display: none;">
+                    <span>📄</span> 계약서 등록
+                </button>
+                <button class="btn btn-success" id="btnUploadFinalReport" style="display: none;">
+                    <span>📋</span> 최종보고서 등록
+                </button>
+            </div>
+
+            <!-- 계약서 테이블 -->
+            <div style="text-align: right; font-size: 12px; color: var(--color-neutral-600); margin-bottom: 4px;">
+                (단위: 백만원)
+            </div>
+            <table class="contracts-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">번호</th>
+                        <th style="width: 200px;">사업명</th>
+                        <th style="width: 80px;">상태</th>
+                        <th style="width: 90px;">대상국</th>
+                        <th style="width: 90px;">총용역비</th>
+                        <th style="width: 90px;">공사지분</th>
+                        <th style="width: 150px;">계약서</th>
+                        <th style="width: 100px;">최종보고서</th>
+                    </tr>
+                </thead>
+                <tbody id="contractsTableBody">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 40px;">
+                            데이터를 불러오는 중...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 페이지네이션 -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </main>
+
+    <!-- 업로드 모달 -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title">계약서 등록</h3>
+                <button class="modal-close" onclick="closeUploadModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label>사업 선택 *</label>
+                        <div class="searchable-select" id="projectSelectContainer">
+                            <div class="searchable-select-trigger" id="projectSelectTrigger" onclick="openProjectDropdown()">
+                                <span id="projectSelectText">사업을 선택하세요</span>
+                                <span class="arrow">▼</span>
+                            </div>
+                            <div class="searchable-select-dropdown" id="projectSelectDropdown">
+                                <div class="searchable-select-search">
+                                    <input type="text" id="projectSearchInput" placeholder="사업명 또는 국가로 검색...">
+                                </div>
+                                <div class="searchable-select-options" id="projectSelectOptions"></div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="projectSelect" name="projectSelect" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>차수 *</label>
+                        <select id="orderNumber" required>
+                            <option value="0">최초</option>
+                            <option value="1">1차</option>
+                            <option value="2">2차</option>
+                            <option value="3">3차</option>
+                            <option value="4">4차</option>
+                            <option value="5">5차</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>계약서 파일 (PDF)</label>
+                        <div class="file-upload-area" id="fileUploadArea"
+                            onclick="document.getElementById('fileInput').click()">
+                            <div id="fileUploadText">클릭하여 파일 선택</div>
+                        </div>
+                        <input type="file" id="fileInput" style="display: none;" accept=".pdf,.doc,.docx,.zip"
+                            onchange="handleFileSelect(this)">
+                    </div>
+
+                    <div class="form-group">
+                        <label>설명 (선택)</label>
+                        <input type="text" id="description" placeholder="계약서에 대한 간단한 설명">
+                    </div>
+
+                    <div
+                        style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-neutral-200);">
+                        <button type="button" class="btn btn-secondary btn-lg" onclick="closeUploadModal()">취소</button>
+                        <button type="submit" class="btn btn-primary btn-lg">등록</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 최종보고서 업로드 모달 -->
+    <div class="modal" id="finalReportModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title">최종보고서 등록</h3>
+                <button class="modal-close" onclick="closeFinalReportModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="finalReportForm">
+                    <div class="form-group">
+                        <label>사업 선택 *</label>
+                        <div class="searchable-select" id="finalReportProjectSelectContainer">
+                            <div class="searchable-select-trigger" id="finalReportProjectSelectTrigger" onclick="openFinalReportProjectDropdown()">
+                                <span id="finalReportProjectSelectText">사업을 선택하세요</span>
+                                <span class="arrow">▼</span>
+                            </div>
+                            <div class="searchable-select-dropdown" id="finalReportProjectSelectDropdown">
+                                <div class="searchable-select-search">
+                                    <input type="text" id="finalReportProjectSearchInput" placeholder="사업명 또는 국가로 검색...">
+                                </div>
+                                <div class="searchable-select-options" id="finalReportProjectSelectOptions"></div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="finalReportProjectSelect" name="finalReportProjectSelect" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>언어 구분 *</label>
+                        <div style="display: flex; flex-direction: row; gap: 40px; margin-top: 4px; flex-wrap: nowrap;">
+                            <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 400; white-space: nowrap;">
+                                <input type="radio" name="reportLang" value="kr" checked style="accent-color: var(--color-primary-500);"> 국문
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 400; white-space: nowrap;">
+                                <input type="radio" name="reportLang" value="en" style="accent-color: var(--color-primary-500);"> 영문
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>최종보고서 파일 (PDF)</label>
+                        <div class="file-upload-area" id="finalReportFileUploadArea"
+                            onclick="document.getElementById('finalReportFileInput').click()">
+                            <div id="finalReportFileUploadText">클릭하여 파일 선택</div>
+                        </div>
+                        <input type="file" id="finalReportFileInput" style="display: none;" accept=".pdf,.doc,.docx,.zip"
+                            onchange="handleFinalReportFileSelect(this)">
+                    </div>
+
+                    <div class="form-group">
+                        <label>설명 (선택)</label>
+                        <input type="text" id="finalReportDescription" placeholder="최종보고서에 대한 간단한 설명">
+                    </div>
+
+                    <div
+                        style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-neutral-200);">
+                        <button type="button" class="btn btn-secondary btn-lg" onclick="closeFinalReportModal()">취소</button>
+                        <button type="submit" class="btn btn-primary btn-lg">등록</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF 미리보기 모달 -->
+    <div class="modal-overlay" id="pdfPreviewModal">
+        <div class="modal-content" style="max-width: 90%; max-height: 90vh; width: 1200px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="pdfModalTitle">계약서 미리보기</h3>
+                <button class="modal-close" onclick="closePdfModal()">×</button>
+            </div>
+            <div class="modal-body" style="padding: 0; height: 75vh;">
+                <iframe id="pdfViewer" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closePdfModal()">닫기</button>
+                <button class="btn btn-primary" onclick="downloadCurrentPdf()">다운로드</button>
+                <button class="btn btn-delete" id="deleteInModalBtn" onclick="deleteCurrentPdf()"
+                    style="display: none;">삭제</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../../assets/js/common.js"></script>
+    <script src="../../assets/js/api.js"></script>
+    <script src="../../assets/js/components/toast.js"></script>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentFilters = {
+            country: '',
+            search: ''
+        };
+
+        // 검색 가능한 선택 드롭다운 관련 변수
+        let allProjects = [];
+        let finalReportAllProjects = [];
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 인증 확인
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                window.location.href = '../../index.html';
+                return;
+            }
+
+            // 페이지 접근 권한 확인 (해외기술용역)
+            if (typeof checkPagePermission === 'function') {
+                if (!checkPagePermission('overseas_tech')) {
+                    return;
+                }
+            }
+
+            // 사용자 정보 표시
+            try {
+                const user = JSON.parse(userInfo);
+                document.getElementById('userName').textContent = user.name || '사용자';
+                document.getElementById('dropdownName').textContent = user.name || '사용자';
+                document.getElementById('dropdownRole').textContent = user.role === 'admin' ? '관리자' : user.role === 'manager' ? '매니저' : '사용자';
+                document.getElementById('dropdownDept').textContent = user.departmentName || user.department || '';
+
+                const initial = user.name ? user.name.charAt(0) : '사';
+                document.getElementById('userAvatar').textContent = initial;
+                document.getElementById('dropdownAvatar').textContent = initial;
+            } catch (e) {
+                console.error('사용자 정보 파싱 오류:', e);
+            }
+
+            // 공통 UI 초기화
+            if (typeof initCommonUI === 'function') {
+                initCommonUI();
+            }
+
+            await loadStats();
+            await loadCountries();
+            await loadContracts();
+            setupEventListeners();
+            checkAdminRole();
+        });
+
+        // 관리자 권한 확인
+        function checkAdminRole() {
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+            if (userInfo) {
+                try {
+                    const user = JSON.parse(userInfo);
+
+                    // 해외기술용역 쓰기 권한 체크
+                    if (typeof hasWritePermission === 'function' && hasWritePermission('overseas_tech')) {
+                        document.getElementById('btnUpload').style.display = 'block';
+                        document.getElementById('btnUploadFinalReport').style.display = 'block';
+                    }
+
+                    // 관리자 메뉴 표시
+                    if (user && user.role === 'admin') {
+                        const adminMenu = document.getElementById('adminMenuUser');
+                        if (adminMenu) {
+                            adminMenu.style.display = 'block';
+                        }
+                    }
+                } catch (e) {
+                    console.error('사용자 정보 파싱 오류:', e);
+                }
+            }
+        }
+
+        // 통계 로드
+        async function loadStats() {
+            try {
+                const response = await apiCall('/contracts/stats', 'GET');
+                if (response.success) {
+                    document.getElementById('statTotalContracts').textContent = response.data.totalContracts;
+                    document.getElementById('statThisYear').textContent = response.data.thisYearContracts;
+                    document.getElementById('statProjectsWithContracts').textContent = response.data.projectsWithContracts;
+                    document.getElementById('statTotalProjects').textContent = response.data.totalProjects;
+                }
+            } catch (error) {
+                console.error('통계 로드 실패:', error);
+            }
+        }
+
+        // 국가 목록 로드
+        async function loadCountries() {
+            try {
+                const response = await apiCall('/contracts/countries', 'GET');
+                if (response.success) {
+                    const select = document.getElementById('countryFilter');
+                    response.data.forEach(country => {
+                        const option = document.createElement('option');
+                        option.value = country;
+                        option.textContent = country;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('국가 목록 로드 실패:', error);
+            }
+        }
+
+        // 계약서 목록 로드
+        async function loadContracts() {
+            try {
+                const params = new URLSearchParams({
+                    page: currentPage,
+                    per_page: 20,
+                    ...currentFilters
+                });
+
+                const response = await apiCall(`/contracts?${params}`, 'GET');
+                if (response.success) {
+                    renderContractsTable(response.data);
+                    renderPagination(response.currentPage, response.pages);
+                } else {
+                    Toast.error(response.message);
+                }
+            } catch (error) {
+                console.error('계약서 목록 로드 실패:', error);
+                Toast.error('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // 계약서 테이블 렌더링
+        function renderContractsTable(data) {
+            const tbody = document.getElementById('contractsTableBody');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 40px;">
+                            등록된 사업이 없습니다.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            function getStatusBadge(status) {
+                if (!status) {
+                    return '<span class="status-badge">-</span>';
+                }
+
+                // "완료"는 "준공"으로 표시 통일
+                const displayStatus = status === '완료' ? '준공' : status;
+
+                // 상태별 스타일 매핑
+                const statusMap = {
+                    '시행중': 'status-ongoing',
+                    '진행중': 'status-ongoing',
+                    '완료': 'status-completed',
+                    '준공': 'status-completed',
+                    '제안서제출': 'status-proposal',
+                    'EOI제출': 'status-eoi'
+                };
+
+                const className = statusMap[status] || '';
+                return `<span class="status-badge ${className}">${displayStatus}</span>`;
+            }
+
+            tbody.innerHTML = data.map((project, index) => {
+                // 계약서와 최종보고서 버튼 렌더링 (분리)
+                let contractButtons = '';
+                let finalReportButtons = '';
+                const isUserAdmin = isAdmin(); // 관리자 권한 확인
+
+                if (project.contracts && project.contracts.length > 0) {
+                    // 계약서와 최종보고서 분리
+                    const contracts = project.contracts.filter(c => c.documentType === 'contract' || !c.documentType);
+                    const finalReports = project.contracts.filter(c => c.documentType === 'final_report');
+
+                    // 계약서 버튼 (차수 순으로 정렬) + 파일 크기 툴팁
+                    if (contracts.length > 0) {
+                        const sortedContracts = [...contracts].sort((a, b) => (a.orderNumber || 0) - (b.orderNumber || 0));
+                        contractButtons = sortedContracts.map(contract => {
+                            const escapedTitle = project.titleKr.replace(/'/g, "\\'");
+                            const escapedFileName = contract.fileName.replace(/'/g, "\\'");
+                            const fileSizeText = contract.fileSize ? formatFileSize(contract.fileSize) : '크기 정보 없음';
+                            const orderText = contract.orderNumber === 0 ? '최초' : contract.orderNumber;
+                            const orderTitleText = contract.orderNumber === 0 ? '최초' : `${contract.orderNumber}차`;
+                            const previewBtn = `<button class="contract-order-btn" onclick="showPdfPreview(${contract.id}, '${escapedFileName}', '${escapedTitle}', ${contract.orderNumber}, 'contract')" title="${orderTitleText} 계약서\n📦 파일 크기: ${fileSizeText}">${orderText}</button>`;
+                            const deleteBtn = isUserAdmin ? `<button class="contract-delete-btn" onclick="event.stopPropagation(); deleteContract(${contract.id}, 'contract')" title="삭제">×</button>` : '';
+                            return `${previewBtn}${deleteBtn}`;
+                        }).join(' ');
+                    }
+
+                    // 최종보고서 버튼 (국문/영문 각각) + 파일 크기 툴팁
+                    if (finalReports.length > 0) {
+                        const escapedTitle = project.titleKr.replace(/'/g, "\\'");
+                        // 국문(order_number=1), 영문(order_number=2) 분리
+                        const krReport = finalReports.find(r => r.orderNumber === 1);
+                        const enReport = finalReports.find(r => r.orderNumber === 2);
+                        // 기존 데이터 호환: orderNumber가 null인 경우 국문으로 취급
+                        const legacyReport = finalReports.find(r => !r.orderNumber && r.orderNumber !== 1 && r.orderNumber !== 2);
+
+                        const renderBtn = (report, label, langText) => {
+                            const escapedFileName = report.fileName.replace(/'/g, "\\'");
+                            const fileSizeText = report.fileSize ? formatFileSize(report.fileSize) : '크기 정보 없음';
+                            const previewBtn = `<button class="contract-order-btn" style="background: #059669; border-color: #059669; font-size: 11px; min-width: 28px;" onclick="showPdfPreview(${report.id}, '${escapedFileName}', '${escapedTitle}', ${report.orderNumber}, 'final_report')" title="최종보고서(${langText})\n📦 파일 크기: ${fileSizeText}">${label}</button>`;
+                            const deleteBtn = isUserAdmin ? `<button class="contract-delete-btn" onclick="event.stopPropagation(); deleteContract(${report.id}, 'final_report')" title="삭제">×</button>` : '';
+                            return `${previewBtn}${deleteBtn}`;
+                        };
+
+                        if (krReport) finalReportButtons += renderBtn(krReport, '국', '국문');
+                        if (enReport) finalReportButtons += (finalReportButtons ? '<span style="display:inline-block;width:6px;"></span>' : '') + renderBtn(enReport, 'EN', '영문');
+                        if (legacyReport && !krReport) finalReportButtons += renderBtn(legacyReport, '📋', '보고서');
+                    }
+                }
+
+                // 계약서가 없으면 "-" 표시
+                if (!contractButtons) {
+                    contractButtons = '<span class="no-contract">-</span>';
+                }
+
+                // 최종보고서가 없으면 "-" 표시
+                if (!finalReportButtons) {
+                    finalReportButtons = '<span class="no-contract">-</span>';
+                }
+
+                const period = project.startDate && project.endDate ? `${project.startDate} ~ ${project.endDate}` : '';
+
+                // 금액 포맷팅 함수
+                const formatBudget = (value) => {
+                    if (!value || value === 0) return '-';
+                    return Number(value).toLocaleString('ko-KR');
+                };
+
+                return `
+                    <tr>
+                        <td>${(currentPage - 1) * 20 + index + 1}</td>
+                        <td>
+                            <span class="project-name">${project.titleKr}</span>
+                            ${period ? `<span class="project-period">(${period})</span>` : ''}
+                        </td>
+                        <td>${getStatusBadge(project.status)}</td>
+                        <td>${project.country}</td>
+                        <td>${formatBudget(project.budget)}</td>
+                        <td>${formatBudget(project.krcBudget)}</td>
+                        <td class="contract-cell">
+                            ${contractButtons}
+                        </td>
+                        <td class="contract-cell">
+                            ${finalReportButtons}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // PDF 미리보기 관련 변수
+        let currentPdfId = null;
+        let currentPdfUrl = null;
+
+        // PDF 미리보기 - 새창으로 열기 (전역 함수로 정의 - 윈도우 환경 호환성)
+        window.showPdfPreview = async function(contractId, fileName, projectName, orderNumber = null, documentType = 'contract') {
+            try {
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const baseUrl = getApiBaseUrl();
+
+                // 새창으로 PDF 미리보기 열기
+                const previewUrl = `${baseUrl}/api/contracts/preview/${contractId}?token=${token}`;
+                window.open(previewUrl, '_blank', 'width=1200,height=800,menubar=no,toolbar=no,location=no,status=no');
+
+            } catch (error) {
+                console.error('PDF 미리보기 실패:', error);
+                Toast.error('PDF를 불러올 수 없습니다: ' + error.message);
+            }
+        };
+
+        function closePdfModal() {
+            document.getElementById('pdfPreviewModal').classList.remove('show');
+
+            const iframe = document.getElementById('pdfViewer');
+            if (iframe) {
+                iframe.src = '';
+                iframe.remove();
+            }
+
+            if (currentPdfUrl) {
+                window.URL.revokeObjectURL(currentPdfUrl);
+                currentPdfUrl = null;
+            }
+
+            currentPdfId = null;
+
+            const modalBody = document.querySelector('#pdfPreviewModal .modal-body');
+            const newIframe = document.createElement('iframe');
+            newIframe.id = 'pdfViewer';
+            newIframe.style.cssText = 'width: 100%; height: 100%; border: none;';
+            modalBody.appendChild(newIframe);
+        }
+
+        async function downloadCurrentPdf() {
+            if (!currentPdfId) {
+                Toast.error('다운로드할 파일이 없습니다.');
+                return;
+            }
+            await downloadContract(currentPdfId);
+        }
+
+        async function downloadContract(contractId) {
+            try {
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const baseUrl = getApiBaseUrl();
+                window.location.href = `${baseUrl}/api/contracts/download/${contractId}?token=${token}`;
+                Toast.success('다운로드를 시작합니다.');
+            } catch (error) {
+                console.error('다운로드 실패:', error);
+                Toast.error('다운로드에 실패했습니다.');
+            }
+        }
+
+        // 계약서/최종보고서 삭제
+        async function deleteContract(contractId, documentType = 'contract') {
+            const docTypeText = documentType === 'final_report' ? '최종보고서' : '계약서';
+
+            if (!confirm(`이 ${docTypeText}를 삭제하시겠습니까?`)) {
+                return;
+            }
+
+            try {
+                const response = await apiCall(`/contracts/${contractId}`, 'DELETE');
+                if (response.success) {
+                    Toast.success(response.message);
+                    await loadContracts();
+                    await loadStats();
+                } else {
+                    Toast.error(response.message);
+                }
+            } catch (error) {
+                console.error('삭제 실패:', error);
+                Toast.error('삭제에 실패했습니다.');
+            }
+        }
+
+        async function deleteCurrentPdf() {
+            if (!currentPdfId) {
+                Toast.error('삭제할 파일이 없습니다.');
+                return;
+            }
+
+            if (!confirm('이 계약서를 삭제하시겠습니까?')) {
+                return;
+            }
+
+            try {
+                const response = await apiCall(`/contracts/${currentPdfId}`, 'DELETE');
+                if (response.success) {
+                    Toast.success(response.message);
+                    closePdfModal();
+                    await loadContracts();
+                    await loadStats();
+                } else {
+                    Toast.error(response.message);
+                }
+            } catch (error) {
+                console.error('삭제 실패:', error);
+                Toast.error('삭제에 실패했습니다.');
+            }
+        }
+
+        // 업로드 모달 열기
+        async function openUploadModal() {
+            try {
+                const response = await apiCall('/contracts/projects', 'GET');
+                if (response.success) {
+                    loadProjectsIntoDropdown(response.data);
+                    initSearchableSelect();
+                }
+            } catch (error) {
+                console.error('프로젝트 목록 로드 실패:', error);
+            }
+
+            // 모달 초기화
+            document.getElementById('projectSelect').value = '';
+            document.getElementById('projectSelectText').textContent = '사업을 선택하세요';
+            document.getElementById('uploadModal').classList.add('show');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.remove('show');
+            document.getElementById('uploadForm').reset();
+            document.getElementById('fileUploadText').textContent = '클릭하여 파일 선택';
+            document.getElementById('fileUploadArea').classList.remove('has-file');
+        }
+
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            const uploadArea = document.getElementById('fileUploadArea');
+            const uploadText = document.getElementById('fileUploadText');
+            const maxSize = 100 * 1024 * 1024; // 100MB
+
+            if (file) {
+                if (file.size > maxSize) {
+                    alert('파일 크기는 100MB를 초과할 수 없습니다.\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(2) + ' MB');
+                    input.value = '';
+                    uploadText.textContent = '클릭하여 파일 선택';
+                    uploadArea.classList.remove('has-file');
+                    return;
+                }
+
+                uploadText.textContent = `선택됨: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                uploadArea.classList.add('has-file');
+            } else {
+                uploadText.textContent = '클릭하여 파일 선택';
+                uploadArea.classList.remove('has-file');
+            }
+        }
+
+        async function openFinalReportModal() {
+            try {
+                const response = await apiCall('/contracts/projects', 'GET');
+                if (response.success) {
+                    loadFinalReportProjectsIntoDropdown(response.data);
+                    initFinalReportSearchableSelect();
+                }
+            } catch (error) {
+                console.error('프로젝트 목록 로드 실패:', error);
+            }
+
+            // 모달 초기화
+            document.getElementById('finalReportProjectSelect').value = '';
+            document.getElementById('finalReportProjectSelectText').textContent = '사업을 선택하세요';
+            document.getElementById('finalReportModal').classList.add('show');
+        }
+
+        function closeFinalReportModal() {
+            document.getElementById('finalReportModal').classList.remove('show');
+            document.getElementById('finalReportForm').reset();
+            document.getElementById('finalReportFileUploadText').textContent = '클릭하여 파일 선택';
+            document.getElementById('finalReportFileUploadArea').classList.remove('has-file');
+        }
+
+        function handleFinalReportFileSelect(input) {
+            const file = input.files[0];
+            const uploadArea = document.getElementById('finalReportFileUploadArea');
+            const uploadText = document.getElementById('finalReportFileUploadText');
+            const maxSize = 100 * 1024 * 1024; // 100MB
+
+            if (file) {
+                if (file.size > maxSize) {
+                    alert('파일 크기는 100MB를 초과할 수 없습니다.\n현재 파일 크기: ' + (file.size / 1024 / 1024).toFixed(2) + ' MB');
+                    input.value = '';
+                    uploadText.textContent = '클릭하여 파일 선택';
+                    uploadArea.classList.remove('has-file');
+                    return;
+                }
+
+                uploadText.textContent = `선택됨: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                uploadArea.classList.add('has-file');
+            } else {
+                uploadText.textContent = '클릭하여 파일 선택';
+                uploadArea.classList.remove('has-file');
+            }
+        }
+
+        // 이벤트 리스너 설정
+        function setupEventListeners() {
+            // 필터 변경
+            document.getElementById('countryFilter').addEventListener('change', (e) => {
+                currentFilters.country = e.target.value;
+                currentPage = 1;
+                loadContracts();
+            });
+
+            // 검색
+            document.getElementById('searchInput').addEventListener('input', debounce((e) => {
+                currentFilters.search = e.target.value;
+                currentPage = 1;
+                loadContracts();
+            }, 500));
+
+            // 업로드 버튼
+            document.getElementById('btnUpload').addEventListener('click', openUploadModal);
+
+            // 최종보고서 업로드 버튼
+            document.getElementById('btnUploadFinalReport').addEventListener('click', openFinalReportModal);
+
+            // 업로드 폼 제출
+            document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const projectId = document.getElementById('projectSelect').value;
+                const orderNumber = document.getElementById('orderNumber').value;
+                const fileInput = document.getElementById('fileInput');
+                const description = document.getElementById('description').value;
+
+                if (!projectId) {
+                    Toast.error('사업을 선택해주세요.');
+                    return;
+                }
+
+                if (!fileInput.files.length) {
+                    Toast.error('파일을 선택해주세요.');
+                    return;
+                }
+
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const baseUrl = getApiBaseUrl();
+
+                const formData = new FormData();
+                formData.append('consultingProjectId', projectId);
+                formData.append('orderNumber', orderNumber);
+                formData.append('file', fileInput.files[0]);
+                formData.append('description', description);
+
+                try {
+                    Toast.info('계약서 업로드 중...');
+
+                    const response = await fetch(`${baseUrl}/api/contracts/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        Toast.success(result.message);
+                        closeUploadModal();
+                        await loadContracts();
+                        await loadStats();
+                    } else {
+                        if (response.status === 403) {
+                            Toast.error('관리자 권한이 필요합니다.');
+                        } else {
+                            Toast.error(result.message || '업로드에 실패했습니다.');
+                        }
+                    }
+                } catch (error) {
+                    console.error('업로드 실패:', error);
+                    Toast.error('업로드 중 오류가 발생했습니다.');
+                }
+            });
+
+            // 최종보고서 폼 제출
+            document.getElementById('finalReportForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const projectId = document.getElementById('finalReportProjectSelect').value;
+                const fileInput = document.getElementById('finalReportFileInput');
+                const description = document.getElementById('finalReportDescription').value;
+
+                if (!projectId) {
+                    Toast.error('사업을 선택해주세요.');
+                    return;
+                }
+
+                if (!fileInput.files.length) {
+                    Toast.error('파일을 선택해주세요.');
+                    return;
+                }
+
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const baseUrl = getApiBaseUrl();
+
+                const reportLang = document.querySelector('input[name="reportLang"]:checked').value;
+
+                const formData = new FormData();
+                formData.append('consultingProjectId', projectId);
+                formData.append('documentType', 'final_report');
+                formData.append('reportLang', reportLang);
+                formData.append('file', fileInput.files[0]);
+                formData.append('description', description);
+
+                try {
+                    Toast.info('최종보고서 업로드 중...');
+
+                    const response = await fetch(`${baseUrl}/api/contracts/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        Toast.success(result.message);
+                        closeFinalReportModal();
+                        loadContracts();
+                    } else {
+                        if (response.status === 403) {
+                            Toast.error('관리자 권한이 필요합니다.');
+                        } else {
+                            Toast.error(result.message || '업로드에 실패했습니다.');
+                        }
+                    }
+                } catch (error) {
+                    console.error('업로드 실패:', error);
+                    Toast.error('업로드 중 오류가 발생했습니다.');
+                }
+            });
+        }
+
+        // 페이지네이션 렌더링 (10페이지 그룹)
+        function renderPagination(current, total) {
+            totalPages = total;
+            const pagination = document.getElementById('pagination');
+
+            if (total <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            const groupSize = 10;
+            const currentGroup = Math.ceil(current / groupSize);
+            const startPage = (currentGroup - 1) * groupSize + 1;
+            const endPage = Math.min(currentGroup * groupSize, total);
+
+            let html = '';
+            html += `<button class="page-btn" ${current === 1 ? 'disabled' : ''} onclick="goToPage(1)">«</button>`;
+            html += `<button class="page-btn" ${startPage === 1 ? 'disabled' : ''} onclick="goToPage(${startPage - 1})">‹</button>`;
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            html += `<button class="page-btn" ${endPage >= total ? 'disabled' : ''} onclick="goToPage(${endPage + 1})">›</button>`;
+            html += `<button class="page-btn" ${current === total ? 'disabled' : ''} onclick="goToPage(${total})">»</button>`;
+
+            pagination.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            loadContracts();
+        }
+
+        function isAdmin() {
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+            if (userInfo) {
+                try {
+                    const user = JSON.parse(userInfo);
+                    // admin 역할 또는 특정 사용자 ID(admin, krcgisul)
+                    return user && (user.role === 'admin' || user.userId === 'admin' || user.userId === 'krcgisul');
+                } catch (e) {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        function getApiBaseUrl() {
+            return `${window.location.protocol}//${window.location.host}`;
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // 파일 크기 포맷팅 함수
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // ==================== 계약서 모달 검색 가능한 선택 드롭다운 ====================
+        function initSearchableSelect() {
+            const searchInput = document.getElementById('projectSearchInput');
+            const trigger = document.getElementById('projectSelectTrigger');
+
+            // 검색 입력 이벤트
+            searchInput.addEventListener('input', (e) => {
+                filterProjects(e.target.value);
+            });
+
+            // 외부 클릭 시 드롭다운 닫기
+            document.addEventListener('click', (e) => {
+                const container = document.getElementById('projectSelectContainer');
+                if (container && !container.contains(e.target)) {
+                    closeProjectDropdown();
+                }
+            });
+        }
+
+        function openProjectDropdown() {
+            const dropdown = document.getElementById('projectSelectDropdown');
+            const trigger = document.getElementById('projectSelectTrigger');
+            const searchInput = document.getElementById('projectSearchInput');
+
+            dropdown.classList.add('show');
+            trigger.classList.add('active');
+
+            // 검색 입력창에 포커스
+            setTimeout(() => {
+                searchInput.focus();
+            }, 100);
+        }
+
+        function closeProjectDropdown() {
+            const dropdown = document.getElementById('projectSelectDropdown');
+            const trigger = document.getElementById('projectSelectTrigger');
+
+            dropdown.classList.remove('show');
+            trigger.classList.remove('active');
+
+            // 검색어 초기화
+            document.getElementById('projectSearchInput').value = '';
+            filterProjects('');
+        }
+
+        function filterProjects(searchTerm) {
+            const optionsContainer = document.getElementById('projectSelectOptions');
+            const lowerSearch = searchTerm.toLowerCase();
+
+            const filtered = allProjects.filter(project => {
+                const titleMatch = project.titleKr.toLowerCase().includes(lowerSearch);
+                const countryMatch = project.country.toLowerCase().includes(lowerSearch);
+                return titleMatch || countryMatch;
+            });
+
+            if (filtered.length === 0) {
+                optionsContainer.innerHTML = '<div class="searchable-select-option no-results">검색 결과가 없습니다</div>';
+                return;
+            }
+
+            optionsContainer.innerHTML = filtered.map(project => {
+                const period = project.endDate ? ` (준공: ${project.endDate})` : '';
+                return `
+                    <div class="searchable-select-option" onclick="selectProject(${project.id}, '${project.titleKr.replace(/'/g, "\\'")}${period} - ${project.country}')">
+                        <div class="option-main">${project.titleKr}</div>
+                        <div class="option-sub">${project.country}${period}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectProject(projectId, projectText) {
+            document.getElementById('projectSelect').value = projectId;
+            document.getElementById('projectSelectText').textContent = projectText;
+            closeProjectDropdown();
+        }
+
+        function loadProjectsIntoDropdown(projects) {
+            allProjects = projects;
+            filterProjects('');
+        }
+
+        // ==================== 최종보고서 모달 검색 가능한 선택 드롭다운 ====================
+        function initFinalReportSearchableSelect() {
+            const searchInput = document.getElementById('finalReportProjectSearchInput');
+            const trigger = document.getElementById('finalReportProjectSelectTrigger');
+
+            // 검색 입력 이벤트
+            searchInput.addEventListener('input', (e) => {
+                filterFinalReportProjects(e.target.value);
+            });
+
+            // 외부 클릭 시 드롭다운 닫기
+            document.addEventListener('click', (e) => {
+                const container = document.getElementById('finalReportProjectSelectContainer');
+                if (container && !container.contains(e.target)) {
+                    closeFinalReportProjectDropdown();
+                }
+            });
+        }
+
+        function openFinalReportProjectDropdown() {
+            const dropdown = document.getElementById('finalReportProjectSelectDropdown');
+            const trigger = document.getElementById('finalReportProjectSelectTrigger');
+            const searchInput = document.getElementById('finalReportProjectSearchInput');
+
+            dropdown.classList.add('show');
+            trigger.classList.add('active');
+
+            // 검색 입력창에 포커스
+            setTimeout(() => {
+                searchInput.focus();
+            }, 100);
+        }
+
+        function closeFinalReportProjectDropdown() {
+            const dropdown = document.getElementById('finalReportProjectSelectDropdown');
+            const trigger = document.getElementById('finalReportProjectSelectTrigger');
+
+            dropdown.classList.remove('show');
+            trigger.classList.remove('active');
+
+            // 검색어 초기화
+            document.getElementById('finalReportProjectSearchInput').value = '';
+            filterFinalReportProjects('');
+        }
+
+        function filterFinalReportProjects(searchTerm) {
+            const optionsContainer = document.getElementById('finalReportProjectSelectOptions');
+            const lowerSearch = searchTerm.toLowerCase();
+
+            const filtered = finalReportAllProjects.filter(project => {
+                const titleMatch = project.titleKr.toLowerCase().includes(lowerSearch);
+                const countryMatch = project.country.toLowerCase().includes(lowerSearch);
+                return titleMatch || countryMatch;
+            });
+
+            if (filtered.length === 0) {
+                optionsContainer.innerHTML = '<div class="searchable-select-option no-results">검색 결과가 없습니다</div>';
+                return;
+            }
+
+            optionsContainer.innerHTML = filtered.map(project => {
+                const period = project.endDate ? ` (준공: ${project.endDate})` : '';
+                return `
+                    <div class="searchable-select-option" onclick="selectFinalReportProject(${project.id}, '${project.titleKr.replace(/'/g, "\\'")}${period} - ${project.country}')">
+                        <div class="option-main">${project.titleKr}</div>
+                        <div class="option-sub">${project.country}${period}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectFinalReportProject(projectId, projectText) {
+            document.getElementById('finalReportProjectSelect').value = projectId;
+            document.getElementById('finalReportProjectSelectText').textContent = projectText;
+            closeFinalReportProjectDropdown();
+        }
+
+        function loadFinalReportProjectsIntoDropdown(projects) {
+            finalReportAllProjects = projects;
+            filterFinalReportProjects('');
+        }
+    </script>
+</body>
+
+</html>

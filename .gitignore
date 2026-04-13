@@ -28,8 +28,7 @@ Thumbs.db
 # Node
 node_modules/
 
-# Overseas tech pages (disabled feature)
-pages/projects/overseas-tech*.html
+# (overseas-tech pages now enabled)
 
 # Google OAuth secrets
 client_secret*.json
@@ -57,8 +56,8 @@ study/
 migration/
 scripts/
 
-# Screenshots and test images
-*.png
+# Screenshots and test images (exclude root-level only)
+/*.png
 
 # Misc data files
 *.csv

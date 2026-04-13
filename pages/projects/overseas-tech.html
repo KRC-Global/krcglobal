@@ -1,0 +1,2870 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>해외기술용역 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <!-- System Font (내부망 최적화) -->
+    <style>
+        /* 중첩 서브메뉴 스타일 */
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* 테이블 스타일 */
+        .data-table {
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        .data-table th {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .data-table td {
+            vertical-align: middle;
+        }
+
+        /* 상태 배지 색상 */
+        .badge-status-active {
+            background: #10B981;
+            color: #fff;
+        }
+
+        .badge-status-complete {
+            background: #6B7280;
+            color: #fff;
+        }
+
+        .badge-status-proposal {
+            background: #F59E0B;
+            color: #fff;
+        }
+
+        .badge-status-eoi {
+            background: #8B5CF6;
+            color: #fff;
+        }
+
+        /* 사업 설명 박스 */
+        .project-overview {
+            background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+            border: 2px solid var(--color-primary-200);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .project-overview-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--color-primary-200);
+        }
+
+        .project-overview-icon {
+            font-size: 32px;
+            line-height: 1;
+        }
+
+        .project-overview-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--color-primary-700);
+            margin: 0;
+        }
+
+        .project-overview-content {
+            display: grid;
+            gap: 12px;
+        }
+
+        .project-overview-text {
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--color-neutral-700);
+            margin: 0;
+        }
+
+        .project-overview-highlights {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .project-highlight {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--color-primary-50);
+            border: 1px solid var(--color-primary-200);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-primary-700);
+        }
+
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 500;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        [data-theme="dark"] #userName {
+            color: var(--color-text-secondary, #b0b0b0) !important;
+        }
+
+        /* 탭 스타일 */
+        .tab-container {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .tab-header {
+            display: flex;
+            border-bottom: 2px solid var(--color-neutral-200);
+            background: var(--color-secondary-50);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 16px 24px;
+            background: none;
+            border: none;
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--color-neutral-600);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            background: var(--color-neutral-100);
+            color: var(--color-neutral-800);
+        }
+
+        .tab-btn.active {
+            color: var(--color-primary-600);
+            background: var(--color-neutral-0);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--color-primary-500);
+        }
+
+        .tab-btn .tab-badge {
+            background: var(--color-primary-100);
+            color: var(--color-primary-700);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .tab-btn.active .tab-badge {
+            background: var(--color-primary-500);
+            color: #fff;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        [data-theme="dark"] .tab-container {
+            background: var(--color-bg-secondary);
+        }
+
+        [data-theme="dark"] .tab-header {
+            background: var(--color-bg-tertiary);
+            border-color: var(--color-border);
+        }
+
+        [data-theme="dark"] .tab-btn {
+            color: var(--color-text-secondary);
+        }
+
+        [data-theme="dark"] .tab-btn:hover {
+            background: var(--color-bg-primary);
+        }
+
+        [data-theme="dark"] .tab-btn.active {
+            background: var(--color-bg-secondary);
+            color: var(--color-text-primary);
+        }
+
+        /* ===== 모달 내 파이프라인 (꽉 차게) ===== */
+        .modal-pipeline-wrap {
+            display: flex;
+            justify-content: center;
+        }
+        .modal-pipeline-wrap .pipeline-stepper {
+            width: 100%;
+            min-width: unset;
+        }
+        .modal-pipeline-wrap .pipeline-step {
+            width: auto;
+            flex: 0 1 auto;
+        }
+        .modal-pipeline-wrap .pipeline-line {
+            flex: 1;
+            min-width: 16px;
+        }
+        .modal-pipeline-wrap .pipeline-icon {
+            width: 22px;
+            height: 22px;
+        }
+        .modal-pipeline-wrap .pipeline-icon svg {
+            width: 12px;
+            height: 12px;
+        }
+        .modal-pipeline-wrap .pipeline-date {
+            font-size: 11px;
+            height: 15px;
+            line-height: 15px;
+            margin-bottom: 6px;
+        }
+        .modal-pipeline-wrap .pipeline-label {
+            font-size: 11px;
+            margin-top: 6px;
+        }
+        .modal-pipeline-wrap .pipeline-line {
+            margin-top: 32px;   /* 15px date + 6px margin-bottom + 11px (half of 22px icon) */
+            height: 3px;
+        }
+
+        /* ===== 사업형태 체크박스 스타일 ===== */
+        .type-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--color-neutral-700);
+            cursor: pointer;
+            padding: 2px 0;
+        }
+        .type-checkbox-label input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--color-primary-600);
+        }
+        .type-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            margin-right: 3px;
+        }
+        .type-badge-fs { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+        .type-badge-mp { background: #F0FDF4; color: #15803D; border: 1px solid #BBF7D0; }
+        .type-badge-bd { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+        .type-badge-dd { background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; }
+        .type-badge-cs { background: #FDF2F8; color: #BE185D; border: 1px solid #FBCFE8; }
+        .type-badge-pmc { background: #F5F3FF; color: #7C3AED; border: 1px solid #DDD6FE; }
+        .type-badge-etc { background: var(--color-neutral-100); color: var(--color-neutral-600); border: 1px solid var(--color-neutral-300); }
+
+        /* ===== 라이프사이클 파이프라인 스타일 ===== */
+        .pipeline-cell {
+            padding: 8px 16px 16px !important;
+            vertical-align: middle;
+        }
+        .pipeline-stepper {
+            display: flex;
+            align-items: flex-start;
+            min-width: 350px;
+            padding: 2px 0;
+        }
+        .pipeline-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+            flex: 0 0 auto;
+            width: 58px;
+        }
+        .pipeline-date {
+            font-size: 10px;
+            color: var(--color-neutral-400);
+            margin-bottom: 5px;
+            height: 13px;
+            line-height: 13px;
+            white-space: nowrap;
+        }
+        /* ===== 파이프라인 아이콘 (픽토그램 SVG) ===== */
+        .pipeline-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-sizing: border-box;
+            flex-shrink: 0;
+            transition: filter 0.15s, transform 0.15s;
+        }
+        /* 파일 유무 → 아이콘 진하기,  날짜 유무 → 실선/점선 테두리 */
+        /* 파일 없음 + 날짜 없음 → 연한 회색 + 점선 */
+        .pipeline-icon.no-file.no-date {
+            border: 1.5px dashed #d1d5db;
+            background: transparent;
+            color: #9ca3af;
+        }
+        /* 파일 없음 + 날짜 있음 → 연한 파랑 + 실선 */
+        .pipeline-icon.no-file.has-date {
+            border: 1.5px solid #93c5fd;
+            background: #eff6ff;
+            color: #60a5fa;
+        }
+        /* 파일 있음 + 날짜 없음 → 진한 파랑 + 점선 */
+        .pipeline-icon.has-file.no-date {
+            border: 1.5px dashed #1d4ed8;
+            background: #1e40af;
+            color: #ffffff;
+        }
+        /* 파일 있음 + 날짜 있음 → 진한 파랑 + 실선 */
+        .pipeline-icon.has-file.has-date {
+            border: 1.5px solid #1d4ed8;
+            background: #1e40af;
+            color: #ffffff;
+        }
+        /* 진행중 → 주황 */
+        .pipeline-icon.in-progress {
+            border: 1.5px solid #f97316;
+            background: #fff7ed;
+            color: #f97316;
+            animation: pipeline-pulse 2s ease-in-out infinite;
+        }
+        /* 날짜 오류 → 빨강 */
+        .pipeline-icon.date-error {
+            border: 1.5px solid #dc2626;
+            background: #dc2626;
+            color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(220,38,38,0.15);
+        }
+        .pipeline-icon:hover { filter: brightness(1.1); transform: scale(1.06); }
+        @keyframes pipeline-pulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(249,115,22,0.15); }
+            50%       { box-shadow: 0 0 0 5px rgba(249,115,22,0.08); }
+        }
+        /* 완료-오류 라인 */
+        .pipeline-line.completed-nodata { background: #bfdbfe; }
+        .pipeline-line.date-error       { background: #dc2626 !important; }
+        /* 라벨·날짜 색상 */
+        .pipeline-label {
+            font-size: 10px;
+            color: var(--color-neutral-400);
+            margin-top: 5px;
+            white-space: nowrap;
+            font-weight: 500;
+            letter-spacing: -0.3px;
+        }
+        .pipeline-step.completed .pipeline-label        { color: #1e40af; font-weight: 600; }
+        .pipeline-step.completed .pipeline-date         { color: #1e40af; font-weight: 600; }
+        .pipeline-step.completed-nodata .pipeline-label { color: #93c5fd; font-weight: 500; }
+        .pipeline-step.completed-nodata .pipeline-date  { color: #93c5fd; font-weight: 500; }
+        .pipeline-step.in-progress .pipeline-label      { color: #f97316; font-weight: 600; }
+        .pipeline-step.in-progress .pipeline-date       { color: #f97316; font-weight: 600; }
+        .pipeline-step.date-error .pipeline-date        { color: #dc2626 !important; font-weight: 700 !important; }
+        .pipeline-step.date-error .pipeline-label       { color: #dc2626 !important; font-weight: 700 !important; }
+        .pipeline-line {
+            flex: 1;
+            height: 2px;
+            background: var(--color-neutral-200);
+            margin-top: 32px;   /* 13px date + 5px margin-bottom + 14px (half of 28px icon) */
+            min-width: 8px;
+        }
+        .pipeline-line.completed { background: #1d4ed8; }
+        .pipeline-line.half      { background: linear-gradient(to right, #1d4ed8 50%, var(--color-neutral-200) 50%); }
+
+        /* 라이프사이클 탭 테이블 */
+        .lifecycle-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .lifecycle-table th,
+        .lifecycle-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--color-neutral-200);
+            font-size: var(--font-size-sm);
+        }
+        .lifecycle-table th {
+            background: var(--color-secondary-100);
+            font-weight: 600;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .lifecycle-table tbody tr:hover {
+            background: var(--color-neutral-50);
+        }
+        .lifecycle-project-name {
+            font-weight: 500;
+            color: var(--color-primary-700);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .lifecycle-type-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--color-primary-50);
+            color: var(--color-primary-700);
+            border: 1px solid var(--color-primary-200);
+        }
+        .lifecycle-filter-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--color-neutral-50);
+            border-bottom: 1px solid var(--color-neutral-200);
+            flex-wrap: wrap;
+        }
+        .lifecycle-filter-bar select,
+        .lifecycle-filter-bar input {
+            padding: 6px 10px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--color-neutral-0);
+        }
+        .lifecycle-edit-btn {
+            margin-left: auto;
+            padding: 6px 14px;
+            border: 1px solid var(--color-primary-600);
+            background: var(--color-neutral-0);
+            color: var(--color-primary-600);
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .lifecycle-edit-btn:hover {
+            background: var(--color-primary-600);
+            color: #fff;
+        }
+        .lifecycle-edit-btn.active {
+            background: var(--color-primary-600);
+            color: #fff;
+        }
+        .lifecycle-save-btn {
+            padding: 6px 14px;
+            border: none;
+            background: #10B981;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: none;
+        }
+        .lifecycle-save-btn:hover {
+            background: #059669;
+        }
+
+        /* 편집 모드 입력 필드 */
+        .lifecycle-edit-table th {
+            font-size: 11px;
+            padding: 8px 4px;
+        }
+        .lifecycle-edit-table td {
+            padding: 6px 4px;
+            text-align: center;
+        }
+        .lifecycle-edit-table input[type="text"] {
+            width: 70px;
+            padding: 4px 6px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 4px;
+            font-size: 11px;
+            text-align: center;
+        }
+        .lifecycle-edit-table input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* 간트 타임라인 */
+        .gantt-wrap { position: relative; min-width: 160px; padding: 2px 0; }
+        .gantt-labels { position: relative; height: 14px; margin-bottom: 2px; }
+        .gantt-labels span { position: absolute; font-size: 10px; color: var(--color-neutral-400); transform: translateX(-50%); white-space: nowrap; }
+        .gantt-track { position: relative; height: 8px; background: var(--color-neutral-200); border-radius: 4px; overflow: visible; }
+        .gantt-elapsed { height: 100%; background: var(--color-primary-400); border-radius: 4px; }
+        .gantt-today { position: absolute; top: -4px; width: 2px; height: 16px; background: #EF4444; border-radius: 1px; }
+        .gantt-today::after { content: '▼'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-size: 8px; color: #EF4444; }
+        .gantt-period { font-size: 10px; color: var(--color-neutral-500); margin-top: 2px; text-align: center; }
+
+        /* 1행 구조: 사업정보 + 라이프사이클 통합 */
+        .project-row td { border-bottom: 1px solid var(--color-neutral-200) !important; }
+        .lifecycle-row { padding: 4px 0; }
+        .lifecycle-row .pipeline-stepper { min-width: unset; }
+
+        /* 파이프라인 도트 래퍼 (파일 인디케이터 포지셔닝용) */
+        .pipeline-dot-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* (파일 인디케이터 점 제거됨 — 파일 유무는 아이콘 진하기로 구분) */
+
+        /* 라이프사이클 페이지네이션 */
+        #lifecyclePagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 20px;
+            padding: 12px 0;
+        }
+        #lifecyclePagination .pagination-info {
+            font-size: 13px;
+            color: var(--color-neutral-600);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        #lifecyclePagination .pagination-buttons {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        /* 단계 드롭다운 패널 */
+        .stage-dropdown-panel {
+            position: fixed;
+            z-index: 9999;
+            background: #fff;
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            min-width: 220px;
+            max-width: 300px;
+            padding: 8px 0;
+            font-size: 13px;
+        }
+        .stage-dropdown-panel .sdp-header {
+            padding: 6px 14px 4px;
+            font-weight: 700;
+            color: var(--color-primary, #1A4B7C);
+            border-bottom: 1px solid var(--color-neutral-100);
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+        .stage-dropdown-panel .sdp-loading {
+            padding: 10px 14px;
+            color: var(--color-neutral-500);
+            font-size: 12px;
+        }
+        .stage-dropdown-panel .sdp-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            cursor: pointer;
+            transition: background 0.1s;
+            color: var(--color-neutral-700);
+        }
+        .stage-dropdown-panel .sdp-item:hover {
+            background: var(--color-neutral-50, #f9fafb);
+        }
+        .stage-dropdown-panel .sdp-item .sdp-icon {
+            width: 16px;
+            text-align: center;
+            flex-shrink: 0;
+            color: var(--color-primary, #1A4B7C);
+        }
+        .stage-dropdown-panel .sdp-item .sdp-name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .stage-dropdown-panel .sdp-empty {
+            padding: 8px 14px;
+            color: var(--color-neutral-400);
+            font-size: 12px;
+            font-style: italic;
+        }
+        .stage-dropdown-panel .sdp-section {
+            padding: 4px 14px 2px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--color-neutral-500);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 (dashboard.html과 동일) -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../admin/users.html" class="user-dropdown-item" id="adminDropdownLink" style="display: none;"><span>👤</span> 사용자 관리</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 (dashboard.html과 동일) -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../expansion/company-management.html">기업관리</a></li>
+                                <li><a href="../expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4">
+                                        <li><a href="../expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="../expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="../expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="../expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="../expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="../expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외기술용역 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="overseas-tech.html">사업현황</a></li>
+                                <li><a href="overseas-tech-proposals.html">제안서관리</a></li>
+                                <li><a href="overseas-tech-tor-rfp.html">TOR/RFP</a></li>
+                                <li><a href="overseas-tech-bidding.html">입찰관리</a></li>
+                                <li><a href="overseas-tech-contracts.html">계약관리</a></li>
+                                <li><a href="overseas-tech-performance.html">실적관리</a></li>
+                                <li><a href="overseas-tech-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="international-cooperation.html">사업현황</a></li>
+                                <li><a href="oda-reports.html">보고서관리</a></li>
+                                <li><a href="intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../../pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+
+
+
+
+
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../dashboard.html">홈</a></li>
+                    <li><a href="#">사업관리</a></li>
+                    <li aria-current="page">해외기술용역</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">해외기술용역</h2>
+        </div>
+
+        <div class="page-content">
+            <!-- 사업 설명 -->
+            <section class="project-overview">
+                <div class="project-overview-header">
+                    <span class="project-overview-icon">🌏</span>
+                    <h3 class="project-overview-title">해외기술용역 사업 소개</h3>
+                </div>
+                <div class="project-overview-content">
+                    <p class="project-overview-text">
+                        한국농어촌공사는 개발도상국의 농업·농촌 발전을 지원하기 위해 기술용역 사업을 수행하고 있습니다.
+                        농업개발, 관개시설, 수자원 관리 등 다양한 분야에서 기획·타당성조사·설계·감리 서비스를 제공하며,
+                        우리 공사의 선진 농업기술과 노하우를 해외에 전파하여 국제협력을 강화하고 있습니다.
+                    </p>
+                    <div class="project-overview-highlights">
+                        <span class="project-highlight">🔍 타당성 조사</span>
+                        <span class="project-highlight">📐 기본설계·실시설계</span>
+                        <span class="project-highlight">👷 시공감리</span>
+                        <span class="project-highlight">🌾 농업기술 컨설팅</span>
+                        <span class="project-highlight">💧 수자원 관리</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 통계 카드 -->
+            <section class="stats-grid">
+                <article class="stat-card card">
+                    <div class="stat-icon" style="background: var(--color-primary-100)">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary-600)"
+                            stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value">24</span>
+                        <span class="stat-label">역대사업수</span>
+                    </div>
+                </article>
+
+                <article class="stat-card card">
+                    <div class="stat-icon" style="background: var(--color-success-100)">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--color-success-500)"
+                            stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                            <path d="M22 4L12 14.01l-3-3" />
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value">18</span>
+                        <span class="stat-label">금년도 진행사업</span>
+                    </div>
+                </article>
+
+                <article class="stat-card card">
+                    <div class="stat-icon" style="background: var(--color-warning-100)">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#856404" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value">₩452억</span>
+                        <span class="stat-label">전체용역비</span>
+                    </div>
+                </article>
+
+                <article class="stat-card card">
+                    <div class="stat-icon" style="background: var(--color-info-100)">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0c5460" stroke-width="2">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <span class="stat-value">₩0억</span>
+                        <span class="stat-label">금년도 용역비</span>
+                    </div>
+                </article>
+            </section>
+
+            <!-- 통합 사업 목록 + 라이프사이클 -->
+            <div>
+                <!-- 필터 바 -->
+                <div class="lifecycle-filter-bar" style="margin-bottom: 12px;">
+                    <select id="project-status" onchange="applyFilters()">
+                        <option value="">전체 상태</option>
+                        <option value="시행중">시행중</option>
+                        <option value="진행중">진행중</option>
+                        <option value="준공">준공</option>
+                        <option value="제안서제출">제안서제출</option>
+                        <option value="EOI제출">EOI제출</option>
+                    </select>
+                    <select id="project-year" onchange="applyFilters()">
+                        <option value="">전체 수주연도</option>
+                    </select>
+                    <select id="lifecycleTypeFilter" onchange="applyFilters()">
+                        <option value="">전체 사업형태</option>
+                        <option value="feasibility">타당성조사(F/S)</option>
+                        <option value="masterplan">마스터플랜(M/P)</option>
+                        <option value="basic_design">기본설계(B/D)</option>
+                        <option value="detailed_design">실시설계(D/D)</option>
+                        <option value="construction">시공감리(C/S)</option>
+                        <option value="pmc">사업관리(PMC)</option>
+                    </select>
+                    <select id="project-client" onchange="applyFilters()">
+                        <option value="">전체 발주처</option>
+                    </select>
+                    <select id="project-funding" onchange="applyFilters()">
+                        <option value="">전체 재원</option>
+                    </select>
+                    <input type="text" id="project-search" placeholder="사업명 검색..." onkeydown="if(event.key==='Enter') applyFilters()" style="width: 180px;">
+                    <button class="btn btn-sm" onclick="applyFilters()" style="padding: 6px 12px; border: 1px solid var(--color-neutral-300); background: white; cursor: pointer; border-radius: 4px;">검색</button>
+                    <button class="btn btn-sm" onclick="resetFilters()" style="padding: 6px 12px; border: 1px solid var(--color-neutral-300); background: white; cursor: pointer; border-radius: 4px; color: var(--color-neutral-600);">초기화</button>
+                    <div id="actionButtons" style="display: none; margin-left: auto; gap: 8px; align-items: center;">
+                        <button class="btn btn-primary" id="newProjectBtn" style="padding: 6px 12px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                            신규 등록
+                        </button>
+                        <button class="btn btn-secondary" id="exportBtn" style="padding: 6px 12px;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                            엑셀
+                        </button>
+                        <button class="lifecycle-edit-btn admin-only" id="lifecycleEditBtn" onclick="toggleLifecycleEditMode()" style="display:none;">라이프사이클 편집</button>
+                        <button class="lifecycle-save-btn" id="lifecycleSaveBtn" onclick="saveLifecycleBulk()" style="display:none;">저장</button>
+                    </div>
+                </div>
+
+                <div style="text-align: right; font-size: 12px; color: var(--color-neutral-600); margin-bottom: 4px;">
+                    (단위: 백만원) &nbsp; 총 <span id="totalProjectCount" style="font-weight:600;">0</span>건
+                </div>
+
+                <!-- 통합 테이블 (사업정보 1행 + 라이프사이클 2행) -->
+                <div class="table-container" style="overflow-x: auto;">
+                    <table class="data-table" id="projectsTable" style="min-width: 900px;">
+                        <thead>
+                            <tr>
+                                <th scope="col" style="width: 70px; text-align: center;">No</th>
+                                <th scope="col" style="width: 110px; text-align: center;">사업연도</th>
+                                <th scope="col" style="min-width: 200px; text-align: center;">사업명</th>
+                                <th scope="col" style="width: 90px; text-align: center;">상태</th>
+                                <th scope="col" style="width: 120px; text-align: center;">사업형태</th>
+                                <th scope="col" style="width: 100px; text-align: center;">전체용역비</th>
+                                <th scope="col" style="width: 120px; text-align: center;">공사지분</th>
+                                <th scope="col" style="min-width: 200px; text-align: center;">라이프사이클</th>
+                                <th scope="col" style="width: 90px; text-align: center;" class="admin-only-col">관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projectsTableBody">
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 40px;">
+                                    <div>데이터를 불러오는 중...</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 페이지네이션 -->
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../../assets/js/common.js"></script>
+    <!-- API 모듈 - frontend/js/api.js 사용 (절대 경로 또는 상대 경로 확인 필요) -->
+    <script>
+        // API 모듈 직접 정의 (경로 문제 해결)
+        const API = {
+            get BASE_URL() {
+                // 동적 호스트 감지 (네트워크 공유 지원)
+                return `${window.location.protocol}//${window.location.host}/api`;
+            },
+            async request(endpoint, options = {}) {
+                const url = `${this.BASE_URL}${endpoint}`;
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                };
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                try {
+                    const response = await fetch(url, { ...options, headers });
+                    if (response.status === 401) {
+                        localStorage.removeItem('gbms_token');
+                        localStorage.removeItem('gbms_user');
+                        window.location.href = '../../index.html';
+                        throw new Error('인증이 만료되었습니다.');
+                    }
+                    if (!response.ok) {
+                        const text = await response.text();
+                        console.error('API 오류:', response.status, text);
+                        throw new Error(`API 요청 실패: ${response.status}`);
+                    }
+                    return response.json();
+                } catch (error) {
+                    console.error('API 요청 중 오류:', error);
+                    throw error;
+                }
+            },
+            async get(endpoint, params = {}) {
+                const queryString = new URLSearchParams(params).toString();
+                const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+                return this.request(url, { method: 'GET' });
+            },
+            async post(endpoint, data = {}) {
+                return this.request(endpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+            },
+            async put(endpoint, data = {}) {
+                return this.request(endpoint, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+            },
+            async delete(endpoint) {
+                return this.request(endpoint, { method: 'DELETE' });
+            },
+            consulting: {
+                async list(filters = {}) {
+                    return API.get('/consulting', filters);
+                },
+                async get(id) {
+                    return API.get(`/consulting/${id}`);
+                },
+                async create(data) {
+                    return API.post('/consulting', data);
+                },
+                async update(id, data) {
+                    return API.put(`/consulting/${id}`, data);
+                },
+                async delete(id) {
+                    return API.delete(`/consulting/${id}`);
+                },
+                async getStats(filters = {}) {
+                    return API.get('/consulting/stats', filters);
+                },
+                async getCountries() {
+                    return API.get('/consulting/countries');
+                },
+                async getClients() {
+                    return API.get('/consulting/clients');
+                },
+                async export(filters = {}) {
+                    const queryString = new URLSearchParams(filters).toString();
+                    const url = queryString ? `/consulting/export?${queryString}` : '/consulting/export';
+                    const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                    const headers = {};
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+                    const response = await fetch(`${API.BASE_URL}${url}`, { headers });
+                    if (!response.ok) {
+                        throw new Error('Excel 다운로드 실패');
+                    }
+                    return response.blob();
+                },
+                async getCurrentYearProjects() {
+                    return API.get('/consulting/current-year-projects');
+                }
+            }
+        };
+    </script>
+    <script src="../../assets/js/components/modal.js"></script>
+    <script src="../../assets/js/components/toast.js"></script>
+    <script>
+        // 전역 변수
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentTotal = 0;
+        let currentFilters = {};
+        let editingProjectId = null;
+        let currentUserRole = 'guest'; // Default to guest
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // 인증 확인 - 글로벌사업관리시스템 표준 형식 사용
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                console.log('인증 정보가 없습니다. 로그인 페이지로 이동합니다.');
+                window.location.href = '../../index.html';
+                return;
+            }
+
+            // 페이지 접근 권한 확인 (해외기술용역)
+            if (typeof checkPagePermission === 'function') {
+                if (!checkPagePermission('overseas_tech')) {
+                    return;
+                }
+            }
+
+            // 사용자 이름 표시 및 role 저장
+            try {
+                const user = JSON.parse(userInfo);
+                currentUserRole = user.role || 'guest';
+
+                const userNameEl = document.getElementById('userName');
+                if (userNameEl && user.name) {
+                    userNameEl.textContent = user.name;
+                }
+
+                // 권한별 UI 제어
+                if (user.role === 'admin' || user.role === 'user') {
+                    // 관리자와 일반 사용자는 신규 등록 및 엑셀 다운로드 버튼 표시
+                    const actionButtons = document.getElementById('actionButtons');
+                    if (actionButtons) {
+                        actionButtons.style.display = 'flex';
+                        actionButtons.style.justifyContent = 'flex-end';
+                    }
+                }
+                // guest는 버튼이 숨겨진 상태로 유지됨
+
+                // 관리자 메뉴 표시
+                if (user.role === 'admin') {
+                    const adminMenu = document.getElementById('adminMenuUser');
+                    if (adminMenu) {
+                        adminMenu.style.display = 'block';
+                    }
+                }
+
+                // 편집 권한이 없으면 관리 열 숨김 (admin 또는 overseas_tech 권한 보유자는 표시)
+                const canEditPage = typeof hasPermission === 'function' ? hasPermission('overseas_tech') : (user.role === 'admin');
+                if (!canEditPage) {
+                    const adminCols = document.querySelectorAll('.admin-only-col');
+                    adminCols.forEach(col => col.style.display = 'none');
+                }
+            } catch (error) {
+                console.error('사용자 정보 파싱 오류:', error);
+            }
+
+            // 공통 UI 초기화 (테마, 드롭다운)
+            if (typeof initCommonUI === 'function') {
+                initCommonUI();
+            }
+
+            // 초기화 (Sidebar toggle은 initCommonUI()에서 처리)
+            initYears();
+            loadFilterOptions();
+            loadStats();
+            loadProjects();
+            checkLifecycleEditPermission();
+
+            // 신규 등록 버튼
+            const newProjectBtn = document.getElementById('newProjectBtn');
+            if (newProjectBtn) {
+                newProjectBtn.addEventListener('click', function () {
+                    openAddModal();
+                });
+            }
+
+            // Excel 다운로드 버튼
+            const exportBtn = document.getElementById('exportBtn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', function () {
+                    exportToExcel();
+                });
+            }
+
+            // 페이지네이션은 renderPagination에서 동적 생성
+        });
+
+        // toggleSubmenu 함수는 common.js에 정의되어 있음
+
+        // 사업연도 목록 생성 (현재 연도부터 1972년까지 내림차순)
+        function initYears() {
+            const select = document.getElementById('project-year');
+            if (!select) return;
+
+            const currentYear = new Date().getFullYear();
+            for (let year = currentYear; year >= 1972; year--) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                select.appendChild(option);
+            }
+        }
+
+        // 발주처/재원 필터 옵션 로드
+        async function loadFilterOptions() {
+            try {
+                const res = await API.get('/consulting/filter-options');
+                if (res && res.success) {
+                    const clientEl = document.getElementById('project-client');
+                    const fundingEl = document.getElementById('project-funding');
+                    if (clientEl && res.data.clients) {
+                        res.data.clients.forEach(c => {
+                            const opt = document.createElement('option');
+                            opt.value = c;
+                            opt.textContent = c;
+                            clientEl.appendChild(opt);
+                        });
+                    }
+                    if (fundingEl && res.data.fundingSources) {
+                        res.data.fundingSources.forEach(f => {
+                            const opt = document.createElement('option');
+                            opt.value = f;
+                            opt.textContent = f;
+                            fundingEl.appendChild(opt);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('필터 옵션 로드 실패:', e);
+            }
+        }
+
+        // 통계 로드
+        async function loadStats(filters = {}) {
+            try {
+                const data = await API.consulting.getStats(filters);
+                if (data && data.success) {
+                    const stats = data.data;
+
+                    // 총 사업 수
+                    const totalEl = document.querySelector('.stat-card .stat-value');
+                    if (totalEl) {
+                        totalEl.textContent = stats.total.toLocaleString();
+                    }
+
+                    // 탭 배지 카운트 업데이트
+                    const totalProjectCountBadge = document.getElementById('totalProjectCount');
+                    if (totalProjectCountBadge) {
+                        totalProjectCountBadge.textContent = stats.total;
+                    }
+
+                    // 수행중 (시행중 상태만 카운트)
+                    const inProgressEl = document.querySelectorAll('.stat-card .stat-value')[1];
+                    if (inProgressEl) {
+                        const inProgressCount = stats.byStatus['시행중'] || 0;
+                        inProgressEl.textContent = inProgressCount.toLocaleString();
+                    }
+
+                    // 전체용역비
+                    const budgetEl = document.querySelectorAll('.stat-card .stat-value')[2];
+                    if (budgetEl) {
+                        budgetEl.textContent = `₩${Math.round(stats.totalBudget / 100).toLocaleString()}억`;
+                    }
+
+                    // 금년도 용역비 (시행중인 사업들의 용역비 합계)
+                    const inProgressBudgetEl = document.querySelectorAll('.stat-card .stat-value')[3];
+                    if (inProgressBudgetEl) {
+                        inProgressBudgetEl.textContent = `₩${Math.round(stats.inProgressBudget / 100).toLocaleString()}억`;
+                    }
+                }
+            } catch (error) {
+                console.error('통계 로드 실패:', error);
+                // 통계 로드 실패는 조용히 처리 (페이지는 계속 작동)
+            }
+        }
+
+        // 프로젝트 목록 로드 (lifecycle-list API 사용)
+        async function loadProjects(page = 1) {
+            try {
+                const params = { page, per_page: 20 };
+                if (currentFilters.year) params.year = currentFilters.year;
+                if (currentFilters.status) params.status = currentFilters.status;
+                if (currentFilters.type) params.project_type = currentFilters.type;
+                if (currentFilters.client) params.client = currentFilters.client;
+                if (currentFilters.funding_source) params.funding_source = currentFilters.funding_source;
+                if (currentFilters.search) params.search = currentFilters.search;
+
+                const queryString = Object.entries(params)
+                    .filter(([_, v]) => v)
+                    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+                    .join('&');
+
+                const data = await API.get(`/consulting/lifecycle-list?${queryString}`);
+
+                if (data && data.success) {
+                    currentPage = data.currentPage;
+                    totalPages = data.pages;
+                    currentTotal = data.total;
+                    lifecycleData = data.data;
+
+                    const totalBadge = document.getElementById('totalProjectCount');
+                    if (totalBadge) totalBadge.textContent = data.total;
+
+                    displayProjects(data.data);
+                    renderPagination(currentPage, totalPages);
+                } else {
+                    throw new Error(data?.message || '데이터를 불러올 수 없습니다.');
+                }
+            } catch (error) {
+                console.error('프로젝트 로드 실패:', error);
+                const tbody = document.getElementById('projectsTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="10" style="text-align: center; padding: 40px; color: #dc3545;">
+                                <div>프로젝트를 불러오는데 실패했습니다.</div>
+                                <div style="font-size: 12px; margin-top: 8px; color: #6c757d;">${error.message || ''}</div>
+                            </td>
+                        </tr>
+                    `;
+                }
+                if (typeof Toast !== 'undefined') {
+                    Toast.error('프로젝트를 불러오는데 실패했습니다.');
+                }
+            }
+        }
+
+        // 날짜 파싱 헬퍼 함수
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            // 따옴표, 공백 제거
+            const cleanStr = dateStr.replace(/['"‘“’”]/g, '').trim();
+
+            // 다양한 구분자 처리 (-, ., /)
+            const parts = cleanStr.split(/[-./]/);
+
+            let year, month, day = 1;
+
+            if (parts.length >= 1) {
+                let yy = parseInt(parts[0], 10);
+                if (isNaN(yy)) return null;
+                // 2자리 연도 처리 (50 이상은 1900년대, 미만은 2000년대)
+                year = yy >= 50 ? 1900 + yy : 2000 + yy;
+                // 4자리 연도인 경우 그대로 사용
+                if (yy > 1900) year = yy;
+            }
+
+            if (parts.length >= 2) {
+                month = parseInt(parts[1], 10) - 1; // 0-based month
+            } else {
+                month = 0; // Default to January
+            }
+
+            if (parts.length >= 3) {
+                day = parseInt(parts[2], 10);
+            }
+
+            return new Date(year, month, day);
+        }
+
+        // 프로젝트 테이블 표시 (2행 구조: 정보행 + 라이프사이클행)
+        function displayProjects(projects) {
+            const tbody = document.getElementById('projectsTableBody');
+            if (!tbody) return;
+
+            const canEdit = typeof hasPermission === 'function' ? hasPermission('overseas_tech') : (currentUserRole === 'admin');
+            const colCount = 10;
+
+            if (projects.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="${colCount}" style="text-align: center; padding: 40px;">
+                            <div>등록된 프로젝트가 없습니다.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            projects.forEach((project, idx) => {
+                // 역순 번호 (전체 건수 기준)
+                const rowNum = currentTotal - ((currentPage - 1) * 20 + idx);
+
+                let status = project.status || '시행중';
+                let statusClass, statusText;
+                switch (status) {
+                    case '준공': case '완료':
+                        statusClass = 'badge-status-complete'; statusText = '준공'; break;
+                    case '제안서제출':
+                        statusClass = 'badge-status-proposal'; statusText = '제안서제출'; break;
+                    case 'EOI제출':
+                        statusClass = 'badge-status-eoi'; statusText = 'EOI제출'; break;
+                    default:
+                        statusClass = 'badge-status-active'; statusText = status || '시행중';
+                }
+
+                // 공사지분 표시
+                let krcHtml = project.krcBudget ? project.krcBudget.toLocaleString() : '-';
+                if (project.krcShareRatio) {
+                    let ratioColor = '#6c757d';
+                    if (project.krcBudget > 0 && project.budget > 0) {
+                        const diff = Math.abs((project.krcBudget / project.budget) - project.krcShareRatio) * 100;
+                        if (diff >= 0.5) ratioColor = '#8B0000';
+                    }
+                    krcHtml += `<div style="color:${ratioColor};font-size:0.85em;">(${(project.krcShareRatio*100).toFixed(1)}%)</div>`;
+                }
+
+                const actionCell = canEdit
+                    ? `<td class="admin-only-col" style="text-align:center;vertical-align:middle;">
+                           <button class="btn btn-sm btn-outline" onclick="editProject(${project.id})">수정</button>
+                           <button class="btn btn-sm btn-outline" style="margin-left:4px;color:#dc3545;" onclick="deleteProject(${project.id},'${(project.titleKr||'').replace(/'/g,"\\'")}')">삭제</button>
+                       </td>`
+                    : '<td class="admin-only-col"></td>';
+
+                // 라이프사이클 파이프라인
+                if (project.stages) {
+                    project.stages.forEach(s => { s._projectId = project.id; });
+                }
+                const pipelineHtml = (project.stages && project.stages.length > 0)
+                    ? createLifecyclePipelineHTML(project.stages)
+                    : '<span style="font-size:12px;color:var(--color-neutral-400);">라이프사이클 정보 없음</span>';
+
+                html += `<tr class="project-row" data-id="${project.id}">
+                    <td style="text-align:center;vertical-align:middle;color:var(--color-neutral-500);font-size:12px;">${rowNum}</td>
+                    <td style="text-align:center;vertical-align:middle;font-size:13px;color:#374151;">${project.contractYear || '-'}</td>
+                    <td style="vertical-align:middle;">
+                        <a href="#" onclick="viewProject(${project.id});return false;" style="color:#0066cc;font-weight:500;">${project.titleKr || '-'}</a>
+                        ${project.titleEn ? `<div style="font-size:11px;color:#6c757d;margin-top:2px;">${project.titleEn}</div>` : ''}
+                    </td>
+                    <td style="text-align:center;vertical-align:middle;"><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td style="text-align:center;vertical-align:middle;">${createTypeBadgesHTML(project)}</td>
+                    <td style="text-align:center;vertical-align:middle;">${project.budget ? project.budget.toLocaleString() : '-'}</td>
+                    <td style="text-align:center;vertical-align:middle;">${krcHtml}</td>
+                    <td class="pipeline-cell lifecycle-row" data-project-id="${project.id}" style="vertical-align:middle;">${pipelineHtml}</td>
+                    ${actionCell}
+                </tr>`;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // 간트 타임라인 HTML 생성
+        function createGanttHTML(startDate, endDate) {
+            function parseDateYM(s) {
+                if (!s) return null;
+                s = String(s).replace(/['"'"'"]/g, '').trim();
+                // YYYY.MM... or YYYY-MM...
+                let m = s.match(/^(\d{4})[.\-\/](\d{1,2})/);
+                if (m) return { year: parseInt(m[1]), month: parseInt(m[2]) };
+                // 'YY.MM or YY-MM or YY
+                m = s.match(/^(\d{2})[.\-\/](\d{1,2})/);
+                if (m) {
+                    const yy = parseInt(m[1]);
+                    return { year: yy >= 50 ? 1900 + yy : 2000 + yy, month: parseInt(m[2]) };
+                }
+                m = s.match(/^(\d{2})$/);
+                if (m) {
+                    const yy = parseInt(m[1]);
+                    return { year: yy >= 50 ? 1900 + yy : 2000 + yy, month: 1 };
+                }
+                return null;
+            }
+
+            const sd = parseDateYM(startDate);
+            const ed = parseDateYM(endDate);
+
+            if (!sd || !ed) {
+                const text = (startDate && endDate) ? `${startDate} ~ ${endDate}` : (startDate || endDate || '-');
+                return `<div style="font-size:12px;text-align:center;color:var(--color-neutral-600);">${text}</div>`;
+            }
+
+            const today = new Date();
+            const todayYM = { year: today.getFullYear(), month: today.getMonth() + 1 };
+            const totalMonths = (ed.year - sd.year) * 12 + (ed.month - sd.month);
+            if (totalMonths <= 0) {
+                return `<div style="font-size:12px;text-align:center;color:var(--color-neutral-600);">${startDate} ~ ${endDate}</div>`;
+            }
+
+            const elapsedMonths = (todayYM.year - sd.year) * 12 + (todayYM.month - sd.month);
+            const progress = Math.min(100, Math.max(0, Math.round(elapsedMonths / totalMonths * 100)));
+
+            const startYear = sd.year, endYear = ed.year;
+            const yearSpan = endYear - startYear;
+            const step = yearSpan > 8 ? 2 : 1;
+            let labelsHtml = '';
+            for (let y = startYear; y <= endYear; y += step) {
+                const pos = yearSpan > 0 ? ((y - startYear) / yearSpan) * 100 : 0;
+                labelsHtml += `<span style="left:${pos.toFixed(1)}%">'${String(y).slice(-2)}</span>`;
+            }
+
+            const fmtYM = (ym) => `'${String(ym.year).slice(-2)}.${String(ym.month).padStart(2,'0')}`;
+
+            return `<div class="gantt-wrap">
+                <div class="gantt-labels">${labelsHtml}</div>
+                <div class="gantt-track">
+                    <div class="gantt-elapsed" style="width:${progress}%"></div>
+                    <div class="gantt-today" style="left:${progress}%" title="오늘 (${progress}%)"></div>
+                </div>
+                <div class="gantt-period">${fmtYM(sd)} ~ ${fmtYM(ed)}</div>
+            </div>`;
+        }
+
+        // 페이지네이션 업데이트
+        function renderPagination(current, total) {
+            totalPages = total;
+            const pagination = document.getElementById('pagination');
+
+            if (total <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            const groupSize = 10;
+            const currentGroup = Math.ceil(current / groupSize);
+            const startPage = (currentGroup - 1) * groupSize + 1;
+            const endPage = Math.min(currentGroup * groupSize, total);
+
+            let html = '';
+            html += `<button class="page-btn" ${current === 1 ? 'disabled' : ''} onclick="goToPage(1)">«</button>`;
+            html += `<button class="page-btn" ${startPage === 1 ? 'disabled' : ''} onclick="goToPage(${startPage - 1})">‹</button>`;
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+            }
+
+            html += `<button class="page-btn" ${endPage >= total ? 'disabled' : ''} onclick="goToPage(${endPage + 1})">›</button>`;
+            html += `<button class="page-btn" ${current === total ? 'disabled' : ''} onclick="goToPage(${total})">»</button>`;
+
+            pagination.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            if (page >= 1 && page <= totalPages) {
+                currentPage = page;
+                loadProjects(currentPage);
+            }
+        }
+
+        // 필터 적용
+        function applyFilters() {
+            currentFilters = {};
+            const year = document.getElementById('project-year')?.value;
+            const status = document.getElementById('project-status')?.value;
+            const type = document.getElementById('lifecycleTypeFilter')?.value;
+            const client = document.getElementById('project-client')?.value;
+            const funding = document.getElementById('project-funding')?.value;
+            const search = document.getElementById('project-search')?.value;
+            if (year) currentFilters.year = year;
+            if (status) currentFilters.status = status;
+            if (type) currentFilters.type = type;
+            if (client) currentFilters.client = client;
+            if (funding) currentFilters.funding_source = funding;
+            if (search) currentFilters.search = search;
+            loadProjects(1);
+            loadStats(currentFilters);
+        }
+
+        // 필터 초기화
+        function resetFilters() {
+            ['project-year', 'project-status', 'lifecycleTypeFilter', 'project-client', 'project-funding', 'project-search'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            currentFilters = {};
+            loadProjects(1);
+            loadStats();
+        }
+
+        // 모달 열기 (추가)
+        function openAddModal() {
+            editingProjectId = null;
+            // 간단한 모달로 구현 (필요시 더 복잡한 폼으로 확장 가능)
+            const modal = new Modal();
+            modal.open(
+                `<div id="projectFormContainer">
+                    <form id="projectForm" style="display: grid; gap: 16px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">번호</label>
+                                <input type="number" id="projectNumber" name="number" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">수주년도</label>
+                                <input type="number" id="projectYear" name="contractYear" min="1972" max="2100" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">국가 <span style="color: #dc3545;">*</span></label>
+                            <input type="text" id="projectCountry" name="country" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">국문사업명 <span style="color: #dc3545;">*</span></label>
+                            <input type="text" id="projectTitleKr" name="titleKr" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">영문사업명</label>
+                            <input type="text" id="projectTitleEn" name="titleEn" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 6px; font-weight: 600;">사업형태</label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px 16px; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; background: var(--color-neutral-50);">
+                                <label class="type-checkbox-label"><input type="checkbox" id="typeFeasibility" name="typeFeasibility"> 타당성조사(F/S)</label>
+                                <label class="type-checkbox-label"><input type="checkbox" id="typeMasterplan" name="typeMasterplan"> 마스터플랜(M/P)</label>
+                                <label class="type-checkbox-label"><input type="checkbox" id="typeBasicDesign" name="typeBasicDesign"> 기본설계(B/D)</label>
+                                <label class="type-checkbox-label"><input type="checkbox" id="typeDetailedDesign" name="typeDetailedDesign"> 실시설계(D/D)</label>
+                                <label class="type-checkbox-label"><input type="checkbox" id="typeConstruction" name="typeConstruction"> 시공감리(C/S)</label>
+                                <label class="type-checkbox-label"><input type="checkbox" id="typePmc" name="typePmc"> 사업관리(PMC)</label>
+                            </div>
+                            <input type="text" id="projectTypeEtc" name="projectTypeEtc" placeholder="기타 사업형태 (예: 농촌개발, 영농지도)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 6px; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">착수일</label>
+                            <input type="text" id="projectStartDate" name="startDate" placeholder="예: 1972.10 또는 2025.03.15" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">총사업비 (백만USD)</label>
+                                <input type="number" id="projectTotalBudget" name="totalBudget" step="0.01" placeholder="백만USD 단위" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">전체용역비</label>
+                                <input type="number" id="projectBudget" name="budget" step="0.01" placeholder="백만원 단위" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">공사지분용역비</label>
+                                <input type="number" id="projectKrcBudget" name="krcBudget" step="0.01" placeholder="백만원 단위" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">공사지분율</label>
+                                <input type="number" id="projectKrcShareRatio" name="krcShareRatio" step="0.01" min="0" max="100" placeholder="예: 20.5 (%)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">상태</label>
+                            <select id="projectStatus" name="status" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="시행중">시행중</option>
+                                <option value="준공">준공</option>
+                                <option value="제안서제출">제안서제출</option>
+                                <option value="EOI제출">EOI제출</option>
+                            </select>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">발주처</label>
+                                <input type="text" id="projectClient" name="client" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">재원</label>
+                                <input type="text" id="projectFundingSource" name="fundingSource" placeholder="예: KOICA, ADB, 자체" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">전체용역비 (US$ 백만)</label>
+                                <input type="number" id="projectBudgetUsd" name="budgetUsd" step="0.01" placeholder="US$ 백만 단위" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">공사지분 용역비 (US$ 백만)</label>
+                                <input type="number" id="projectKrcBudgetUsd" name="krcBudgetUsd" step="0.01" placeholder="US$ 백만 단위" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">위도</label>
+                                <input type="number" id="projectLatitude" name="latitude" step="0.0000001" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600;">경도</label>
+                                <input type="number" id="projectLongitude" name="longitude" step="0.0000001" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">
+                                사업 개요
+                                <span style="font-size: 12px; color: #6c757d; font-weight: 400; margin-left: 8px;">(최대 3,000자)</span>
+                            </label>
+                            <textarea id="projectDescription" name="description" maxlength="3000" rows="6" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical; line-height: 1.6;" placeholder="사업의 개요를 입력하세요..."></textarea>
+                            <div style="text-align: right; font-size: 12px; color: #6c757d; margin-top: 4px;">
+                                <span id="descriptionCounter">0</span> / 3,000자
+                            </div>
+                        </div>
+                        <div style="border-top: 1px solid #e9ecef; padding-top: 12px; margin-top: 8px;">
+                            <label style="display: block; margin-bottom: 8px; font-weight: 600;">컨소시엄 구성</label>
+                            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                                <thead>
+                                    <tr style="background:#f1f3f5; border-bottom:2px solid #dee2e6;">
+                                        <th style="padding:8px 10px; text-align:left; width:70px;">구분</th>
+                                        <th style="padding:8px 10px; text-align:left;">회사명</th>
+                                        <th style="padding:8px 10px; text-align:left; width:110px;">지분율(%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom:1px solid #e9ecef;">
+                                        <td style="padding:6px 10px; font-weight:600;">주관사</td>
+                                        <td style="padding:6px 10px;"><input type="text" id="projectLeadCompany" name="leadCompany" placeholder="예: KRC" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                        <td style="padding:6px 10px;"><input type="number" name="leadCompanyRatio" step="0.1" min="0" max="100" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #e9ecef;">
+                                        <td style="padding:6px 10px; font-weight:600;">JV1</td>
+                                        <td style="padding:6px 10px;"><input type="text" id="projectJv1" name="jv1" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                        <td style="padding:6px 10px;"><input type="number" name="jv1Ratio" step="0.1" min="0" max="100" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #e9ecef;">
+                                        <td style="padding:6px 10px; font-weight:600;">JV2</td>
+                                        <td style="padding:6px 10px;"><input type="text" id="projectJv2" name="jv2" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                        <td style="padding:6px 10px;"><input type="number" name="jv2Ratio" step="0.1" min="0" max="100" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #e9ecef;">
+                                        <td style="padding:6px 10px; font-weight:600;">JV3</td>
+                                        <td style="padding:6px 10px;"><input type="text" id="projectJv3" name="jv3" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                        <td style="padding:6px 10px;"><input type="number" name="jv3Ratio" step="0.1" min="0" max="100" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #e9ecef;">
+                                        <td style="padding:6px 10px; font-weight:600;">JV4</td>
+                                        <td style="padding:6px 10px;"><input type="text" id="projectJv4" name="jv4" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                        <td style="padding:6px 10px;"><input type="number" name="jv4Ratio" step="0.1" min="0" max="100" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:6px 10px; font-weight:600;">JV5</td>
+                                        <td style="padding:6px 10px;"><input type="text" id="projectJv5" name="jv5" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                        <td style="padding:6px 10px;"><input type="number" name="jv5Ratio" step="0.1" min="0" max="100" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </form>
+                </div>`,
+                '프로젝트 추가',
+                {
+                    footer: `
+                        <button class="btn btn-secondary" onclick="closeProjectModal()">취소</button>
+                        <button class="btn btn-primary" onclick="saveProject()">저장</button>
+                    `,
+                    onClose: function () {
+                        editingProjectId = null;
+                    }
+                }
+            );
+
+            // 글자 수 카운터 이벤트 리스너 추가
+            setTimeout(() => {
+                const descriptionTextarea = document.getElementById('projectDescription');
+                const descriptionCounter = document.getElementById('descriptionCounter');
+                if (descriptionTextarea && descriptionCounter) {
+                    descriptionTextarea.addEventListener('input', function () {
+                        descriptionCounter.textContent = this.value.length;
+                    });
+                }
+            }, 100);
+        }
+
+        // 모달 닫기
+        function closeProjectModal() {
+            const modalOverlay = document.querySelector('.modal-overlay');
+            if (modalOverlay) {
+                modalOverlay.remove();
+            }
+            // 스크롤 복원
+            document.body.style.overflow = '';
+            editingProjectId = null;
+        }
+
+        // 프로젝트 상세보기 (읽기 전용)
+        async function viewProject(id) {
+            try {
+                const [data, lcData] = await Promise.all([
+                    API.consulting.get(id),
+                    API.get(`/consulting/${id}/lifecycle`)
+                ]);
+                if (data.success) {
+                    const project = data.data;
+                    if (lcData && lcData.success && lcData.data && lcData.data.stages) {
+                        lcData.data.stages.forEach(s => { s._projectId = id; });
+                    }
+                    const pipelineHtml = (lcData && lcData.success && lcData.data && lcData.data.stages)
+                        ? createLifecyclePipelineHTML(lcData.data.stages)
+                        : '<div style="color:var(--color-neutral-400);font-size:13px;">라이프사이클 정보 없음</div>';
+
+                    const modal = new Modal();
+                    modal.open(
+                        `<div style="display: grid; gap: 16px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">수주년도</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.contractYear || '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">상태</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.status || '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">사업형태</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${createTypeBadgesHTML(project)}</div>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국가</label>
+                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.country || '-'}</div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국문사업명</label>
+                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.titleKr || '-'}</div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">영문사업명</label>
+                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.titleEn || '-'}</div>
+                            </div>
+                            <div style="border:1px solid var(--color-neutral-200); border-radius:8px; padding:14px 18px; background:#fafafa;">
+                                <div style="font-size:12px; font-weight:600; color:var(--color-neutral-500); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">사업기간 진행현황</div>
+                                ${createGanttHTML(project.startDate, project.endDate)}
+                            </div>
+                            <div style="border: 1px solid var(--color-primary-200); border-radius: 8px; padding: 16px 20px; background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);">
+                                <label style="display: block; margin-bottom: 12px; font-weight: 700; color: var(--color-primary-700); font-size: 14px;">사업 라이프사이클</label>
+                                <div class="modal-pipeline-wrap">
+                                    ${pipelineHtml}
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">착수일</label>
+                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.startDate || '-'}</div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">총사업비 (백만USD)</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.totalBudget ? Number(project.totalBudget).toLocaleString() : '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">전체용역비</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.budget ? project.budget.toLocaleString() + ' 백만원' : '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">공사지분용역비</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcBudget ? project.krcBudget.toLocaleString() + ' 백만원' : '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">공사지분율</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcShareRatio ? (project.krcShareRatio * 100).toFixed(1) + '%' : '-'}</div>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">상태</label>
+                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.status || '-'}</div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">발주처</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.client || '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">재원</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.fundingSource || '-'}</div>
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">전체용역비 (US$ 백만)</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.budgetUsd ? Number(project.budgetUsd).toFixed(2) : '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">공사지분 용역비 (US$ 백만)</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcBudgetUsd ? Number(project.krcBudgetUsd).toFixed(2) : '-'}</div>
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">위도</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.latitude || '-'}</div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">경도</label>
+                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.longitude || '-'}</div>
+                                </div>
+                            </div>
+                            <div style="border-top: 1px solid #e9ecef; padding-top: 12px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #6c757d;">컨소시엄 구성</label>
+                                ${(() => {
+                                    const members = [];
+                                    if (project.leadCompany) members.push({label: '주관사', name: project.leadCompany, ratio: project.leadCompanyRatio});
+                                    if (project.jv1) members.push({label: 'JV1', name: project.jv1, ratio: project.jv1Ratio});
+                                    if (project.jv2) members.push({label: 'JV2', name: project.jv2, ratio: project.jv2Ratio});
+                                    if (project.jv3) members.push({label: 'JV3', name: project.jv3, ratio: project.jv3Ratio});
+                                    if (project.jv4) members.push({label: 'JV4', name: project.jv4, ratio: project.jv4Ratio});
+                                    if (project.jv5) members.push({label: 'JV5', name: project.jv5, ratio: project.jv5Ratio});
+                                    if (members.length === 0) return '<div style="padding: 8px; background: #f8f9fa; border-radius: 4px; color: #adb5bd;">-</div>';
+                                    let html = '<table style="width:100%; border-collapse:collapse; font-size:14px;">';
+                                    html += '<thead><tr style="background:#f1f3f5; border-bottom:2px solid #dee2e6;">';
+                                    html += '<th style="padding:8px 12px; text-align:left; width:80px;">구분</th>';
+                                    html += '<th style="padding:8px 12px; text-align:left;">회사명</th>';
+                                    html += '<th style="padding:8px 12px; text-align:right; width:100px;">지분율</th>';
+                                    html += '</tr></thead><tbody>';
+                                    members.forEach(m => {
+                                        const ratioStr = m.ratio != null ? (m.ratio * 100).toFixed(1) + '%' : '-';
+                                        html += '<tr style="border-bottom:1px solid #e9ecef;">';
+                                        html += '<td style="padding:8px 12px; font-weight:600; color:#495057;">' + m.label + '</td>';
+                                        html += '<td style="padding:8px 12px;">' + m.name + '</td>';
+                                        html += '<td style="padding:8px 12px; text-align:right;">' + ratioStr + '</td>';
+                                        html += '</tr>';
+                                    });
+                                    html += '</tbody></table>';
+                                    return html;
+                                })()}
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">사업 개요</label>
+                                <div style="padding: 12px; background: #f8f9fa; border-radius: 4px; white-space: pre-wrap; min-height: 80px; line-height: 1.6;">${project.description || '-'}</div>
+                            </div>
+                        </div>`,
+                        '프로젝트 상세정보',
+                        {
+                            footer: `<button class="btn btn-secondary" onclick="closeProjectModal()">닫기</button>`
+                        }
+                    );
+                }
+            } catch (error) {
+                Toast.error('프로젝트 정보를 불러오는데 실패했습니다.');
+                console.error(error);
+            }
+        }
+
+        // 라이프사이클 단계 편집 HTML 생성
+        function buildLifecycleEditHTML(stages) {
+            const allStageKeys = ['eoi', 'proposal', 'contract', 'completion'];
+            const stageLabels = {
+                eoi: 'EOI제출', proposal: '제안서제출',
+                contract: '계약', completion: '준공'
+            };
+
+            const stageMap = {};
+            (stages || []).forEach(s => { stageMap[s.key] = s; });
+
+            let html = `<div class="lifecycle-edit-section">
+                <div style="font-weight:600;margin-bottom:12px;color:#374151;">라이프사이클 단계 편집</div>
+                <div style="display:grid;grid-template-columns:110px 130px 70px 70px;gap:4px 8px;align-items:center;margin-bottom:6px;font-size:12px;color:#6b7280;font-weight:600;">
+                    <span>단계</span><span>날짜 (예: '25.03)</span><span style="text-align:center;">완료</span><span style="text-align:center;">진행중</span>
+                </div>`;
+
+            allStageKeys.forEach(key => {
+                const stage = stageMap[key] || {};
+                const label = stageLabels[key];
+                const completedChecked = stage.status === 'completed' || stage.status === 'completed-nodata' ? 'checked' : '';
+                const progressChecked = stage.status === 'in-progress' ? 'checked' : '';
+
+                html += `<div class="lifecycle-stage-row" data-stage-key="${key}" style="display:grid;grid-template-columns:110px 130px 70px 70px;gap:4px 8px;align-items:center;margin-bottom:4px;">
+                    <label style="font-size:13px;font-weight:500;">${label}</label>
+                    <input type="text" id="lc_date_${key}" value="${stage.date || ''}" placeholder="'YY.MM"
+                        style="padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;width:100%;">
+                    <div style="text-align:center;"><input type="checkbox" id="lc_completed_${key}" ${completedChecked}></div>
+                    <div style="text-align:center;"><input type="checkbox" id="lc_progress_${key}" ${progressChecked}></div>
+                </div>`;
+            });
+
+            html += '</div>';
+            return html;
+        }
+
+        // 프로젝트 수정
+        async function editProject(id) {
+            try {
+                const [data, lifecycleData] = await Promise.all([
+                    API.consulting.get(id),
+                    API.get(`/consulting/${id}/lifecycle`)
+                ]);
+                if (data.success) {
+                    const project = data.data;
+                    const stages = lifecycleData?.data?.stages || [];
+                    editingProjectId = id;
+
+                    const modal = new Modal();
+                    modal.open(
+                        `<div id="projectFormContainer">
+                            <form id="projectForm" style="display: grid; gap: 16px;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">번호</label>
+                                        <input type="number" id="projectNumber" name="number" value="${project.number || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">수주년도</label>
+                                        <input type="number" id="projectYear" name="contractYear" min="1972" max="2100" value="${project.contractYear || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">국가 <span style="color: #dc3545;">*</span></label>
+                                    <input type="text" id="projectCountry" name="country" value="${project.country || ''}" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">국문사업명 <span style="color: #dc3545;">*</span></label>
+                                    <input type="text" id="projectTitleKr" name="titleKr" value="${project.titleKr || ''}" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">영문사업명</label>
+                                    <input type="text" id="projectTitleEn" name="titleEn" value="${project.titleEn || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 6px; font-weight: 600;">사업형태</label>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px 16px; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; background: var(--color-neutral-50);">
+                                        <label class="type-checkbox-label"><input type="checkbox" id="typeFeasibility" name="typeFeasibility" ${project.typeFeasibility ? 'checked' : ''}> 타당성조사(F/S)</label>
+                                        <label class="type-checkbox-label"><input type="checkbox" id="typeMasterplan" name="typeMasterplan" ${project.typeMasterplan ? 'checked' : ''}> 마스터플랜(M/P)</label>
+                                        <label class="type-checkbox-label"><input type="checkbox" id="typeBasicDesign" name="typeBasicDesign" ${project.typeBasicDesign ? 'checked' : ''}> 기본설계(B/D)</label>
+                                        <label class="type-checkbox-label"><input type="checkbox" id="typeDetailedDesign" name="typeDetailedDesign" ${project.typeDetailedDesign ? 'checked' : ''}> 실시설계(D/D)</label>
+                                        <label class="type-checkbox-label"><input type="checkbox" id="typeConstruction" name="typeConstruction" ${project.typeConstruction ? 'checked' : ''}> 시공감리(C/S)</label>
+                                        <label class="type-checkbox-label"><input type="checkbox" id="typePmc" name="typePmc" ${project.typePmc ? 'checked' : ''}> 사업관리(PMC)</label>
+                                    </div>
+                                    <input type="text" id="projectTypeEtc" name="projectTypeEtc" value="${project.projectTypeEtc || ''}" placeholder="기타 사업형태 (예: 농촌개발, 영농지도)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 6px; font-size: 13px;">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">착수일</label>
+                                    <input type="text" id="projectStartDate" name="startDate" value="${project.startDate || ''}" placeholder="예: 1972.10 또는 2025.03.15" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">총사업비 (백만USD)</label>
+                                        <input type="number" id="projectTotalBudget" name="totalBudget" step="0.01" value="${project.totalBudget || ''}" placeholder="백만USD 단위" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">전체용역비</label>
+                                        <input type="number" id="projectBudget" name="budget" step="0.01" value="${project.budget || ''}" placeholder="백만원 단위" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">공사지분용역비</label>
+                                        <input type="number" id="projectKrcBudget" name="krcBudget" step="0.01" value="${project.krcBudget || ''}" placeholder="백만원 단위" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">공사지분율</label>
+                                        <input type="number" id="projectKrcShareRatio" name="krcShareRatio" step="0.01" min="0" max="100" value="${project.krcShareRatio ? (project.krcShareRatio * 100).toFixed(1) : ''}" placeholder="예: 20.5 (%)" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">상태</label>
+                                    <select id="projectStatus" name="status" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                        <option value="시행중" ${project.status === '시행중' || project.status === '진행중' ? 'selected' : ''}>시행중</option>
+                                        <option value="준공" ${project.status === '준공' ? 'selected' : ''}>준공</option>
+                                        <option value="제안서제출" ${project.status === '제안서제출' ? 'selected' : ''}>제안서제출</option>
+                                        <option value="EOI제출" ${project.status === 'EOI제출' ? 'selected' : ''}>EOI제출</option>
+                                    </select>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">발주처</label>
+                                        <input type="text" id="projectClient" name="client" value="${project.client || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">재원</label>
+                                        <input type="text" id="projectFundingSource" name="fundingSource" value="${project.fundingSource || ''}" placeholder="예: KOICA, ADB, 자체" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">전체용역비 (US$ 백만)</label>
+                                        <input type="number" id="projectBudgetUsd" name="budgetUsd" step="0.01" value="${project.budgetUsd || ''}" placeholder="US$ 백만 단위" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">공사지분 용역비 (US$ 백만)</label>
+                                        <input type="number" id="projectKrcBudgetUsd" name="krcBudgetUsd" step="0.01" value="${project.krcBudgetUsd || ''}" placeholder="US$ 백만 단위" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">위도</label>
+                                        <input type="number" id="projectLatitude" name="latitude" step="0.0000001" value="${project.latitude || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; margin-bottom: 4px; font-weight: 600;">경도</label>
+                                        <input type="number" id="projectLongitude" name="longitude" step="0.0000001" value="${project.longitude || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">
+                                        사업 개요
+                                        <span style="font-size: 12px; color: #6c757d; font-weight: 400; margin-left: 8px;">(최대 3,000자)</span>
+                                    </label>
+                                    <textarea id="projectDescription" name="description" maxlength="3000" rows="6" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical; line-height: 1.6;" placeholder="사업의 개요를 입력하세요...">${project.description || ''}</textarea>
+                                    <div style="text-align: right; font-size: 12px; color: #6c757d; margin-top: 4px;">
+                                        <span id="descriptionCounter">${(project.description || '').length}</span> / 3,000자
+                                    </div>
+                                </div>
+                                <div style="border-top: 1px solid #e9ecef; padding-top: 12px; margin-top: 8px;">
+                                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">컨소시엄 구성</label>
+                                    <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                                        <thead>
+                                            <tr style="background:#f1f3f5; border-bottom:2px solid #dee2e6;">
+                                                <th style="padding:8px 10px; text-align:left; width:70px;">구분</th>
+                                                <th style="padding:8px 10px; text-align:left;">회사명</th>
+                                                <th style="padding:8px 10px; text-align:left; width:110px;">지분율(%)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr style="border-bottom:1px solid #e9ecef;">
+                                                <td style="padding:6px 10px; font-weight:600;">주관사</td>
+                                                <td style="padding:6px 10px;"><input type="text" id="projectLeadCompany" name="leadCompany" value="${project.leadCompany || ''}" placeholder="예: KRC" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                                <td style="padding:6px 10px;"><input type="number" name="leadCompanyRatio" step="0.1" min="0" max="100" value="${project.leadCompanyRatio != null ? (project.leadCompanyRatio * 100).toFixed(1) : ''}" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                            </tr>
+                                            <tr style="border-bottom:1px solid #e9ecef;">
+                                                <td style="padding:6px 10px; font-weight:600;">JV1</td>
+                                                <td style="padding:6px 10px;"><input type="text" id="projectJv1" name="jv1" value="${project.jv1 || ''}" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                                <td style="padding:6px 10px;"><input type="number" name="jv1Ratio" step="0.1" min="0" max="100" value="${project.jv1Ratio != null ? (project.jv1Ratio * 100).toFixed(1) : ''}" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                            </tr>
+                                            <tr style="border-bottom:1px solid #e9ecef;">
+                                                <td style="padding:6px 10px; font-weight:600;">JV2</td>
+                                                <td style="padding:6px 10px;"><input type="text" id="projectJv2" name="jv2" value="${project.jv2 || ''}" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                                <td style="padding:6px 10px;"><input type="number" name="jv2Ratio" step="0.1" min="0" max="100" value="${project.jv2Ratio != null ? (project.jv2Ratio * 100).toFixed(1) : ''}" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                            </tr>
+                                            <tr style="border-bottom:1px solid #e9ecef;">
+                                                <td style="padding:6px 10px; font-weight:600;">JV3</td>
+                                                <td style="padding:6px 10px;"><input type="text" id="projectJv3" name="jv3" value="${project.jv3 || ''}" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                                <td style="padding:6px 10px;"><input type="number" name="jv3Ratio" step="0.1" min="0" max="100" value="${project.jv3Ratio != null ? (project.jv3Ratio * 100).toFixed(1) : ''}" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                            </tr>
+                                            <tr style="border-bottom:1px solid #e9ecef;">
+                                                <td style="padding:6px 10px; font-weight:600;">JV4</td>
+                                                <td style="padding:6px 10px;"><input type="text" id="projectJv4" name="jv4" value="${project.jv4 || ''}" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                                <td style="padding:6px 10px;"><input type="number" name="jv4Ratio" step="0.1" min="0" max="100" value="${project.jv4Ratio != null ? (project.jv4Ratio * 100).toFixed(1) : ''}" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding:6px 10px; font-weight:600;">JV5</td>
+                                                <td style="padding:6px 10px;"><input type="text" id="projectJv5" name="jv5" value="${project.jv5 || ''}" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                                <td style="padding:6px 10px;"><input type="number" name="jv5Ratio" step="0.1" min="0" max="100" value="${project.jv5Ratio != null ? (project.jv5Ratio * 100).toFixed(1) : ''}" placeholder="0.0" style="width:100%; padding:6px 8px; border:1px solid #ddd; border-radius:4px;"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                ${buildLifecycleEditHTML(stages)}
+                            </form>
+                        </div>`,
+                        '프로젝트 수정',
+                        {
+                            footer: `
+                                <button class="btn btn-secondary" onclick="closeProjectModal()">취소</button>
+                                <button class="btn btn-primary" onclick="saveProject()">저장</button>
+                            `,
+                            onClose: function () {
+                                editingProjectId = null;
+                            }
+                        }
+                    );
+
+                    // 글자 수 카운터 + 사업형태 체크박스 이벤트 리스너 추가
+                    setTimeout(() => {
+                        const descriptionTextarea = document.getElementById('projectDescription');
+                        const descriptionCounter = document.getElementById('descriptionCounter');
+                        if (descriptionTextarea && descriptionCounter) {
+                            descriptionTextarea.addEventListener('input', function () {
+                                descriptionCounter.textContent = this.value.length;
+                            });
+                        }
+                        // (라이프사이클 단계가 고정이므로 사업형태 체크박스 연동 불필요)
+                    }, 100);
+                }
+            } catch (error) {
+                Toast.error('프로젝트 정보를 불러오는데 실패했습니다.');
+                console.error(error);
+            }
+        }
+
+        // 프로젝트 저장
+        async function saveProject() {
+            const form = document.getElementById('projectForm');
+            if (!form) {
+                Toast.error('폼을 찾을 수 없습니다.');
+                return;
+            }
+
+            const formData = new FormData(form);
+            const projectData = {};
+
+            // 체크박스 필드는 FormData에서 unchecked가 누락되므로 명시적으로 처리
+            const typeCheckboxes = ['typeFeasibility', 'typeMasterplan', 'typeBasicDesign', 'typeDetailedDesign', 'typeConstruction', 'typePmc'];
+            typeCheckboxes.forEach(name => {
+                const cb = document.getElementById(name);
+                projectData[name] = cb ? cb.checked : false;
+            });
+            const etcInput = document.getElementById('projectTypeEtc');
+            if (etcInput) {
+                projectData['projectTypeEtc'] = etcInput.value.trim();
+            }
+
+            const consortiumFields = ['leadCompany', 'jv1', 'jv2', 'jv3', 'jv4', 'jv5'];
+            const ratioFields = ['leadCompanyRatio', 'jv1Ratio', 'jv2Ratio', 'jv3Ratio', 'jv4Ratio', 'jv5Ratio'];
+            formData.forEach((value, key) => {
+                // 체크박스 필드는 위에서 이미 처리했으므로 건너뜀 ('on' 문자열 덮어쓰기 방지)
+                if (typeCheckboxes.includes(key)) return;
+                // 컨소시엄 필드는 빈 값도 전송 (삭제 가능하도록)
+                if (consortiumFields.includes(key)) {
+                    projectData[key] = value.trim() || '';
+                } else if (ratioFields.includes(key)) {
+                    // 지분율 필드: % → 소수 변환, 빈 값은 null
+                    if (value !== '' && value !== null && value !== undefined) {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                            projectData[key] = numValue / 100;
+                        }
+                    } else {
+                        projectData[key] = null;
+                    }
+                } else if (value !== '' && value !== null && value !== undefined) {
+                    if (['number', 'contractYear', 'totalBudget', 'budget', 'krcBudget', 'budgetUsd', 'krcBudgetUsd', 'latitude', 'longitude'].includes(key)) {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                            projectData[key] = numValue;
+                        }
+                    } else if (key === 'krcShareRatio') {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                            projectData[key] = numValue / 100;
+                        }
+                    } else {
+                        projectData[key] = value.trim();
+                    }
+                }
+            });
+
+            try {
+                let data;
+                if (editingProjectId) {
+                    data = await API.consulting.update(editingProjectId, projectData);
+                } else {
+                    data = await API.consulting.create(projectData);
+                }
+
+                if (data.success) {
+                    // 라이프사이클 정보 저장 (수정 모드에서만)
+                    if (editingProjectId) {
+                        const allStageKeys = ['eoi', 'proposal', 'contract', 'completion'];
+                        const lifecycleItem = { consultingProjectId: editingProjectId };
+                        allStageKeys.forEach(key => {
+                            const dateEl = document.getElementById(`lc_date_${key}`);
+                            const completedEl = document.getElementById(`lc_completed_${key}`);
+                            const progressEl = document.getElementById(`lc_progress_${key}`);
+                            if (dateEl) {
+                                const camelKey = key.charAt(0).toUpperCase() + key.slice(1);
+                                lifecycleItem[`${key}Date`] = dateEl.value.trim() || null;
+                                lifecycleItem[`${key}Completed`] = completedEl ? completedEl.checked : false;
+                                lifecycleItem[`${key}Progress`] = progressEl ? progressEl.checked : false;
+                            }
+                        });
+                        try {
+                            await API.put('/consulting/lifecycle/bulk', { items: [lifecycleItem] });
+                        } catch (lcErr) {
+                            console.warn('라이프사이클 저장 실패:', lcErr);
+                        }
+                    }
+
+                    Toast.success(data.message || '저장되었습니다.');
+                    closeProjectModal();
+                    loadProjects(currentPage);
+                    loadStats();
+                } else {
+                    const errorMsg = data.errors ? data.errors.join('\n') : (data.message || '저장에 실패했습니다.');
+                    Toast.error(errorMsg);
+                }
+            } catch (error) {
+                console.error('저장 오류:', error);
+                Toast.error('저장 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'));
+            }
+        }
+
+        // 프로젝트 삭제
+        async function deleteProject(id, title) {
+            if (!confirm(`"${title}" 프로젝트를 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+                return;
+            }
+
+            try {
+                const data = await API.consulting.delete(id);
+
+                if (data.success) {
+                    Toast.success(data.message || '삭제되었습니다.');
+                    loadProjects(currentPage);
+                    loadStats();
+                } else {
+                    Toast.error(data.message || '삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('삭제 오류:', error);
+                Toast.error('삭제 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'));
+            }
+        }
+
+        // ============================================================
+        // 사업 라이프사이클 기능
+        // ============================================================
+
+        let lifecycleEditMode = false;
+        let lifecycleData = []; // 현재 페이지 데이터 캐시 (편집 모드용)
+
+        // 단계 라벨 매핑
+        const STAGE_LABELS = {
+            'eoi': 'EOI제출',
+            'proposal': '제안서제출',
+            'contract': '계약',
+            'completion': '준공'
+        };
+
+        // 사업형태 배지 HTML 생성
+        function createTypeBadgesHTML(item) {
+            const badges = [];
+            if (item.typeFeasibility) badges.push('<span class="type-badge type-badge-fs">F/S</span>');
+            if (item.typeMasterplan) badges.push('<span class="type-badge type-badge-mp">M/P</span>');
+            if (item.typeBasicDesign) badges.push('<span class="type-badge type-badge-bd">B/D</span>');
+            if (item.typeDetailedDesign) badges.push('<span class="type-badge type-badge-dd">D/D</span>');
+            if (item.typeConstruction) badges.push('<span class="type-badge type-badge-cs">C/S</span>');
+            if (item.typePmc) badges.push('<span class="type-badge type-badge-pmc">PMC</span>');
+            if (item.projectTypeEtc) badges.push(`<span class="type-badge type-badge-etc">${item.projectTypeEtc}</span>`);
+            return badges.length > 0 ? badges.join('') : `<span style="color:var(--color-neutral-400);font-size:12px;">${item.projectType || '-'}</span>`;
+        }
+
+        // 사업형태별 단계 구성 (체크박스 기반)
+        function getLifecycleStageKeys(item) {
+            return ['eoi', 'proposal', 'contract', 'completion'];
+        }
+
+        // 단계별 흑백 SVG 픽토그램 아이콘
+        const STAGE_ICONS = {
+            'eoi': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1.5" y="3.5" width="13" height="9" rx="1"/>
+                <polyline points="1.5,4.2 8,9.2 14.5,4.2"/>
+            </svg>`,
+            'proposal': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="1.5" width="10" height="13" rx="1"/>
+                <rect x="5.5" y="1" width="5" height="2" rx="0.5"/>
+                <line x1="5.5" y1="6.5" x2="10.5" y2="6.5"/>
+                <line x1="5.5" y1="9" x2="10.5" y2="9"/>
+                <line x1="5.5" y1="11.5" x2="8.5" y2="11.5"/>
+            </svg>`,
+            'contract': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 2H3.5A1 1 0 003 3v10a1 1 0 001 1h8a1 1 0 001-1V6.5L9 2z"/>
+                <path d="M9 2v4.5h4"/>
+                <polyline points="5.5,9.5 7,11 10.5,7.5"/>
+            </svg>`,
+            'completion': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8" cy="6.5" r="4"/>
+                <polyline points="5.5,6.5 7,8 10.5,5"/>
+                <path d="M5.5 10L4.5 14.5L8 13L11.5 14.5L10.5 10"/>
+            </svg>`
+        };
+
+        // 파이프라인 HTML 생성
+        function createLifecyclePipelineHTML(stages) {
+            // completed 계열 판별 헬퍼
+            const isCompleted = (s) => s === 'completed' || s === 'completed-nodata';
+
+            let html = '<div class="pipeline-stepper">';
+            stages.forEach((stage, i) => {
+                const hasError = stage.dateError;
+                const errorClass = hasError ? ' date-error' : '';
+
+                const projectId = stage._projectId;
+                const stageKey = stage.key;
+                const hasFile = !!(stage.hasFile && stage.fileId);
+                const hasDate = !!stage.date;
+                const svgIcon = STAGE_ICONS[stageKey] || '';
+
+                // 아이콘 클래스: 날짜오류 > 진행중 > 파일/날짜 조합
+                let iconClass;
+                if (hasError) {
+                    iconClass = 'date-error';
+                } else if (stage.status === 'in-progress') {
+                    iconClass = 'in-progress';
+                } else {
+                    iconClass = (hasFile ? 'has-file' : 'no-file') + ' ' + (hasDate ? 'has-date' : 'no-date');
+                }
+
+                // step 클래스 (라벨/날짜 색상용)
+                const stepClass = hasError ? 'date-error' : stage.status;
+
+                html += `<div class="pipeline-step ${stepClass}${errorClass}" style="position:relative;">`;
+                html += `<div class="pipeline-date">${stage.status === 'in-progress' ? '진행중' : (stage.date || '')}</div>`;
+                html += `<div class="pipeline-dot-wrap" style="position:relative;">`;
+                html += `<div class="pipeline-icon ${iconClass}" onclick="openStageDropdown(event,${projectId},'${stageKey}',this)">${svgIcon}</div>`;
+                html += `</div>`;
+                html += `<div class="pipeline-label">${stage.label}</div>`;
+                html += '</div>';
+
+                // 라인 (마지막 단계 제외)
+                if (i < stages.length - 1) {
+                    const cur = stage.status;
+                    const next = stages[i + 1].status;
+                    const nextError = stages[i + 1].dateError;
+                    let lineClass = '';
+                    if (nextError) {
+                        lineClass = 'date-error';
+                    } else if (isCompleted(cur) && (isCompleted(next) || next === 'in-progress')) {
+                        lineClass = (cur === 'completed-nodata' && next === 'completed-nodata') ? 'completed-nodata' : 'completed';
+                    } else if (isCompleted(cur) && next === 'pending') {
+                        lineClass = 'half';
+                    } else if (cur === 'in-progress') {
+                        lineClass = 'half';
+                    }
+                    html += `<div class="pipeline-line ${lineClass}"></div>`;
+                }
+            });
+            html += '</div>';
+            return html;
+        }
+
+
+        // 라이프사이클 단계 파일 다운로드/미리보기
+        function downloadLifecycleFile(event, projectId, stage, fileName) {
+            event.stopPropagation();
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token') || '';
+            const url = `${API.BASE_URL}/consulting/${projectId}/lifecycle/${stage}/file`;
+            const isPdf = fileName.toLowerCase().endsWith('.pdf');
+
+            if (isPdf) {
+                // PDF: Bearer 토큰이 필요하므로 fetch → blob → 새 탭
+                fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+                    .then(r => {
+                        if (!r.ok) throw new Error('파일을 찾을 수 없습니다.');
+                        return r.blob();
+                    })
+                    .then(blob => {
+                        const blobUrl = URL.createObjectURL(blob);
+                        window.open(blobUrl, '_blank');
+                    })
+                    .catch(e => Toast.error(e.message || '파일 미리보기에 실패했습니다.'));
+            } else {
+                // 그 외: fetch → blob → anchor download
+                fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+                    .then(r => {
+                        if (!r.ok) throw new Error('파일을 찾을 수 없습니다.');
+                        return r.blob();
+                    })
+                    .then(blob => {
+                        const blobUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = blobUrl;
+                        a.download = fileName;
+                        a.click();
+                        URL.revokeObjectURL(blobUrl);
+                    })
+                    .catch(e => Toast.error(e.message || '파일 다운로드에 실패했습니다.'));
+            }
+        }
+
+
+        // 편집 모드 토글 (인라인 행 교체 방식)
+        function toggleLifecycleEditMode() {
+            lifecycleEditMode = !lifecycleEditMode;
+            const editBtn = document.getElementById('lifecycleEditBtn');
+            const saveBtn = document.getElementById('lifecycleSaveBtn');
+
+            if (lifecycleEditMode) {
+                editBtn.classList.add('active');
+                editBtn.textContent = '편집 취소';
+                saveBtn.style.display = 'inline-block';
+                // 모든 lifecycle-row를 편집 입력 필드로 교체
+                document.querySelectorAll('#projectsTableBody .lifecycle-row').forEach(el => {
+                    const projectId = parseInt(el.dataset.projectId);
+                    const item = lifecycleData.find(d => d.id === projectId) || {};
+                    const stageKeys = getLifecycleStageKeys(item);
+                    el.innerHTML = createInlineEditHTML(item, stageKeys);
+                });
+            } else {
+                editBtn.classList.remove('active');
+                editBtn.textContent = '라이프사이클 편집';
+                saveBtn.style.display = 'none';
+                // 파이프라인 뷰 복원
+                document.querySelectorAll('#projectsTableBody .lifecycle-row').forEach(el => {
+                    const projectId = parseInt(el.dataset.projectId);
+                    const item = lifecycleData.find(d => d.id === projectId) || {};
+                    const pipelineHtml = (item.stages && item.stages.length > 0)
+                        ? createLifecyclePipelineHTML(item.stages)
+                        : '<span style="font-size:12px;color:var(--color-neutral-400);">라이프사이클 정보 없음</span>';
+                    el.innerHTML = pipelineHtml;
+                });
+            }
+        }
+
+        // 인라인 편집 HTML 생성
+        function createInlineEditHTML(item, stageKeys) {
+            const stageMap = {};
+            (item.stages || []).forEach(s => { stageMap[s.key] = s; });
+            let html = '<div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;padding:4px 0;">';
+            stageKeys.forEach(key => {
+                const stage = stageMap[key] || {};
+                const dateVal = stage.date || '';
+                const isProgress = stage.status === 'in-progress';
+                html += `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:78px;">
+                    <div style="font-size:10px;font-weight:600;color:var(--color-neutral-600);white-space:nowrap;">${STAGE_LABELS[key]}</div>
+                    <input type="text" name="${key}Date" value="${dateVal}" placeholder="YYYY.MM"
+                        style="width:75px;padding:3px 4px;border:1px solid var(--color-neutral-300);border-radius:3px;font-size:11px;text-align:center;">
+                    <label style="font-size:10px;display:flex;align-items:center;gap:2px;cursor:pointer;">
+                        <input type="checkbox" name="${key}Progress" ${isProgress ? 'checked' : ''}> 진행중
+                    </label>
+                </div>`;
+            });
+            html += '</div>';
+            return html;
+        }
+
+
+        // 편집 데이터 일괄 저장 (인라인 행에서 읽기)
+        async function saveLifecycleBulk() {
+            const rows = document.querySelectorAll('#projectsTableBody .lifecycle-row[data-project-id]');
+            const items = [];
+
+            rows.forEach(row => {
+                const projectId = parseInt(row.dataset.projectId);
+                const item = { consultingProjectId: projectId };
+                const allStageKeys = ['eoi', 'proposal', 'contract', 'completion'];
+                allStageKeys.forEach(key => {
+                    const dateInput = row.querySelector(`input[name="${key}Date"]`);
+                    const progressInput = row.querySelector(`input[name="${key}Progress"]`);
+                    if (dateInput) {
+                        item[`${key}Date`] = dateInput.value;
+                        item[`${key}Completed`] = !!dateInput.value;
+                        item[`${key}Progress`] = progressInput ? progressInput.checked : false;
+                    }
+                });
+                items.push(item);
+            });
+
+            try {
+                const res = await API.put('/consulting/lifecycle/bulk', { items });
+                if (res.success) {
+                    Toast.success('라이프사이클이 저장되었습니다.');
+                    lifecycleEditMode = false;
+                    document.getElementById('lifecycleEditBtn').classList.remove('active');
+                    document.getElementById('lifecycleEditBtn').textContent = '라이프사이클 편집';
+                    document.getElementById('lifecycleSaveBtn').style.display = 'none';
+                    await loadProjects(currentPage);
+                } else {
+                    Toast.error(res.message || '저장에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('라이프사이클 저장 오류:', error);
+                Toast.error('저장 중 오류가 발생했습니다.');
+            }
+        }
+
+
+        // 관리자 편집 버튼 표시/숨김
+        function checkLifecycleEditPermission() {
+            try {
+                const user = JSON.parse(localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user') || '{}');
+                const editBtn = document.getElementById('lifecycleEditBtn');
+                if (editBtn) {
+                    editBtn.style.display = (user.role === 'admin' || user.role === 'manager') ? 'inline-block' : 'none';
+                }
+            } catch (e) {}
+        }
+
+        // Excel 다운로드
+        async function exportToExcel() {
+            try {
+                const blob = await API.consulting.export(currentFilters);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `해외기술용역_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                Toast.success('Excel 파일이 다운로드되었습니다.');
+            } catch (error) {
+                console.error('Excel 다운로드 오류:', error);
+                Toast.error('Excel 다운로드에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+            }
+        }
+
+
+        // ============================================================
+        // 단계 드롭다운 패널 (pipeline dot 클릭 시 관련 문서 표시)
+        // ============================================================
+
+        let _activeDropdownPanel = null;
+
+        function closeAllDropdowns() {
+            if (_activeDropdownPanel) {
+                _activeDropdownPanel.remove();
+                _activeDropdownPanel = null;
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            if (_activeDropdownPanel && !_activeDropdownPanel.contains(e.target)) {
+                closeAllDropdowns();
+            }
+        });
+
+        async function openStageDropdown(event, projectId, stageKey, dotEl) {
+            event.stopPropagation();
+            closeAllDropdowns();
+
+            const panel = document.createElement('div');
+            panel.className = 'stage-dropdown-panel';
+            panel.innerHTML = `<div class="sdp-header">${STAGE_LABELS[stageKey] || stageKey}</div><div class="sdp-loading">불러오는 중...</div>`;
+            document.body.appendChild(panel);
+            _activeDropdownPanel = panel;
+
+            // 위치 계산
+            const rect = dotEl.getBoundingClientRect();
+            let top = rect.bottom + 6;
+            let left = rect.left - 90;
+            if (left + 300 > window.innerWidth) left = window.innerWidth - 310;
+            if (left < 4) left = 4;
+            if (top + 200 > window.innerHeight) top = rect.top - 210;
+            panel.style.top = top + 'px';
+            panel.style.left = left + 'px';
+
+            try {
+                const res = await API.get(`/consulting/${projectId}/stage-docs`);
+                if (res.success) {
+                    updateDropdownContent(panel, stageKey, res.data, projectId);
+                } else {
+                    panel.querySelector('.sdp-loading').textContent = '문서를 불러오지 못했습니다.';
+                }
+            } catch (e) {
+                panel.querySelector('.sdp-loading').textContent = '오류가 발생했습니다.';
+            }
+        }
+
+        function updateDropdownContent(panel, stageKey, data, projectId) {
+            const stageData = data[stageKey] || {};
+            let items = [];
+
+            if (stageKey === 'eoi') {
+                if (stageData.eoiFile) {
+                    const f = stageData.eoiFile;
+                    items.push({ icon: '📄', name: `EOI 제출서 (${f.submissionDate || ''})`, action: f.hasFile ? () => downloadFile(`/bidding/eoi/${f.eoiId}/download`, f.fileName) : null });
+                }
+            } else if (stageKey === 'proposal') {
+                if (stageData.technical) {
+                    const t = stageData.technical;
+                    items.push({ icon: '📄', name: `기술제안서 (${t.fileName || '-'})`, action: t.hasFile ? () => downloadFile(`/proposals/${t.proposalId}/download?type=technical`, t.fileName) : null });
+                }
+                if (stageData.price) {
+                    const p = stageData.price;
+                    const action = p.hasFile
+                        ? (p.hasPassword
+                            ? () => promptPasswordAndDownload(p.proposalId, p.fileName)
+                            : () => downloadFile(`/proposals/${p.proposalId}/download?type=price`, p.fileName))
+                        : null;
+                    items.push({ icon: '💰', name: `가격제안서 (${p.fileName || '-'})${p.hasPassword ? ' 🔒' : ''}`, action });
+                }
+            } else if (stageKey === 'contract') {
+                const contracts = stageData.items || [];
+                if (contracts.length === 0) {
+                    items.push({ icon: '📄', name: '등록된 계약서 없음', action: null });
+                } else {
+                    contracts.forEach(c => {
+                        items.push({ icon: '📄', name: `${c.orderNumber}차 계약서 (${c.description || c.fileName || '-'})`, action: c.fileName ? () => downloadFile(`/contracts/${c.id}/download`, c.fileName) : null });
+                    });
+                }
+            } else if (stageKey === 'completion') {
+                const reports = stageData.finalReports || [];
+                if (reports.length > 0) {
+                    reports.forEach(r => {
+                        items.push({ icon: '📋', name: `최종보고서 (${r.fileName || '-'})`, action: r.fileName ? () => downloadFile(`/contracts/${r.contractId}/download`, r.fileName) : null });
+                    });
+                } else {
+                    items.push({ icon: '📂', name: '등록된 문서 없음', action: null });
+                }
+            } else {
+                items.push({ icon: 'ℹ️', name: '연결된 문서 없음', action: null });
+            }
+
+            let html = `<div class="sdp-header">${STAGE_LABELS[stageKey] || stageKey}</div>`;
+            if (items.length === 0) {
+                html += '<div class="sdp-empty">연결된 문서 없음</div>';
+            } else {
+                items.forEach(item => {
+                    const clickable = item.action ? 'sdp-item' : 'sdp-item';
+                    const style = item.action ? '' : 'style="cursor:default;color:var(--color-neutral-400);"';
+                    html += `<div class="${clickable}" ${style} data-has-action="${!!item.action}">
+                        <span class="sdp-icon">${item.icon}</span>
+                        <span class="sdp-name" title="${(item.name || '').replace(/"/g, '&quot;')}">${item.name}</span>
+                    </div>`;
+                });
+            }
+            panel.innerHTML = html;
+
+            // 이벤트 바인딩
+            const divs = panel.querySelectorAll('.sdp-item[data-has-action="true"]');
+            divs.forEach((div, idx) => {
+                const actionItem = items.filter(i => i.action)[idx];
+                if (actionItem && actionItem.action) {
+                    div.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        closeAllDropdowns();
+                        actionItem.action();
+                    });
+                }
+            });
+        }
+
+        function downloadFile(apiPath, fileName) {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token') || '';
+            const url = `${API.BASE_URL}${apiPath}`;
+            const isPdf = (fileName || '').toLowerCase().endsWith('.pdf');
+
+            fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+                .then(r => {
+                    if (!r.ok) return r.json().then(d => { throw new Error(d.message || '다운로드 실패'); });
+                    return r.blob();
+                })
+                .then(blob => {
+                    const blobUrl = URL.createObjectURL(blob);
+                    if (isPdf) {
+                        window.open(blobUrl, '_blank');
+                    } else {
+                        const a = document.createElement('a');
+                        a.href = blobUrl;
+                        a.download = fileName || 'download';
+                        a.click();
+                        URL.revokeObjectURL(blobUrl);
+                    }
+                })
+                .catch(e => Toast.error(e.message || '파일 다운로드에 실패했습니다.'));
+        }
+
+        async function promptPasswordAndDownload(proposalId, fileName) {
+            const password = window.prompt('가격제안서 비밀번호를 입력하세요:');
+            if (password === null) return; // 취소
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token') || '';
+            const url = `${API.BASE_URL}/proposals/${proposalId}/download?type=price&password=${encodeURIComponent(password)}`;
+
+            try {
+                const r = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!r.ok) {
+                    const d = await r.json();
+                    Toast.error(d.message || '비밀번호가 틀렸습니다.');
+                    return;
+                }
+                const blob = await r.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const isPdf = (fileName || '').toLowerCase().endsWith('.pdf');
+                if (isPdf) {
+                    window.open(blobUrl, '_blank');
+                } else {
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = fileName || 'download';
+                    a.click();
+                    URL.revokeObjectURL(blobUrl);
+                }
+            } catch (e) {
+                Toast.error('파일 다운로드에 실패했습니다.');
+            }
+        }
+    </script>
+</body>
+
+</html>

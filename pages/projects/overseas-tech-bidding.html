@@ -1,0 +1,3124 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOR/RFP·제안서 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <style>
+        /* 중첩 서브메뉴 스타일 */
+        .submenu-nested {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested li a {
+            font-size: 13px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .submenu-nested li a.active {
+            background: transparent;
+            color: var(--color-primary-600);
+            font-weight: 700;
+        }
+
+        .submenu-toggle {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        /* Level 4 중첩 서브메뉴 스타일 */
+        .submenu-nested-level4 {
+            list-style: none;
+            padding-left: 16px;
+            margin-top: 4px;
+        }
+
+        .submenu-nested-level4 li a {
+            font-size: 12px;
+            padding: 6px 12px;
+            display: block;
+            color: var(--color-neutral-600);
+            border-radius: 4px;
+        }
+
+        .submenu-nested-level4 li a:hover {
+            background: var(--color-neutral-100);
+        }
+
+        /* 통합 수정 모달 스타일 */
+        .unified-edit-section {
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .unified-edit-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--color-neutral-50);
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+        .unified-edit-section-header h4 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-neutral-800);
+        }
+        .unified-edit-section-body {
+            padding: 12px 16px;
+        }
+        .unified-edit-file-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--color-neutral-50);
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        .unified-edit-file-name {
+            font-size: 13px;
+            color: var(--color-neutral-700);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .unified-edit-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .unified-edit-empty {
+            color: var(--color-neutral-400);
+            font-size: 13px;
+            padding: 8px 0;
+        }
+        .badge-section {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-has { background: #E8F5E9; color: #2E7D32; }
+        .badge-empty { background: #FFF3E0; color: #E65100; }
+
+        /* 제안정보 테이블 스타일 */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .info-table th, .info-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--color-neutral-200);
+            font-size: 14px;
+        }
+        .info-table th {
+            text-align: left;
+            width: 120px;
+            background: var(--color-neutral-50);
+            color: var(--color-neutral-600);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .info-table td {
+            color: var(--color-neutral-800);
+        }
+
+        /* 사용자 드롭다운 스타일 */
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .user-menu-button:hover {
+            background: var(--color-neutral-100);
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 280px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+
+        .user-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .user-dropdown-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .user-dropdown-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .user-dropdown-info {
+            flex: 1;
+        }
+
+        .user-dropdown-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--color-neutral-900);
+        }
+
+        .user-dropdown-role {
+            font-size: 12px;
+            color: var(--color-primary-600);
+            font-weight: 500;
+        }
+
+        .user-dropdown-dept {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+        }
+
+        .user-dropdown-divider {
+            height: 1px;
+            background: var(--color-neutral-200);
+            margin: 0 16px;
+        }
+
+        .user-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .user-dropdown-item:hover {
+            background: var(--color-neutral-100);
+        }
+        /* 통계 카드 */
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--color-neutral-0);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stat-card .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-primary-600);
+        }
+
+        .stat-card .stat-label {
+            font-size: 13px;
+            color: var(--color-neutral-600);
+            margin-top: 4px;
+        }
+
+        /* 필터 바 */
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .filter-bar select,
+        .filter-bar input {
+            padding: 8px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        /* 데이터 테이블 */
+        .data-table {
+            width: 100%;
+            table-layout: auto;
+        }
+
+        .data-table th,
+        .data-table td {
+            vertical-align: middle;
+            padding: 12px 8px;
+        }
+
+        .data-table td:nth-child(2) {
+            text-align: left;
+        }
+
+        /* 결과 배지 */
+        .badge-selected {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #10B981;
+            color: #fff;
+        }
+
+        .badge-rejected {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #EF4444;
+            color: #fff;
+        }
+
+        .badge-pending {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #F59E0B;
+            color: #fff;
+        }
+
+        /* 모달 스타일 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100000;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--color-neutral-0);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--color-neutral-500);
+        }
+
+        .modal-close:hover {
+            color: var(--color-neutral-700);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 24px;
+            border-top: 1px solid var(--color-neutral-200);
+        }
+
+        /* 폼 스타일 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--color-neutral-700);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* 파일 업로드 영역 */
+        .file-upload-area {
+            border: 2px dashed var(--color-neutral-300);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-upload-area:hover {
+            border-color: var(--color-primary-500);
+            background: var(--color-primary-50);
+        }
+
+        .file-upload-area.has-file {
+            border-color: var(--color-success-500);
+            background: var(--color-success-50);
+        }
+
+        .file-upload-area.has-file div {
+            color: var(--color-success-600);
+            font-weight: 600;
+        }
+
+        /* 검색 가능한 선택 드롭다운 */
+        .searchable-select {
+            position: relative;
+            width: 100%;
+        }
+
+        .searchable-select-trigger {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--color-neutral-0);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .searchable-select-trigger:hover {
+            border-color: var(--color-primary-500);
+        }
+
+        .searchable-select-trigger.active {
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px rgba(26, 75, 124, 0.1);
+        }
+
+        .searchable-select-trigger .arrow {
+            transition: transform 0.2s;
+        }
+
+        .searchable-select-trigger.active .arrow {
+            transform: rotate(180deg);
+        }
+
+        .searchable-select-dropdown {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1100;
+            max-height: 300px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .searchable-select-dropdown.show {
+            display: block;
+        }
+
+        .searchable-select-search {
+            padding: 8px;
+            border-bottom: 1px solid var(--color-neutral-200);
+        }
+
+        .searchable-select-search input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .searchable-select-search input:focus {
+            outline: none;
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px rgba(26, 75, 124, 0.1);
+        }
+
+        .searchable-select-options {
+            max-height: 240px;
+            overflow-y: auto;
+        }
+
+        .searchable-select-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .searchable-select-option:hover {
+            background: var(--color-primary-50);
+        }
+
+        .searchable-select-option.selected {
+            background: var(--color-primary-100);
+            color: var(--color-primary-700);
+            font-weight: 600;
+        }
+
+        .searchable-select-option .option-main {
+            font-weight: 500;
+            color: var(--color-neutral-800);
+        }
+
+        .searchable-select-option .option-sub {
+            font-size: 12px;
+            color: var(--color-neutral-600);
+            margin-top: 2px;
+        }
+
+        .searchable-select-option.no-results {
+            text-align: center;
+            color: var(--color-neutral-500);
+            cursor: default;
+        }
+
+        .searchable-select-option.no-results:hover {
+            background: transparent;
+        }
+
+        /* 등록 드롭다운 - position: fixed로 사이드바 위에 표시 */
+        .register-dropdown-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .register-dropdown-menu {
+            position: fixed;
+            min-width: 180px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            z-index: 99999;
+            display: none;
+        }
+
+        .register-dropdown-menu.show {
+            display: block;
+        }
+
+        .register-dropdown-menu a {
+            display: block;
+            padding: 10px 16px;
+            color: var(--color-neutral-700);
+            text-decoration: none;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .register-dropdown-menu a:first-child {
+            border-radius: 8px 8px 0 0;
+        }
+
+        .register-dropdown-menu a:last-child {
+            border-radius: 0 0 8px 8px;
+        }
+
+        .register-dropdown-menu a:hover {
+            background: var(--color-primary-50);
+            color: var(--color-primary-700);
+        }
+
+        /* 사업상태 배지 */
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .status-ongoing  { background: var(--color-success-100); color: var(--color-success-700); }
+        .status-completed { background: #FCE4EC; color: #8B4049; }
+        .status-proposal  { background: #FFF3E0; color: #F57C00; }
+        .status-eoi       { background: #F3E5F5; color: #7B1FA2; }
+
+        /* 파일 버튼 */
+        .btn-file-preview {
+            padding: 4px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: 1px solid var(--color-primary-500);
+            background: transparent;
+            color: var(--color-primary-600);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-file-preview:hover {
+            background: var(--color-primary-50);
+        }
+
+        .btn-file-download {
+            padding: 4px 10px;
+            font-size: 12px;
+            border-radius: 4px;
+            border: 1px solid var(--color-success-500);
+            background: transparent;
+            color: var(--color-success-600);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-file-download:hover {
+            background: var(--color-success-50);
+        }
+
+        /* 페이지네이션 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <a href="../../dashboard.html" style="text-decoration: none;">
+                <h1 class="app-title">
+                    <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                    <span style="font-size: 20px;"><span
+                            style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+                </h1>
+            </a>
+        </div>
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-role" id="dropdownRole">관리자</div>
+                            <div class="user-dropdown-dept" id="dropdownDept">글로벌사업처</div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../admin/users.html" class="user-dropdown-item" id="adminLink" style="display: none;"><span>⚙️</span> 관리자 설정</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link active" aria-expanded="true">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu" style="display: block;">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="../expansion/company-management.html">기업관리</a></li>
+                                <li><a href="../expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4" style="display: block;">
+                                        <li><a href="../expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="../expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="../expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="../expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="../expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="../expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="../expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외기술용역 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="overseas-tech.html">사업현황</a></li>
+                                <li><a href="overseas-tech-proposals.html">제안서관리</a></li>
+                                <li><a href="overseas-tech-tor-rfp.html">TOR/RFP</a></li>
+                                <li><a href="overseas-tech-bidding.html">입찰관리</a></li>
+                                <li><a href="overseas-tech-contracts.html">계약관리</a></li>
+                                <li><a href="overseas-tech-performance.html">실적관리</a></li>
+                                <li><a href="overseas-tech-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested" style="display: block;">
+                                <li><a href="international-cooperation.html">사업현황</a></li>
+                                <li><a href="oda-reports.html">보고서관리</a></li>
+                                <li><a href="intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../../pages/gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path
+                                d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+
+                <!-- Admin Only Menu -->
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="app-main" id="main-content">
+        <div class="page-header">
+            <div>
+                <h2 class="page-title">TOR/RFP·제안서</h2>
+                <p class="page-desc">해외기술용역 TOR/RFP 및 제안서 현황을 통합 관리합니다.</p>
+            </div>
+            <div class="register-dropdown-wrapper" id="registerBtnWrapper" style="display: none;">
+                <button class="btn btn-primary" onclick="toggleRegisterDropdown()">
+                    <span>+</span> 등록 ▾
+                </button>
+                <div class="register-dropdown-menu" id="registerDropdownMenu">
+                    <a href="#" onclick="openTorRfpModal(); closeRegisterDropdown(); return false;">TOR/RFP 등록</a>
+                    <a href="#" onclick="openProposalModal(); closeRegisterDropdown(); return false;">제안서 등록</a>
+                    <a href="#" onclick="openEoiModal(); closeRegisterDropdown(); return false;">EOI 등록</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 통계 카드 -->
+        <div class="stats-cards">
+            <div class="stat-card">
+                <div class="stat-value" id="eoiCount" style="color: #EC4899;">0</div>
+                <div class="stat-label">EOI 제출</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="torCount" style="color: #3B82F6;">0</div>
+                <div class="stat-label">TOR 등록</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="rfpCount" style="color: #10B981;">0</div>
+                <div class="stat-label">RFP 등록</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalProposals" style="color: #8B5CF6;">0</div>
+                <div class="stat-label">제안서 제출</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="selected" style="color: #10B981;">0</div>
+                <div class="stat-label">선정</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="successRate" style="color: #F59E0B;">0%</div>
+                <div class="stat-label">선정율</div>
+            </div>
+        </div>
+
+        <!-- 필터 -->
+        <div class="card">
+            <div class="filter-bar">
+                <select id="filterCountry">
+                    <option value="">전체 국가</option>
+                </select>
+                <select id="filterResult">
+                    <option value="">전체 결과</option>
+                    <option value="선정">선정</option>
+                    <option value="탈락">탈락</option>
+                    <option value="심사중">심사중</option>
+                </select>
+                <select id="filterYear">
+                    <option value="">전체 연도</option>
+                </select>
+                <input type="text" id="filterSearch" placeholder="검색어 입력..." style="width: 200px;"
+                    onkeypress="if(event.key === 'Enter') loadData()">
+                <button class="btn btn-secondary" onclick="loadData()">검색</button>
+                <button class="btn btn-outline" onclick="resetFilters()">초기화</button>
+            </div>
+
+            <!-- 테이블 -->
+            <div class="table-container" style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px; text-align: center;">No</th>
+                            <th style="min-width: 200px; text-align: left;">사업명</th>
+                            <th style="width: 80px; text-align: center;">상태</th>
+                            <th style="width: 90px; text-align: center;">국가</th>
+                            <th style="width: 120px; text-align: center;">발주처</th>
+                            <th style="width: 80px; text-align: center;">EOI</th>
+                            <th style="width: 80px; text-align: center;">TOR</th>
+                            <th style="width: 80px; text-align: center;">RFP</th>
+                            <th style="width: 110px; text-align: center;">기술제안서</th>
+                            <th style="width: 110px; text-align: center;">가격제안서</th>
+                            <th style="width: 80px; text-align: center;">제안정보</th>
+                            <th style="width: 80px; text-align: center;">결과</th>
+                            <th style="width: 130px; text-align: center;" id="actionColHeader">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTableBody">
+                        <tr>
+                            <td colspan="12" style="text-align: center; padding: 40px;">
+                                데이터를 불러오는 중...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 페이지네이션 -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </main>
+
+    <!-- TOR/RFP 등록 모달 -->
+    <div class="modal-overlay" id="torRfpModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="torRfpModalTitle">TOR/RFP 등록</h3>
+                <button class="modal-close" onclick="closeTorRfpModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="torRfpForm" onsubmit="saveTorRfp(event); return false;">
+                    <input type="hidden" id="torRfpId">
+
+                    <div class="form-group">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <label style="margin-bottom: 0;">사업 선택 <span style="color: red;">*</span></label>
+                            <label style="display: inline-flex; align-items: center; cursor: pointer; font-size: 13px; color: #666; white-space: nowrap; margin-bottom: 0;">
+                                <input type="checkbox" id="torRfpDirectInputToggle" onchange="toggleTorRfpInputMode()" style="margin-right: 6px; width: auto;">
+                                직접 입력 (목록에 없는 사업)
+                            </label>
+                        </div>
+                        <!-- 목록 선택 모드 -->
+                        <div class="searchable-select" id="torRfpProjectSelectContainer">
+                            <div class="searchable-select-trigger" id="torRfpProjectTrigger" onclick="openTorRfpProjectDropdown()">
+                                <span id="torRfpProjectText">사업을 선택하세요</span>
+                                <span class="arrow">&#9660;</span>
+                            </div>
+                            <div class="searchable-select-dropdown" id="torRfpProjectDropdown">
+                                <div class="searchable-select-search">
+                                    <input type="text" id="torRfpProjectSearchInput" placeholder="사업명 또는 국가로 검색...">
+                                </div>
+                                <div class="searchable-select-options" id="torRfpProjectOptions"></div>
+                            </div>
+                        </div>
+                        <!-- 직접 입력 모드 -->
+                        <div id="torRfpDirectInputFields" style="display: none;">
+                            <input type="text" id="torRfpDirectTitle" placeholder="사업명을 직접 입력하세요" style="margin-bottom: 8px;">
+                            <input type="text" id="torRfpDirectCountry" placeholder="국가를 입력하세요">
+                        </div>
+                        <input type="hidden" id="torRfpProjectId">
+                    </div>
+
+                    <div class="form-group">
+                        <label>TOR 파일</label>
+                        <div class="file-upload-area" id="torFileUploadArea"
+                            onclick="document.getElementById('torFile').click()">
+                            <div id="torFileUploadText">클릭하여 TOR 파일 선택</div>
+                            <div style="font-size: 12px; color: var(--color-neutral-500); margin-top: 4px;">
+                                PDF, DOC, DOCX, HWP, ZIP (최대 500MB)</div>
+                        </div>
+                        <input type="file" id="torFile" style="display: none;"
+                            accept=".pdf,.doc,.docx,.hwp,.zip" onchange="handleTorRfpFileSelect(this, 'tor')">
+                    </div>
+
+                    <div class="form-group">
+                        <label>RFP 파일</label>
+                        <div class="file-upload-area" id="rfpFileUploadArea"
+                            onclick="document.getElementById('rfpFile').click()">
+                            <div id="rfpFileUploadText">클릭하여 RFP 파일 선택</div>
+                            <div style="font-size: 12px; color: var(--color-neutral-500); margin-top: 4px;">
+                                PDF, DOC, DOCX, HWP, ZIP (최대 500MB)</div>
+                        </div>
+                        <input type="file" id="rfpFile" style="display: none;"
+                            accept=".pdf,.doc,.docx,.hwp,.zip" onchange="handleTorRfpFileSelect(this, 'rfp')">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeTorRfpModal()">취소</button>
+                <button class="btn btn-primary" onclick="saveTorRfp(event)">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 제안서 등록/수정 모달 -->
+    <div class="modal-overlay" id="proposalModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3 id="proposalModalTitle">제안서 등록</h3>
+                <button class="modal-close" onclick="closeProposalModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="proposalForm">
+                    <input type="hidden" id="proposalId">
+                    <input type="hidden" id="consultingProjectId">
+
+                    <div class="form-group">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <label style="margin-bottom: 0;">사업명 <span style="color: red;">*</span></label>
+                            <label style="display: inline-flex; align-items: center; cursor: pointer; font-size: 13px; color: #666; white-space: nowrap; margin-bottom: 0;">
+                                <input type="checkbox" id="proposalDirectInputToggle" onchange="toggleProposalInputMode()" style="margin-right: 6px; width: auto;">
+                                직접 입력 (목록에 없는 사업)
+                            </label>
+                        </div>
+                        <!-- 목록 선택 모드 -->
+                        <div class="searchable-select" id="proposalProjectSelectContainer">
+                            <div class="searchable-select-trigger" id="proposalProjectTrigger" onclick="openProposalProjectDropdown()">
+                                <span id="proposalProjectText">사업을 선택하세요</span>
+                                <span class="arrow">&#9660;</span>
+                            </div>
+                            <div class="searchable-select-dropdown" id="proposalProjectDropdown">
+                                <div class="searchable-select-search">
+                                    <input type="text" id="proposalProjectSearchInput" placeholder="사업명 또는 국가로 검색...">
+                                </div>
+                                <div class="searchable-select-options" id="proposalProjectOptions"></div>
+                            </div>
+                        </div>
+                        <!-- 직접 입력 모드 -->
+                        <input type="text" id="proposalDirectTitle" placeholder="사업명을 직접 입력하세요" style="display: none;">
+                        <input type="hidden" id="proposalTitle" name="title" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="proposalCountry">대상국가</label>
+                            <input type="text" id="proposalCountry" name="country">
+                        </div>
+                        <div class="form-group">
+                            <label for="proposalClient">발주처</label>
+                            <input type="text" id="proposalClient" name="client">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="proposalSubmissionDate">제출일</label>
+                            <input type="date" id="proposalSubmissionDate" name="submissionDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="proposalBudget">제안예산 (백만원)</label>
+                            <input type="number" id="proposalBudget" name="budget" step="0.01">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="proposalPeriod">사업기간</label>
+                            <input type="text" id="proposalPeriod" name="projectPeriod"
+                                placeholder="예: 2024.01 ~ 2026.12">
+                        </div>
+                        <div class="form-group">
+                            <label for="proposalResult">결과</label>
+                            <select id="proposalResult" name="result">
+                                <option value="심사중">심사중</option>
+                                <option value="선정">선정</option>
+                                <option value="탈락">탈락</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="proposalResultDate">결과발표일</label>
+                        <input type="date" id="proposalResultDate" name="resultDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="proposalDescription">사업개요</label>
+                        <textarea id="proposalDescription" name="description" rows="3"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="proposalTeamMembers">참여인력</label>
+                        <textarea id="proposalTeamMembers" name="teamMembers" rows="2"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="proposalRemarks">비고</label>
+                        <textarea id="proposalRemarks" name="remarks" rows="2"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>기술제안서</label>
+                        <div class="file-upload-area" id="technicalFileUploadArea"
+                            onclick="document.getElementById('technicalFile').click()">
+                            <div id="technicalFileUploadText">클릭하여 파일 선택 (PDF 또는 ZIP)</div>
+                            <div style="font-size: 12px; color: var(--color-neutral-500); margin-top: 4px;">
+                                PDF 또는 ZIP 파일 업로드 가능 (최대 500MB)</div>
+                        </div>
+                        <input type="file" id="technicalFile" name="technicalFile" style="display: none;"
+                            accept=".pdf,.zip" onchange="handleProposalFileSelect(this, 'technical')">
+                    </div>
+
+                    <div class="form-group">
+                        <label>가격제안서</label>
+                        <div class="file-upload-area" id="priceFileUploadArea"
+                            onclick="document.getElementById('priceFile').click()">
+                            <div id="priceFileUploadText">클릭하여 파일 선택 (PDF, ZIP, Excel)</div>
+                            <div style="font-size: 12px; color: var(--color-neutral-500); margin-top: 4px;">
+                                PDF, ZIP, Excel 파일 업로드 가능 (최대 500MB)</div>
+                        </div>
+                        <input type="file" id="priceFile" name="priceFile" style="display: none;"
+                            accept=".pdf,.zip,.xlsx,.xls" onchange="handleProposalFileSelect(this, 'price')">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeProposalModal()">취소</button>
+                <button class="btn btn-primary" id="proposalSaveBtn" onclick="saveProposal()">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 비밀번호 입력 모달 -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>기술제안서 열람 비밀번호</h3>
+                <button class="modal-close" onclick="closePasswordModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--color-neutral-600); margin-bottom: 16px;">
+                    기술제안서는 개인정보가 포함되어 있습니다.<br>
+                    비밀번호를 입력해주세요.
+                </p>
+                <div class="form-group">
+                    <input type="password" id="technicalPassword" placeholder="비밀번호 입력"
+                        style="width: 100%; padding: 10px 12px; border: 1px solid var(--color-neutral-300); border-radius: 8px; font-size: 14px;"
+                        onkeypress="if(event.key === 'Enter') verifyPasswordAndProceed()">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closePasswordModal()">취소</button>
+                <button class="btn btn-primary" onclick="verifyPasswordAndProceed()">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EOI 등록 모달 -->
+    <div class="modal-overlay" id="eoiModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="eoiModalTitle">EOI 등록</h3>
+                <button class="modal-close" onclick="closeEoiModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="eoiForm" onsubmit="saveEoi(event); return false;">
+                    <input type="hidden" id="eoiId">
+                    <input type="hidden" id="eoiProjectId">
+
+                    <div class="form-group">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <label style="margin-bottom: 0;">사업 선택 <span style="color: red;">*</span></label>
+                            <label style="display: inline-flex; align-items: center; cursor: pointer; font-size: 13px; color: #666; white-space: nowrap; margin-bottom: 0;">
+                                <input type="checkbox" id="eoiDirectInputToggle" onchange="toggleEoiInputMode()" style="margin-right: 6px; width: auto;">
+                                직접 입력 (목록에 없는 사업)
+                            </label>
+                        </div>
+                        <!-- 목록 선택 모드 -->
+                        <div class="searchable-select" id="eoiProjectSelectContainer">
+                            <div class="searchable-select-trigger" id="eoiProjectTrigger" onclick="openEoiProjectDropdown()">
+                                <span id="eoiProjectText">사업을 선택하세요</span>
+                                <span class="arrow">&#9660;</span>
+                            </div>
+                            <div class="searchable-select-dropdown" id="eoiProjectDropdown">
+                                <div class="searchable-select-search">
+                                    <input type="text" id="eoiProjectSearchInput" placeholder="사업명 또는 국가로 검색...">
+                                </div>
+                                <div class="searchable-select-options" id="eoiProjectOptions"></div>
+                            </div>
+                        </div>
+                        <!-- 직접 입력 모드 -->
+                        <div id="eoiDirectInputFields" style="display: none;">
+                            <input type="text" id="eoiDirectTitle" placeholder="사업명을 직접 입력하세요" style="margin-bottom: 8px;">
+                            <input type="text" id="eoiDirectCountry" placeholder="국가를 입력하세요">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>EOI 파일</label>
+                        <div class="file-upload-area" id="eoiFileUploadArea"
+                            onclick="document.getElementById('eoiFile').click()">
+                            <div id="eoiFileUploadText">클릭하여 EOI 파일 선택</div>
+                            <div style="font-size: 12px; color: var(--color-neutral-500); margin-top: 4px;">
+                                PDF, DOC, DOCX, HWP, ZIP (최대 500MB)</div>
+                        </div>
+                        <input type="file" id="eoiFile" style="display: none;"
+                            accept=".pdf,.doc,.docx,.hwp,.zip" onchange="handleEoiFileSelect(this)">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeEoiModal()">취소</button>
+                <button class="btn btn-primary" onclick="saveEoi(event)">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 통합 수정 모달 -->
+    <div class="modal-overlay" id="unifiedEditModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3 id="unifiedEditTitle">문서 관리</h3>
+                <button class="modal-close" onclick="closeUnifiedEditModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 0;">
+                <div id="unifiedEditContent" style="padding: 20px;">
+                    <!-- 동적으로 채워짐 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeUnifiedEditModal()">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 제안정보 보기 모달 -->
+    <div class="modal-overlay" id="proposalInfoModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="proposalInfoTitle">제안정보</h3>
+                <button class="modal-close" onclick="closeProposalInfoModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <table class="info-table" id="proposalInfoTable">
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeProposalInfoModal()">닫기</button>
+                <button class="btn btn-primary" id="proposalInfoEditBtn" style="display: none;" onclick="editProposalFromInfo()">수정</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스크립트 -->
+    <script src="../../assets/js/api.js"></script>
+    <script src="../../assets/js/common.js"></script>
+    <script src="../../assets/js/components/toast.js"></script>
+    <script>
+        // ==================== 전역 변수 ====================
+        let currentPage = 1;
+        const perPage = 20;
+        let currentUserInfo = null;
+        let canEditTorRfp = false;
+        let canEditProposal = false;
+
+        // TOR/RFP 모달 프로젝트 목록
+        let torRfpProjectList = [];
+        // 제안서 모달 프로젝트 목록
+        let proposalProjectList = [];
+
+        // 비밀번호 검증 대기 액션
+        let pendingAction = null;
+
+        // ==================== 초기화 ====================
+        document.addEventListener('DOMContentLoaded', function () {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+
+            if (!token || !userInfo) {
+                window.location.href = '../../index.html';
+                return;
+            }
+
+            if (typeof checkPagePermission === 'function') {
+                if (!checkPagePermission('overseas_tech')) {
+                    return;
+                }
+            }
+
+            try {
+                currentUserInfo = JSON.parse(userInfo);
+
+                // TOR/RFP 권한: admin 또는 krcgisul
+                canEditTorRfp = (currentUserInfo.role === 'admin' || currentUserInfo.userId === 'krcgisul');
+
+                // 제안서 권한: hasWritePermission
+                canEditProposal = (typeof hasWritePermission === 'function') ? hasWritePermission('overseas_tech') : false;
+
+                // 등록 버튼 표시 (TOR/RFP 또는 제안서 권한 중 하나라도 있으면)
+                if (canEditTorRfp || canEditProposal) {
+                    document.getElementById('registerBtnWrapper').style.display = 'inline-block';
+                }
+
+                // 관리 컬럼 표시/숨김
+                if (!canEditTorRfp && !canEditProposal) {
+                    document.getElementById('actionColHeader').style.display = 'none';
+                }
+
+                // 관리자 메뉴/링크 표시
+                if (currentUserInfo.role === 'admin') {
+                    const adminMenu = document.getElementById('adminMenuUser');
+                    if (adminMenu) adminMenu.style.display = 'block';
+                    const adminLink = document.getElementById('adminLink');
+                    if (adminLink) adminLink.style.display = 'flex';
+                }
+            } catch (error) {
+                console.error('사용자 정보 파싱 오류:', error);
+            }
+
+            initCommonUI();
+            loadStats();
+            loadCountries();
+            loadYears();
+            loadData();
+
+            // 등록 드롭다운 외부 클릭 닫기
+            document.addEventListener('click', function (e) {
+                const wrapper = document.getElementById('registerBtnWrapper');
+                if (wrapper && !wrapper.contains(e.target)) {
+                    closeRegisterDropdown();
+                }
+            });
+        });
+
+        // ==================== 통계 로드 ====================
+        async function loadStats() {
+            try {
+                const response = await apiCall('/bidding/stats', 'GET');
+                if (response.success) {
+                    const d = response.data;
+                    document.getElementById('eoiCount').textContent = d.eoiCount || 0;
+                    document.getElementById('torCount').textContent = d.torCount || 0;
+                    document.getElementById('rfpCount').textContent = d.rfpCount || 0;
+                    document.getElementById('totalProposals').textContent = d.totalProposals || 0;
+                    document.getElementById('selected').textContent = d.selected || 0;
+                    document.getElementById('successRate').textContent = (d.successRate || 0) + '%';
+                }
+            } catch (error) {
+                console.error('통계 로드 실패:', error);
+            }
+        }
+
+        // ==================== 국가 목록 로드 ====================
+        async function loadCountries() {
+            try {
+                const response = await apiCall('/bidding/countries', 'GET');
+                if (response.success) {
+                    const select = document.getElementById('filterCountry');
+                    response.data.forEach(function (country) {
+                        const option = document.createElement('option');
+                        option.value = country;
+                        option.textContent = country;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('국가 목록 로드 실패:', error);
+            }
+        }
+
+        // ==================== 연도 목록 생성 ====================
+        function loadYears() {
+            const select = document.getElementById('filterYear');
+            const currentYear = new Date().getFullYear();
+            for (let year = currentYear; year >= 2010; year--) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year + '년';
+                select.appendChild(option);
+            }
+        }
+
+        // ==================== 데이터 로드 ====================
+        async function loadData(page) {
+            if (page) currentPage = page;
+
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px;">데이터를 불러오는 중...</td></tr>';
+
+            try {
+                const params = new URLSearchParams({
+                    page: currentPage,
+                    per_page: perPage
+                });
+
+                const country = document.getElementById('filterCountry').value;
+                const result = document.getElementById('filterResult').value;
+                const year = document.getElementById('filterYear').value;
+                const search = document.getElementById('filterSearch').value;
+
+                if (country) params.append('country', country);
+                if (result) params.append('result', result);
+                if (year) params.append('year', year);
+                if (search) params.append('search', search);
+
+                const response = await apiCall('/bidding?' + params.toString(), 'GET');
+
+                if (response.success) {
+                    renderTable(response.data, response.total);
+                    renderPagination(response.currentPage, response.pages);
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 40px; color: red;">데이터를 불러오는데 실패했습니다.</td></tr>';
+                }
+            } catch (error) {
+                console.error('데이터 로드 실패:', error);
+                tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 40px; color: red;">오류가 발생했습니다.</td></tr>';
+            }
+        }
+
+        // ==================== 테이블 렌더링 ====================
+        function renderTable(data, total) {
+            const tbody = document.getElementById('dataTableBody');
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" style="text-align: center; padding: 40px;">등록된 데이터가 없습니다.</td></tr>';
+                return;
+            }
+
+            const hasAnyEditPermission = canEditTorRfp || canEditProposal;
+
+            let html = '';
+            data.forEach(function (row, index) {
+                const rowNum = total - ((currentPage - 1) * perPage + index);
+
+                // 사업명
+                const titleHtml = '<span style="font-weight: 500; color: var(--color-primary-600);">' + (row.title || '-') + '</span>';
+
+                // EOI 컬럼
+                let eoiHtml = '-';
+                if (row.eoiId && row.eoiFileName) {
+                    eoiHtml = '<button class="btn-file-preview" onclick="previewEoi(' + row.eoiId + ', \'' + escapeHtml(row.eoiFileName) + '\')">미리보기</button>';
+                }
+
+                // TOR 컬럼
+                let torHtml = '-';
+                if (row.torRfpId && row.torFileName) {
+                    torHtml = '<button class="btn-file-preview" onclick="previewTorRfp(' + row.torRfpId + ', \'tor\', \'' + escapeHtml(row.torFileName) + '\')">미리보기</button>';
+                }
+
+                // RFP 컬럼
+                let rfpHtml = '-';
+                if (row.torRfpId && row.rfpFileName) {
+                    rfpHtml = '<button class="btn-file-preview" onclick="previewTorRfp(' + row.torRfpId + ', \'rfp\', \'' + escapeHtml(row.rfpFileName) + '\')">미리보기</button>';
+                }
+
+                // 기술제안서 컬럼
+                let techHtml = '-';
+                if (row.proposalId && row.technicalFileName) {
+                    const fn = row.technicalFileName.toLowerCase();
+                    if (fn.endsWith('.zip')) {
+                        techHtml = '<span title="비밀번호 필요" style="cursor: help;">🔒</span> <button class="btn-file-download" onclick="downloadProposalFile(' + row.proposalId + ', \'technical\')">📥 다운로드</button>';
+                    } else {
+                        techHtml = '<span title="비밀번호 필요" style="cursor: help;">🔒</span> <button class="btn-file-preview" onclick="showPdfPreview(' + row.proposalId + ', \'technical\', \'' + escapeHtml(row.title || '') + '\')">미리보기</button>';
+                    }
+                }
+
+                // 가격제안서 컬럼
+                let priceHtml = '-';
+                if (row.proposalId && row.priceFileName) {
+                    const fn = row.priceFileName.toLowerCase();
+                    if (fn.endsWith('.zip') || fn.endsWith('.xlsx') || fn.endsWith('.xls')) {
+                        priceHtml = '<button class="btn-file-download" onclick="downloadProposalFile(' + row.proposalId + ', \'price\')">📥 다운로드</button>';
+                    } else {
+                        priceHtml = '<button class="btn-file-preview" onclick="showPdfPreview(' + row.proposalId + ', \'price\', \'' + escapeHtml(row.title || '') + '\')">미리보기</button>';
+                    }
+                }
+
+                // 제안정보 컬럼
+                let proposalInfoHtml = '-';
+                if (row.proposalId) {
+                    proposalInfoHtml = '<button class="btn btn-sm btn-outline" onclick="openProposalInfoModal(' + row.proposalId + ')">보기</button>';
+                }
+
+                // 결과 배지
+                const resultBadge = getResultBadge(row.result);
+
+                // 관리 컬럼
+                let actionHtml = '';
+                if (hasAnyEditPermission) {
+                    var rowJson = encodeURIComponent(JSON.stringify(row));
+                    actionHtml = '<td style="text-align: center;"><button class="btn btn-sm btn-outline" onclick="openUnifiedEditModal(decodeURIComponent(\'' + rowJson + '\'))">수정</button></td>';
+                } else {
+                    actionHtml = '';
+                }
+
+                html += '<tr>' +
+                    '<td style="text-align: center;">' + rowNum + '</td>' +
+                    '<td style="text-align: left;">' + titleHtml + '</td>' +
+                    '<td style="text-align: center;">' + getStatusBadge(row.status) + '</td>' +
+                    '<td style="text-align: center;">' + (row.country || '-') + '</td>' +
+                    '<td style="text-align: center;">' + (row.client || '-') + '</td>' +
+                    '<td style="text-align: center;">' + eoiHtml + '</td>' +
+                    '<td style="text-align: center;">' + torHtml + '</td>' +
+                    '<td style="text-align: center;">' + rfpHtml + '</td>' +
+                    '<td style="text-align: center;">' + techHtml + '</td>' +
+                    '<td style="text-align: center;">' + priceHtml + '</td>' +
+                    '<td style="text-align: center;">' + proposalInfoHtml + '</td>' +
+                    '<td style="text-align: center;">' + resultBadge + '</td>' +
+                    actionHtml +
+                    '</tr>';
+            });
+
+            tbody.innerHTML = html;
+
+            // 관리 컬럼 헤더 표시/숨김
+            if (!hasAnyEditPermission) {
+                document.getElementById('actionColHeader').style.display = 'none';
+            }
+        }
+
+        // ==================== 페이지네이션 (10페이지 그룹) ====================
+        function renderPagination(current, total) {
+            const pagination = document.getElementById('pagination');
+            if (!total || total <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            const groupSize = 10;
+            const currentGroup = Math.ceil(current / groupSize);
+            const startPage = (currentGroup - 1) * groupSize + 1;
+            const endPage = Math.min(currentGroup * groupSize, total);
+
+            let html = '';
+            html += '<button class="page-btn" ' + (current === 1 ? 'disabled' : '') + ' onclick="loadData(1)">«</button>';
+            html += '<button class="page-btn" ' + (startPage === 1 ? 'disabled' : '') + ' onclick="loadData(' + (startPage - 1) + ')">‹</button>';
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += '<button class="page-btn ' + (i === current ? 'active' : '') + '" onclick="loadData(' + i + ')">' + i + '</button>';
+            }
+
+            html += '<button class="page-btn" ' + (endPage >= total ? 'disabled' : '') + ' onclick="loadData(' + (endPage + 1) + ')">›</button>';
+            html += '<button class="page-btn" ' + (current === total ? 'disabled' : '') + ' onclick="loadData(' + total + ')">»</button>';
+
+            pagination.innerHTML = html;
+        }
+
+        // ==================== 필터 초기화 ====================
+        function resetFilters() {
+            document.getElementById('filterCountry').value = '';
+            document.getElementById('filterResult').value = '';
+            document.getElementById('filterYear').value = '';
+            document.getElementById('filterSearch').value = '';
+            currentPage = 1;
+            loadStats();
+            loadData();
+        }
+
+        // ==================== 유틸리티 함수 ====================
+        function getStatusBadge(status) {
+            if (!status) return '-';
+            const displayStatus = status === '완료' ? '준공' : status;
+            const statusMap = {
+                '시행중': 'status-ongoing', '진행중': 'status-ongoing',
+                '완료': 'status-completed', '준공': 'status-completed',
+                '제안서제출': 'status-proposal', 'EOI제출': 'status-eoi'
+            };
+            const cls = statusMap[status] || '';
+            return `<span class="status-badge ${cls}">${displayStatus}</span>`;
+        }
+
+        function getResultBadge(result) {
+            switch (result) {
+                case '선정':
+                    return '<span class="badge-selected">선정</span>';
+                case '탈락':
+                    return '<span class="badge-rejected">탈락</span>';
+                case '심사중':
+                    return '<span class="badge-pending">심사중</span>';
+                default:
+                    return '-';
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return '-';
+            return date.getFullYear() + '.' + String(date.getMonth() + 1).padStart(2, '0') + '.' + String(date.getDate()).padStart(2, '0');
+        }
+
+        function formatFileSize(size) {
+            if (!size) return '';
+            if (size < 1024) return size + ' B';
+            if (size < 1024 * 1024) return (size / 1024).toFixed(1) + ' KB';
+            return (size / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // ==================== 등록 드롭다운 ====================
+        function toggleRegisterDropdown() {
+            const menu = document.getElementById('registerDropdownMenu');
+            const btn = document.querySelector('.register-dropdown-wrapper .btn-primary');
+
+            if (menu.classList.contains('show')) {
+                menu.classList.remove('show');
+            } else {
+                // position: fixed 사용 시 버튼 위치 기준으로 드롭다운 위치 계산
+                const rect = btn.getBoundingClientRect();
+                menu.style.top = (rect.bottom + 4) + 'px';
+                menu.style.right = (window.innerWidth - rect.right) + 'px';
+                menu.classList.add('show');
+            }
+        }
+
+        function closeRegisterDropdown() {
+            const menu = document.getElementById('registerDropdownMenu');
+            if (menu) menu.classList.remove('show');
+        }
+
+        // ==================== TOR/RFP 모달 ====================
+        async function openTorRfpModal() {
+            document.getElementById('torRfpModalTitle').textContent = 'TOR/RFP 등록';
+            document.getElementById('torRfpForm').reset();
+            document.getElementById('torRfpId').value = '';
+            document.getElementById('torRfpProjectId').value = '';
+            document.getElementById('torRfpProjectText').textContent = '사업을 선택하세요';
+            document.getElementById('torFileUploadText').textContent = '클릭하여 TOR 파일 선택';
+            document.getElementById('torFileUploadArea').classList.remove('has-file');
+            document.getElementById('rfpFileUploadText').textContent = '클릭하여 RFP 파일 선택';
+            document.getElementById('rfpFileUploadArea').classList.remove('has-file');
+
+            // 직접 입력 모드 초기화
+            document.getElementById('torRfpDirectInputToggle').checked = false;
+            document.getElementById('torRfpProjectSelectContainer').style.display = 'block';
+            document.getElementById('torRfpDirectInputFields').style.display = 'none';
+
+            await loadTorRfpProjects();
+            document.getElementById('torRfpModal').classList.add('show');
+        }
+
+        function closeTorRfpModal() {
+            document.getElementById('torRfpModal').classList.remove('show');
+        }
+
+        async function loadTorRfpProjects() {
+            try {
+                const response = await apiCall('/tor-rfp/projects', 'GET');
+                if (response.success) {
+                    torRfpProjectList = response.data || [];
+                    renderTorRfpProjectOptions('');
+                    initTorRfpProjectSearch();
+                }
+            } catch (error) {
+                console.error('TOR/RFP 프로젝트 목록 로드 실패:', error);
+            }
+        }
+
+        function initTorRfpProjectSearch() {
+            const searchInput = document.getElementById('torRfpProjectSearchInput');
+            searchInput.addEventListener('input', function (e) {
+                renderTorRfpProjectOptions(e.target.value);
+            });
+
+            document.addEventListener('click', function (e) {
+                const container = document.getElementById('torRfpProjectSelectContainer');
+                if (container && !container.contains(e.target)) {
+                    closeTorRfpProjectDropdown();
+                }
+            });
+        }
+
+        function openTorRfpProjectDropdown() {
+            document.getElementById('torRfpProjectDropdown').classList.add('show');
+            document.getElementById('torRfpProjectTrigger').classList.add('active');
+            setTimeout(function () {
+                document.getElementById('torRfpProjectSearchInput').focus();
+            }, 100);
+        }
+
+        function closeTorRfpProjectDropdown() {
+            document.getElementById('torRfpProjectDropdown').classList.remove('show');
+            document.getElementById('torRfpProjectTrigger').classList.remove('active');
+            document.getElementById('torRfpProjectSearchInput').value = '';
+            renderTorRfpProjectOptions('');
+        }
+
+        function renderTorRfpProjectOptions(searchTerm) {
+            const container = document.getElementById('torRfpProjectOptions');
+            const lower = searchTerm.toLowerCase();
+
+            const filtered = torRfpProjectList.filter(function (p) {
+                const titleMatch = (p.titleKr || p.title || '').toLowerCase().includes(lower);
+                const countryMatch = (p.country || '').toLowerCase().includes(lower);
+                return titleMatch || countryMatch;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="searchable-select-option no-results">검색 결과가 없습니다</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(function (p) {
+                const title = p.titleKr || p.title || '';
+                const country = p.country || '';
+                return '<div class="searchable-select-option" onclick="selectTorRfpProject(' + p.id + ', \'' + title.replace(/'/g, "\\'") + '\', \'' + country.replace(/'/g, "\\'") + '\')">' +
+                    '<div class="option-main">' + title + '</div>' +
+                    '<div class="option-sub">' + country + '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function selectTorRfpProject(id, title, country) {
+            document.getElementById('torRfpProjectId').value = id;
+            document.getElementById('torRfpProjectText').textContent = title;
+            closeTorRfpProjectDropdown();
+        }
+
+        function toggleTorRfpInputMode() {
+            const isDirect = document.getElementById('torRfpDirectInputToggle').checked;
+            document.getElementById('torRfpProjectSelectContainer').style.display = isDirect ? 'none' : 'block';
+            document.getElementById('torRfpDirectInputFields').style.display = isDirect ? 'block' : 'none';
+
+            if (isDirect) {
+                document.getElementById('torRfpDirectTitle').focus();
+            }
+        }
+
+        function handleTorRfpFileSelect(input, type) {
+            const file = input.files[0];
+            const areaId = type === 'tor' ? 'torFileUploadArea' : 'rfpFileUploadArea';
+            const textId = type === 'tor' ? 'torFileUploadText' : 'rfpFileUploadText';
+            const defaultText = type === 'tor' ? '클릭하여 TOR 파일 선택' : '클릭하여 RFP 파일 선택';
+
+            if (file) {
+                const maxSize = 500 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    Toast.error('파일 크기는 500MB를 초과할 수 없습니다.');
+                    input.value = '';
+                    document.getElementById(textId).textContent = defaultText;
+                    document.getElementById(areaId).classList.remove('has-file');
+                    return;
+                }
+                document.getElementById(textId).textContent = '선택됨: ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+                document.getElementById(areaId).classList.add('has-file');
+            } else {
+                document.getElementById(textId).textContent = defaultText;
+                document.getElementById(areaId).classList.remove('has-file');
+            }
+        }
+
+        async function saveTorRfp(event) {
+            if (event) event.preventDefault();
+
+            const isDirect = document.getElementById('torRfpDirectInputToggle').checked;
+            const formData = new FormData();
+
+            if (isDirect) {
+                const title = document.getElementById('torRfpDirectTitle').value.trim();
+                const country = document.getElementById('torRfpDirectCountry').value.trim();
+                if (!title) {
+                    Toast.warning('사업명을 입력해주세요.');
+                    return;
+                }
+                formData.append('title', title);
+                formData.append('country', country);
+            } else {
+                const projectId = document.getElementById('torRfpProjectId').value;
+                if (!projectId) {
+                    Toast.warning('사업을 선택해주세요.');
+                    return;
+                }
+                formData.append('projectId', projectId);
+            }
+
+            const torFile = document.getElementById('torFile').files[0];
+            const rfpFile = document.getElementById('rfpFile').files[0];
+
+            const isEdit = !!document.getElementById('torRfpId').value;
+            if (!isEdit && !torFile && !rfpFile) {
+                Toast.warning('TOR 또는 RFP 파일을 하나 이상 선택해주세요.');
+                return;
+            }
+
+            if (torFile) formData.append('torFile', torFile);
+            if (rfpFile) formData.append('rfpFile', rfpFile);
+
+            try {
+                const id = document.getElementById('torRfpId').value;
+                const url = id ? '/tor-rfp/' + id : '/tor-rfp';
+                const method = id ? 'PUT' : 'POST';
+
+                const response = await apiCallFormData(url, method, formData);
+
+                if (response.success) {
+                    Toast.success(id ? '수정되었습니다.' : '등록되었습니다.');
+                    closeTorRfpModal();
+                    loadStats();
+                    loadData();
+                } else {
+                    Toast.error(response.message || '저장에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('TOR/RFP 저장 실패:', error);
+                Toast.error(error.message || '오류가 발생했습니다.');
+            }
+        }
+
+        async function deleteTorRfp(id) {
+            if (!confirm('정말 삭제하시겠습니까?')) return;
+
+            try {
+                const response = await apiCall('/tor-rfp/' + id, 'DELETE');
+                if (response.success) {
+                    Toast.success('삭제되었습니다.');
+                    loadStats();
+                    loadData();
+                } else {
+                    Toast.error(response.message || '삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('TOR/RFP 삭제 실패:', error);
+                Toast.error('오류가 발생했습니다.');
+            }
+        }
+
+        // ==================== TOR/RFP 수정 ====================
+        async function editTorRfp(torRfpId) {
+            try {
+                var response = await apiCall('/tor-rfp/detail/' + torRfpId, 'GET');
+                if (!response.success) {
+                    Toast.error('TOR/RFP 데이터를 불러오는데 실패했습니다.');
+                    return;
+                }
+
+                var data = response.data;
+
+                // 모달 초기화
+                document.getElementById('torRfpModalTitle').textContent = 'TOR/RFP 수정';
+                document.getElementById('torRfpForm').reset();
+                document.getElementById('torRfpId').value = data.id;
+
+                // 프로젝트 목록 로드
+                await loadTorRfpProjects();
+
+                if (data.consultingProjectId) {
+                    // 프로젝트 연결 모드
+                    document.getElementById('torRfpDirectInputToggle').checked = false;
+                    document.getElementById('torRfpProjectSelectContainer').style.display = 'block';
+                    document.getElementById('torRfpDirectInputFields').style.display = 'none';
+                    document.getElementById('torRfpProjectId').value = data.consultingProjectId;
+                    document.getElementById('torRfpProjectText').textContent = data.projectTitle || '사업을 선택하세요';
+                } else {
+                    // 직접 입력 모드
+                    document.getElementById('torRfpDirectInputToggle').checked = true;
+                    document.getElementById('torRfpProjectSelectContainer').style.display = 'none';
+                    document.getElementById('torRfpDirectInputFields').style.display = 'block';
+                    document.getElementById('torRfpDirectTitle').value = data.projectTitle || '';
+                    document.getElementById('torRfpDirectCountry').value = data.projectCountry || '';
+                    document.getElementById('torRfpProjectId').value = '';
+                }
+
+                // 기존 파일 표시
+                if (data.torFileName) {
+                    document.getElementById('torFileUploadText').textContent = '기존 파일: ' + data.torFileName;
+                    document.getElementById('torFileUploadArea').classList.add('has-file');
+                } else {
+                    document.getElementById('torFileUploadText').textContent = '클릭하여 TOR 파일 선택';
+                    document.getElementById('torFileUploadArea').classList.remove('has-file');
+                }
+
+                if (data.rfpFileName) {
+                    document.getElementById('rfpFileUploadText').textContent = '기존 파일: ' + data.rfpFileName;
+                    document.getElementById('rfpFileUploadArea').classList.add('has-file');
+                } else {
+                    document.getElementById('rfpFileUploadText').textContent = '클릭하여 RFP 파일 선택';
+                    document.getElementById('rfpFileUploadArea').classList.remove('has-file');
+                }
+
+                document.getElementById('torRfpModal').classList.add('show');
+            } catch (error) {
+                console.error('TOR/RFP 조회 실패:', error);
+                Toast.error('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        // ==================== 제안서 모달 ====================
+        async function openProposalModal() {
+            document.getElementById('proposalModalTitle').textContent = '제안서 등록';
+            document.getElementById('proposalForm').reset();
+            document.getElementById('proposalId').value = '';
+            document.getElementById('consultingProjectId').value = '';
+            document.getElementById('proposalTitle').value = '';
+            document.getElementById('proposalProjectText').textContent = '사업을 선택하세요';
+            document.getElementById('technicalFileUploadText').textContent = '클릭하여 파일 선택 (PDF 또는 ZIP)';
+            document.getElementById('technicalFileUploadArea').classList.remove('has-file');
+            document.getElementById('priceFileUploadText').textContent = '클릭하여 파일 선택 (PDF, ZIP, Excel)';
+            document.getElementById('priceFileUploadArea').classList.remove('has-file');
+
+            // 직접 입력 모드 초기화
+            document.getElementById('proposalDirectInputToggle').checked = false;
+            document.getElementById('proposalProjectSelectContainer').style.display = 'block';
+            document.getElementById('proposalDirectTitle').style.display = 'none';
+            document.getElementById('proposalDirectTitle').value = '';
+
+            // 모든 필드 활성화
+            enableProposalFormFields(true);
+
+            // 저장 버튼 표시
+            document.getElementById('proposalSaveBtn').style.display = 'inline-block';
+
+            await loadProposalProjects();
+            document.getElementById('proposalModal').classList.add('show');
+        }
+
+        function closeProposalModal() {
+            document.getElementById('proposalModal').classList.remove('show');
+        }
+
+        function enableProposalFormFields(enable) {
+            var formElements = document.getElementById('proposalForm').elements;
+            for (var i = 0; i < formElements.length; i++) {
+                var el = formElements[i];
+                if (el.type !== 'button' && el.id !== 'proposalId' && el.id !== 'consultingProjectId') {
+                    el.disabled = !enable;
+                }
+            }
+            document.getElementById('technicalFileUploadArea').style.pointerEvents = enable ? 'auto' : 'none';
+            document.getElementById('priceFileUploadArea').style.pointerEvents = enable ? 'auto' : 'none';
+            document.getElementById('technicalFileUploadArea').style.opacity = enable ? '1' : '0.6';
+            document.getElementById('priceFileUploadArea').style.opacity = enable ? '1' : '0.6';
+        }
+
+        async function loadProposalProjects() {
+            try {
+                const response = await apiCall('/consulting?per_page=1000', 'GET');
+                if (response.success && response.data) {
+                    proposalProjectList = response.data.filter(function (p) { return p.titleKr; });
+                    renderProposalProjectOptions('');
+                    initProposalProjectSearch();
+                }
+            } catch (error) {
+                console.error('제안서 프로젝트 목록 로드 실패:', error);
+            }
+        }
+
+        function initProposalProjectSearch() {
+            var searchInput = document.getElementById('proposalProjectSearchInput');
+            searchInput.addEventListener('input', function (e) {
+                renderProposalProjectOptions(e.target.value);
+            });
+
+            document.addEventListener('click', function (e) {
+                var container = document.getElementById('proposalProjectSelectContainer');
+                if (container && !container.contains(e.target)) {
+                    closeProposalProjectDropdown();
+                }
+            });
+        }
+
+        function openProposalProjectDropdown() {
+            document.getElementById('proposalProjectDropdown').classList.add('show');
+            document.getElementById('proposalProjectTrigger').classList.add('active');
+            setTimeout(function () {
+                document.getElementById('proposalProjectSearchInput').focus();
+            }, 100);
+        }
+
+        function closeProposalProjectDropdown() {
+            document.getElementById('proposalProjectDropdown').classList.remove('show');
+            document.getElementById('proposalProjectTrigger').classList.remove('active');
+            document.getElementById('proposalProjectSearchInput').value = '';
+            renderProposalProjectOptions('');
+        }
+
+        function renderProposalProjectOptions(searchTerm) {
+            var container = document.getElementById('proposalProjectOptions');
+            var lower = searchTerm.toLowerCase();
+
+            var filtered = proposalProjectList.filter(function (p) {
+                var titleMatch = (p.titleKr || '').toLowerCase().includes(lower);
+                var countryMatch = (p.country || '').toLowerCase().includes(lower);
+                return titleMatch || countryMatch;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="searchable-select-option no-results">검색 결과가 없습니다</div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(function (p) {
+                var title = p.titleKr || '';
+                var country = p.country || '';
+                var period = p.endDate ? ' (준공: ' + p.endDate + ')' : '';
+                return '<div class="searchable-select-option" onclick="selectProposalProject(' + p.id + ', \'' + title.replace(/'/g, "\\'") + '\', \'' + country.replace(/'/g, "\\'") + '\')">' +
+                    '<div class="option-main">' + title + '</div>' +
+                    '<div class="option-sub">' + country + period + '</div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function selectProposalProject(id, title, country) {
+            document.getElementById('consultingProjectId').value = id;
+            document.getElementById('proposalTitle').value = title;
+            document.getElementById('proposalProjectText').textContent = title;
+
+            var countryField = document.getElementById('proposalCountry');
+            if (country && !countryField.value) {
+                countryField.value = country;
+            }
+
+            closeProposalProjectDropdown();
+        }
+
+        function toggleProposalInputMode() {
+            var isDirect = document.getElementById('proposalDirectInputToggle').checked;
+            var selectContainer = document.getElementById('proposalProjectSelectContainer');
+            var directInput = document.getElementById('proposalDirectTitle');
+            var hiddenTitle = document.getElementById('proposalTitle');
+
+            if (isDirect) {
+                selectContainer.style.display = 'none';
+                directInput.style.display = 'block';
+                directInput.focus();
+
+                directInput.oninput = function () {
+                    hiddenTitle.value = this.value;
+                };
+
+                if (hiddenTitle.value) {
+                    directInput.value = hiddenTitle.value;
+                }
+            } else {
+                selectContainer.style.display = 'block';
+                directInput.style.display = 'none';
+
+                if (directInput.value) {
+                    hiddenTitle.value = directInput.value;
+                    document.getElementById('proposalProjectText').textContent = directInput.value;
+                }
+            }
+        }
+
+        function handleProposalFileSelect(input, type) {
+            var file = input.files[0];
+            var areaId = type === 'technical' ? 'technicalFileUploadArea' : 'priceFileUploadArea';
+            var textId = type === 'technical' ? 'technicalFileUploadText' : 'priceFileUploadText';
+            var defaultText = type === 'technical'
+                ? '클릭하여 파일 선택 (PDF 또는 ZIP)'
+                : '클릭하여 파일 선택 (PDF, ZIP, Excel)';
+
+            if (file) {
+                var maxSize = 500 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    Toast.error('파일 크기는 500MB를 초과할 수 없습니다.');
+                    input.value = '';
+                    document.getElementById(textId).textContent = defaultText;
+                    document.getElementById(areaId).classList.remove('has-file');
+                    return;
+                }
+                document.getElementById(textId).textContent = '선택됨: ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+                document.getElementById(areaId).classList.add('has-file');
+            } else {
+                document.getElementById(textId).textContent = defaultText;
+                document.getElementById(areaId).classList.remove('has-file');
+            }
+        }
+
+        async function saveProposal() {
+            var title = document.getElementById('proposalTitle').value;
+            if (!title) {
+                Toast.warning('사업명을 입력 또는 선택해주세요.');
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('title', title);
+
+            var consultingProjectId = document.getElementById('consultingProjectId').value;
+            if (consultingProjectId) {
+                formData.append('consultingProjectId', consultingProjectId);
+            }
+
+            formData.append('country', document.getElementById('proposalCountry').value);
+            formData.append('client', document.getElementById('proposalClient').value);
+            formData.append('submissionDate', document.getElementById('proposalSubmissionDate').value);
+            formData.append('budget', document.getElementById('proposalBudget').value);
+            formData.append('projectPeriod', document.getElementById('proposalPeriod').value);
+            formData.append('result', document.getElementById('proposalResult').value);
+            formData.append('resultDate', document.getElementById('proposalResultDate').value);
+            formData.append('description', document.getElementById('proposalDescription').value);
+            formData.append('teamMembers', document.getElementById('proposalTeamMembers').value);
+            formData.append('remarks', document.getElementById('proposalRemarks').value);
+
+            var technicalFile = document.getElementById('technicalFile').files[0];
+            var priceFile = document.getElementById('priceFile').files[0];
+
+            if (technicalFile) {
+                if (technicalFile.size > 500 * 1024 * 1024) {
+                    Toast.error('기술제안서 파일 크기는 500MB를 초과할 수 없습니다.');
+                    return;
+                }
+                formData.append('technicalFile', technicalFile);
+            }
+
+            if (priceFile) {
+                if (priceFile.size > 500 * 1024 * 1024) {
+                    Toast.error('가격제안서 파일 크기는 500MB를 초과할 수 없습니다.');
+                    return;
+                }
+                formData.append('priceFile', priceFile);
+            }
+
+            try {
+                var id = document.getElementById('proposalId').value;
+                var url = id ? '/proposals/' + id : '/proposals';
+                var method = id ? 'PUT' : 'POST';
+
+                var response = await apiCallFormData(url, method, formData);
+
+                if (response.success) {
+                    Toast.success(id ? '수정되었습니다.' : '등록되었습니다.');
+                    closeProposalModal();
+                    loadStats();
+                    loadData();
+                } else {
+                    Toast.error(response.message || '저장에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('제안서 저장 실패:', error);
+                Toast.error(error.message || '오류가 발생했습니다.');
+            }
+        }
+
+        async function editProposal(proposalId, torRfpId) {
+            if (proposalId) {
+                // 제안서 수정
+                try {
+                    await loadProposalProjects();
+                    var response = await apiCall('/proposals/' + proposalId, 'GET');
+                    if (response.success) {
+                        var p = response.data;
+
+                        document.getElementById('proposalModalTitle').textContent = canEditProposal ? '제안서 수정' : '제안서 상세';
+                        document.getElementById('proposalId').value = p.id;
+                        document.getElementById('proposalTitle').value = p.title || '';
+                        document.getElementById('proposalProjectText').textContent = p.title || '사업을 선택하세요';
+                        document.getElementById('consultingProjectId').value = p.consultingProjectId || '';
+
+                        // 직접 입력 모드 초기화
+                        document.getElementById('proposalDirectInputToggle').checked = false;
+                        document.getElementById('proposalProjectSelectContainer').style.display = 'block';
+                        document.getElementById('proposalDirectTitle').style.display = 'none';
+                        document.getElementById('proposalDirectTitle').value = '';
+
+                        // 목록에 사업이 없으면 직접 입력 모드
+                        var titleInList = proposalProjectList.some(function (proj) { return proj.titleKr === p.title; });
+                        if (p.title && !titleInList) {
+                            document.getElementById('proposalDirectInputToggle').checked = true;
+                            document.getElementById('proposalDirectTitle').value = p.title;
+                            toggleProposalInputMode();
+                        }
+
+                        document.getElementById('proposalCountry').value = p.country || '';
+                        document.getElementById('proposalClient').value = p.client || '';
+                        document.getElementById('proposalSubmissionDate').value = p.submissionDate || '';
+                        document.getElementById('proposalBudget').value = p.budget || '';
+                        document.getElementById('proposalPeriod').value = p.projectPeriod || '';
+                        document.getElementById('proposalResult').value = p.result || '심사중';
+                        document.getElementById('proposalResultDate').value = p.resultDate || '';
+                        document.getElementById('proposalDescription').value = p.description || '';
+                        document.getElementById('proposalTeamMembers').value = p.teamMembers || '';
+                        document.getElementById('proposalRemarks').value = p.remarks || '';
+
+                        // 권한에 따라 필드 활성화/비활성화
+                        enableProposalFormFields(canEditProposal);
+                        document.getElementById('proposalSaveBtn').style.display = canEditProposal ? 'inline-block' : 'none';
+
+                        // 파일 표시
+                        if (p.technicalFileName) {
+                            document.getElementById('technicalFileUploadText').textContent = '기존 파일: ' + p.technicalFileName;
+                            document.getElementById('technicalFileUploadArea').classList.add('has-file');
+                        } else {
+                            document.getElementById('technicalFileUploadText').textContent = '클릭하여 파일 선택 (PDF 또는 ZIP)';
+                            document.getElementById('technicalFileUploadArea').classList.remove('has-file');
+                        }
+
+                        if (p.priceFileName) {
+                            document.getElementById('priceFileUploadText').textContent = '기존 파일: ' + p.priceFileName;
+                            document.getElementById('priceFileUploadArea').classList.add('has-file');
+                        } else {
+                            document.getElementById('priceFileUploadText').textContent = '클릭하여 파일 선택 (PDF, ZIP, Excel)';
+                            document.getElementById('priceFileUploadArea').classList.remove('has-file');
+                        }
+
+                        document.getElementById('proposalModal').classList.add('show');
+                    }
+                } catch (error) {
+                    console.error('제안서 조회 실패:', error);
+                    Toast.error('데이터를 불러오는데 실패했습니다.');
+                }
+            }
+        }
+
+        async function deleteProposal(id) {
+            if (!confirm('정말 삭제하시겠습니까?')) return;
+
+            try {
+                var response = await apiCall('/proposals/' + id, 'DELETE');
+                if (response.success) {
+                    Toast.success('삭제되었습니다.');
+                    loadStats();
+                    loadData();
+                } else {
+                    Toast.error(response.message || '삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('제안서 삭제 실패:', error);
+                Toast.error('오류가 발생했습니다.');
+            }
+        }
+
+        // ==================== TOR/RFP 파일 미리보기/다운로드 ====================
+        function previewTorRfp(id, type, fileName) {
+            var token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            var fn = (fileName || '').toLowerCase();
+
+            // ZIP 파일은 다운로드
+            if (fn.endsWith('.zip')) {
+                downloadTorRfp(id, type, fileName);
+                return;
+            }
+
+            // PDF/DOC 등은 미리보기 (새 창)
+            var previewUrl = API_BASE_URL + '/tor-rfp/' + id + '/' + type + '/preview?token=' + token;
+            window.open(previewUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+        }
+
+        async function downloadTorRfp(id, type, fileName) {
+            try {
+                var token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                var response = await fetch(API_BASE_URL + '/tor-rfp/' + id + '/' + type + '/download', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (response.ok) {
+                    var blob = await response.blob();
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName || 'download';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    Toast.error('파일 다운로드에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('다운로드 실패:', error);
+                Toast.error('파일 다운로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        // ==================== 제안서 파일 미리보기/다운로드 ====================
+        window.showPdfPreview = function (id, type, title) {
+            // 기술제안서는 비밀번호 확인 필요
+            if (type === 'technical') {
+                pendingAction = { action: 'preview', id: id, type: type, title: title };
+                openPasswordModal();
+                return;
+            }
+
+            // 가격제안서는 바로 미리보기
+            executePdfPreview(id, type, title);
+        };
+
+        async function executePdfPreview(id, type, title) {
+            try {
+                var token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                var response = await fetch(API_BASE_URL + '/proposals/' + id + '/download?type=' + type, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (!response.ok) {
+                    throw new Error('파일을 불러올 수 없습니다. (상태: ' + response.status + ')');
+                }
+
+                var blob = await response.blob();
+                var blobUrl = window.URL.createObjectURL(blob);
+
+                var width = 900;
+                var height = 700;
+                var left = (screen.width - width) / 2;
+                var top = (screen.height - height) / 2;
+
+                var fileTypeLabel = type === 'technical' ? '기술제안서' : '가격제안서';
+                var newWindow = window.open(
+                    blobUrl,
+                    fileTypeLabel + ' - ' + title,
+                    'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',scrollbars=yes,resizable=yes'
+                );
+
+                if (newWindow) {
+                    newWindow.onbeforeunload = function () {
+                        window.URL.revokeObjectURL(blobUrl);
+                    };
+                } else {
+                    window.open(blobUrl, '_blank');
+                }
+            } catch (error) {
+                console.error('PDF 미리보기 실패:', error);
+                Toast.error('PDF를 불러올 수 없습니다.');
+            }
+        }
+
+        function downloadProposalFile(id, type) {
+            // 기술제안서는 비밀번호 확인 필요
+            if (type === 'technical') {
+                pendingAction = { action: 'download', id: id, type: type };
+                openPasswordModal();
+                return;
+            }
+
+            // 가격제안서는 바로 다운로드
+            executeDownload(id, type);
+        }
+
+        async function executeDownload(id, type) {
+            try {
+                var token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                var response = await fetch(API_BASE_URL + '/proposals/' + id + '/download?type=' + type, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (response.ok) {
+                    var blob = await response.blob();
+                    var contentDisposition = response.headers.get('Content-Disposition');
+                    var filename = 'download';
+                    if (contentDisposition) {
+                        var match = contentDisposition.match(/filename="?(.+)"?/);
+                        if (match) filename = match[1];
+                    }
+
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    Toast.error('파일 다운로드에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('다운로드 실패:', error);
+                Toast.error('파일 다운로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        // ==================== 비밀번호 모달 ====================
+        function openPasswordModal() {
+            document.getElementById('passwordModal').classList.add('show');
+            document.getElementById('technicalPassword').value = '';
+            setTimeout(function () {
+                document.getElementById('technicalPassword').focus();
+            }, 100);
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').classList.remove('show');
+            document.getElementById('technicalPassword').value = '';
+            pendingAction = null;
+        }
+
+        async function verifyPasswordAndProceed() {
+            var password = document.getElementById('technicalPassword').value;
+            if (!password) {
+                Toast.warning('비밀번호를 입력해주세요.');
+                return;
+            }
+
+            try {
+                var response = await apiCall('/proposals/verify-technical-password', 'POST', { password: password });
+
+                if (response.success) {
+                    var action = pendingAction;
+                    closePasswordModal();
+
+                    if (action) {
+                        if (action.action === 'preview') {
+                            await executePdfPreview(action.id, action.type, action.title);
+                        } else if (action.action === 'download') {
+                            await executeDownload(action.id, action.type);
+                        }
+                    }
+                } else {
+                    Toast.error(response.message || '비밀번호를 확인하세요.');
+                    document.getElementById('technicalPassword').value = '';
+                    document.getElementById('technicalPassword').focus();
+                }
+            } catch (error) {
+                console.error('비밀번호 검증 실패:', error);
+                Toast.error('비밀번호 검증 중 오류가 발생했습니다.');
+            }
+        }
+
+        // ==================== FormData API 호출 ====================
+        async function apiCallFormData(url, method, formData) {
+            var token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+
+            if (!token) {
+                throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
+            }
+
+            var response = await fetch(API_BASE_URL + url, {
+                method: method,
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                },
+                body: formData
+            });
+
+            if (response.status === 401) {
+                throw new Error('로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+            }
+
+            if (!response.ok) {
+                var errorData = await response.json();
+                throw new Error(errorData.message || '파일 업로드에 실패했습니다.');
+            }
+
+            return await response.json();
+        }
+
+        // ==================== EOI 모달 ====================
+        async function openEoiModal() {
+            document.getElementById('eoiModalTitle').textContent = 'EOI 등록';
+            document.getElementById('eoiForm').reset();
+            document.getElementById('eoiId').value = '';
+            document.getElementById('eoiProjectId').value = '';
+            document.getElementById('eoiProjectText').textContent = '사업을 선택하세요';
+            document.getElementById('eoiFileUploadText').textContent = '클릭하여 EOI 파일 선택';
+            document.getElementById('eoiFileUploadArea').classList.remove('has-file');
+
+            // 직접 입력 모드 초기화
+            document.getElementById('eoiDirectInputToggle').checked = false;
+            document.getElementById('eoiProjectSelectContainer').style.display = 'block';
+            document.getElementById('eoiDirectInputFields').style.display = 'none';
+
+            // 프로젝트 목록 로드
+            await loadEoiProjects();
+
+            document.getElementById('eoiModal').classList.add('show');
+        }
+
+        function closeEoiModal() {
+            document.getElementById('eoiModal').classList.remove('show');
+            document.getElementById('eoiProjectDropdown').classList.remove('show');
+        }
+
+        function toggleEoiInputMode() {
+            var isDirectInput = document.getElementById('eoiDirectInputToggle').checked;
+            document.getElementById('eoiProjectSelectContainer').style.display = isDirectInput ? 'none' : 'block';
+            document.getElementById('eoiDirectInputFields').style.display = isDirectInput ? 'block' : 'none';
+
+            if (isDirectInput) {
+                document.getElementById('eoiProjectId').value = '';
+                document.getElementById('eoiProjectText').textContent = '사업을 선택하세요';
+            } else {
+                document.getElementById('eoiDirectTitle').value = '';
+                document.getElementById('eoiDirectCountry').value = '';
+            }
+        }
+
+        async function loadEoiProjects() {
+            try {
+                var response = await apiCall('/tor-rfp/projects', 'GET');
+                if (response.success) {
+                    var options = document.getElementById('eoiProjectOptions');
+                    options.innerHTML = '';
+
+                    response.data.forEach(function (project) {
+                        var div = document.createElement('div');
+                        div.className = 'searchable-select-option';
+                        div.setAttribute('data-id', project.id);
+                        div.setAttribute('data-title', project.title || '');
+                        div.setAttribute('data-country', project.country || '');
+                        div.innerHTML = '<strong>' + (project.title || '') + '</strong><br><small style="color: #666;">' + (project.country || '') + '</small>';
+                        div.onclick = function () {
+                            selectEoiProject(project.id, project.title, project.country);
+                        };
+                        options.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                console.error('프로젝트 목록 로드 실패:', error);
+            }
+        }
+
+        function openEoiProjectDropdown() {
+            var dropdown = document.getElementById('eoiProjectDropdown');
+            dropdown.classList.toggle('show');
+
+            if (dropdown.classList.contains('show')) {
+                document.getElementById('eoiProjectSearchInput').focus();
+            }
+        }
+
+        function selectEoiProject(id, title, country) {
+            document.getElementById('eoiProjectId').value = id;
+            document.getElementById('eoiProjectText').textContent = title + ' (' + country + ')';
+            document.getElementById('eoiProjectDropdown').classList.remove('show');
+        }
+
+        // EOI 프로젝트 검색 및 외부 클릭 핸들러
+        document.addEventListener('DOMContentLoaded', function () {
+            var eoiSearchInput = document.getElementById('eoiProjectSearchInput');
+            if (eoiSearchInput) {
+                eoiSearchInput.addEventListener('input', function () {
+                    var searchText = this.value.toLowerCase();
+                    var options = document.querySelectorAll('#eoiProjectOptions .searchable-select-option');
+                    options.forEach(function (option) {
+                        var title = (option.getAttribute('data-title') || '').toLowerCase();
+                        var country = (option.getAttribute('data-country') || '').toLowerCase();
+                        if (title.includes(searchText) || country.includes(searchText)) {
+                            option.style.display = 'block';
+                        } else {
+                            option.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
+            // EOI 드롭다운 외부 클릭 시 닫기
+            document.addEventListener('click', function (e) {
+                var container = document.getElementById('eoiProjectSelectContainer');
+                if (container && !container.contains(e.target)) {
+                    var dropdown = document.getElementById('eoiProjectDropdown');
+                    if (dropdown) dropdown.classList.remove('show');
+                }
+            });
+        });
+
+        function handleEoiFileSelect(input) {
+            var file = input.files[0];
+            if (file) {
+                var maxSize = 500 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    Toast.error('파일 크기는 500MB를 초과할 수 없습니다.');
+                    input.value = '';
+                    document.getElementById('eoiFileUploadText').textContent = '클릭하여 EOI 파일 선택';
+                    document.getElementById('eoiFileUploadArea').classList.remove('has-file');
+                    return;
+                }
+                document.getElementById('eoiFileUploadText').textContent = '선택됨: ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+                document.getElementById('eoiFileUploadArea').classList.add('has-file');
+            } else {
+                document.getElementById('eoiFileUploadText').textContent = '클릭하여 EOI 파일 선택';
+                document.getElementById('eoiFileUploadArea').classList.remove('has-file');
+            }
+        }
+
+        async function saveEoi(event) {
+            if (event) event.preventDefault();
+
+            var isDirectInput = document.getElementById('eoiDirectInputToggle').checked;
+            var projectId = document.getElementById('eoiProjectId').value;
+            var title = '';
+            var country = '';
+
+            if (isDirectInput) {
+                title = document.getElementById('eoiDirectTitle').value.trim();
+                country = document.getElementById('eoiDirectCountry').value.trim();
+                if (!title) {
+                    Toast.warning('사업명을 입력해주세요.');
+                    return;
+                }
+            } else {
+                if (!projectId) {
+                    Toast.warning('사업을 선택해주세요.');
+                    return;
+                }
+            }
+
+            var formData = new FormData();
+            formData.append('consultingProjectId', projectId || '');
+            formData.append('title', title);
+            formData.append('country', country);
+
+            var eoiFile = document.getElementById('eoiFile').files[0];
+            if (eoiFile) formData.append('eoiFile', eoiFile);
+
+            try {
+                var id = document.getElementById('eoiId').value;
+                var url = id ? '/bidding/eoi/' + id : '/bidding/eoi';
+                var method = id ? 'PUT' : 'POST';
+
+                var response = await apiCallFormData(url, method, formData);
+
+                if (response.success) {
+                    Toast.success(id ? 'EOI가 수정되었습니다.' : 'EOI가 등록되었습니다.');
+                    closeEoiModal();
+                    loadStats();
+                    loadData();
+                } else {
+                    Toast.error(response.message || '저장에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('EOI 저장 실패:', error);
+                Toast.error(error.message || '오류가 발생했습니다.');
+            }
+        }
+
+        function previewEoi(id, fileName) {
+            var token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            var fn = (fileName || '').toLowerCase();
+
+            // ZIP 파일은 다운로드
+            if (fn.endsWith('.zip')) {
+                downloadEoi(id, fileName);
+                return;
+            }
+
+            // PDF/DOC 등은 미리보기 (새 창)
+            var previewUrl = API_BASE_URL + '/bidding/eoi/' + id + '/preview?token=' + token;
+            window.open(previewUrl, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+        }
+
+        async function downloadEoi(id, fileName) {
+            try {
+                var token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                var response = await fetch(API_BASE_URL + '/bidding/eoi/' + id + '/download', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (response.ok) {
+                    var blob = await response.blob();
+                    var url = window.URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName || 'download';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    Toast.error('파일 다운로드에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('다운로드 실패:', error);
+                Toast.error('파일 다운로드 중 오류가 발생했습니다.');
+            }
+        }
+
+        async function deleteEoi(id) {
+            if (!confirm('정말 삭제하시겠습니까?')) return;
+
+            try {
+                var response = await apiCall('/bidding/eoi/' + id, 'DELETE');
+                if (response.success) {
+                    Toast.success('삭제되었습니다.');
+                    loadStats();
+                    loadData();
+                } else {
+                    Toast.error(response.message || '삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                console.error('EOI 삭제 실패:', error);
+                Toast.error('오류가 발생했습니다.');
+            }
+        }
+
+        // ==================== 제안정보 보기 모달 ====================
+        var currentProposalInfoId = null;
+
+        async function openProposalInfoModal(proposalId) {
+            try {
+                var response = await apiCall('/proposals/' + proposalId, 'GET');
+                if (!response.success) {
+                    Toast.error('제안서 정보를 불러오는데 실패했습니다.');
+                    return;
+                }
+                var p = response.data;
+                currentProposalInfoId = p.id;
+
+                document.getElementById('proposalInfoTitle').textContent = (p.title || '제안서') + ' - 제안정보';
+
+                var resultText = p.result || '-';
+                var resultClass = '';
+                if (p.result === '선정') resultClass = 'color: #2E7D32; font-weight: 600;';
+                else if (p.result === '탈락') resultClass = 'color: #C62828; font-weight: 600;';
+                else if (p.result === '심사중') resultClass = 'color: #E65100; font-weight: 600;';
+
+                var budgetStr = '-';
+                if (p.budget) {
+                    budgetStr = Number(p.budget).toLocaleString() + ' 백만원';
+                }
+
+                var tbody = document.querySelector('#proposalInfoTable tbody');
+                tbody.innerHTML =
+                    '<tr><th>사업명</th><td>' + (p.title || '-') + '</td></tr>' +
+                    '<tr><th>국가</th><td>' + (p.country || '-') + '</td></tr>' +
+                    '<tr><th>발주처</th><td>' + (p.client || '-') + '</td></tr>' +
+                    '<tr><th>제출일</th><td>' + (p.submissionDate || '-') + '</td></tr>' +
+                    '<tr><th>제안 예산</th><td>' + budgetStr + '</td></tr>' +
+                    '<tr><th>사업기간</th><td>' + (p.projectPeriod || '-') + '</td></tr>' +
+                    '<tr><th>결과</th><td><span style="' + resultClass + '">' + resultText + '</span></td></tr>' +
+                    '<tr><th>결과발표일</th><td>' + (p.resultDate || '-') + '</td></tr>' +
+                    '<tr><th>기술제안서</th><td>' + (p.technicalFileName || '-') + '</td></tr>' +
+                    '<tr><th>가격제안서</th><td>' + (p.priceFileName || '-') + '</td></tr>' +
+                    '<tr><th>참여인력</th><td>' + (p.teamMembers || '-') + '</td></tr>' +
+                    '<tr><th>사업개요</th><td>' + (p.description || '-') + '</td></tr>' +
+                    '<tr><th>비고</th><td>' + (p.remarks || '-') + '</td></tr>';
+
+                // 수정 버튼 표시 여부
+                document.getElementById('proposalInfoEditBtn').style.display = canEditProposal ? 'inline-block' : 'none';
+
+                document.getElementById('proposalInfoModal').classList.add('show');
+            } catch (error) {
+                console.error('제안정보 조회 실패:', error);
+                Toast.error('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        function closeProposalInfoModal() {
+            document.getElementById('proposalInfoModal').classList.remove('show');
+            currentProposalInfoId = null;
+        }
+
+        function editProposalFromInfo() {
+            var id = currentProposalInfoId;
+            closeProposalInfoModal();
+            if (id) {
+                editProposal(id);
+            }
+        }
+
+        // ==================== 통합 수정 모달 ====================
+        var currentEditRow = null;
+
+        function openUnifiedEditModal(rowJson) {
+            var row = JSON.parse(rowJson);
+            currentEditRow = row;
+
+            document.getElementById('unifiedEditTitle').textContent = (row.title || '문서') + ' - 문서 관리';
+
+            var content = document.getElementById('unifiedEditContent');
+            var html = '';
+
+            // EOI 섹션
+            html += '<div class="unified-edit-section">';
+            html += '<div class="unified-edit-section-header">';
+            html += '<h4>EOI (관심표명서)</h4>';
+            if (row.eoiId) {
+                html += '<span class="badge-section badge-has">등록됨</span>';
+            } else {
+                html += '<span class="badge-section badge-empty">미등록</span>';
+            }
+            html += '</div>';
+            html += '<div class="unified-edit-section-body">';
+            if (row.eoiId) {
+                html += '<div class="unified-edit-file-info">';
+                html += '<span class="unified-edit-file-name">' + (row.eoiFileName || 'EOI 파일') + '</span>';
+                html += '<div class="unified-edit-actions">';
+                if (canEditTorRfp) {
+                    html += '<button class="btn btn-sm btn-outline" onclick="editEoiFromRow(' + row.eoiId + ')">수정</button>';
+                    html += '<button class="btn btn-sm btn-danger" onclick="deleteEoiFromRow(' + row.eoiId + ')">삭제</button>';
+                }
+                html += '</div>';
+                html += '</div>';
+            } else {
+                if (canEditTorRfp) {
+                    html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                    html += '<span class="unified-edit-empty">등록된 EOI가 없습니다.</span>';
+                    html += '<button class="btn btn-sm btn-primary" onclick="addEoiForRow()">EOI 등록</button>';
+                    html += '</div>';
+                } else {
+                    html += '<span class="unified-edit-empty">등록된 EOI가 없습니다.</span>';
+                }
+            }
+            html += '</div></div>';
+
+            // TOR 섹션
+            html += '<div class="unified-edit-section">';
+            html += '<div class="unified-edit-section-header">';
+            html += '<h4>TOR (과업설명서)</h4>';
+            if (row.torRfpId && row.torFileName) {
+                html += '<span class="badge-section badge-has">등록됨</span>';
+            } else {
+                html += '<span class="badge-section badge-empty">미등록</span>';
+            }
+            html += '</div>';
+            html += '<div class="unified-edit-section-body">';
+            if (row.torRfpId && row.torFileName) {
+                html += '<div class="unified-edit-file-info">';
+                html += '<span class="unified-edit-file-name">' + row.torFileName + '</span>';
+                html += '<div class="unified-edit-actions">';
+                if (canEditTorRfp) {
+                    html += '<button class="btn btn-sm btn-outline" onclick="editTorRfpFromRow(' + row.torRfpId + ')">수정</button>';
+                    html += '<button class="btn btn-sm btn-danger" onclick="deleteTorFromRow(' + row.torRfpId + ')">삭제</button>';
+                }
+                html += '</div>';
+                html += '</div>';
+            } else {
+                if (canEditTorRfp) {
+                    html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                    html += '<span class="unified-edit-empty">등록된 TOR이 없습니다.</span>';
+                    html += '<button class="btn btn-sm btn-primary" onclick="addTorRfpForRow()">TOR 등록</button>';
+                    html += '</div>';
+                } else {
+                    html += '<span class="unified-edit-empty">등록된 TOR이 없습니다.</span>';
+                }
+            }
+            html += '</div></div>';
+
+            // RFP 섹션
+            html += '<div class="unified-edit-section">';
+            html += '<div class="unified-edit-section-header">';
+            html += '<h4>RFP (제안요청서)</h4>';
+            if (row.torRfpId && row.rfpFileName) {
+                html += '<span class="badge-section badge-has">등록됨</span>';
+            } else {
+                html += '<span class="badge-section badge-empty">미등록</span>';
+            }
+            html += '</div>';
+            html += '<div class="unified-edit-section-body">';
+            if (row.torRfpId && row.rfpFileName) {
+                html += '<div class="unified-edit-file-info">';
+                html += '<span class="unified-edit-file-name">' + row.rfpFileName + '</span>';
+                html += '<div class="unified-edit-actions">';
+                if (canEditTorRfp) {
+                    html += '<button class="btn btn-sm btn-outline" onclick="editTorRfpFromRow(' + row.torRfpId + ')">수정</button>';
+                    html += '<button class="btn btn-sm btn-danger" onclick="deleteRfpFromRow(' + row.torRfpId + ')">삭제</button>';
+                }
+                html += '</div>';
+                html += '</div>';
+            } else {
+                if (canEditTorRfp) {
+                    html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                    html += '<span class="unified-edit-empty">등록된 RFP가 없습니다.</span>';
+                    html += '<button class="btn btn-sm btn-primary" onclick="addTorRfpForRow()">RFP 등록</button>';
+                    html += '</div>';
+                } else {
+                    html += '<span class="unified-edit-empty">등록된 RFP가 없습니다.</span>';
+                }
+            }
+            html += '</div></div>';
+
+            // 제안서 섹션
+            html += '<div class="unified-edit-section">';
+            html += '<div class="unified-edit-section-header">';
+            html += '<h4>제안서</h4>';
+            if (row.proposalId) {
+                html += '<span class="badge-section badge-has">등록됨</span>';
+            } else {
+                html += '<span class="badge-section badge-empty">미등록</span>';
+            }
+            html += '</div>';
+            html += '<div class="unified-edit-section-body">';
+            if (row.proposalId) {
+                if (row.technicalFileName) {
+                    html += '<div class="unified-edit-file-info">';
+                    html += '<span class="unified-edit-file-name">기술제안서: ' + row.technicalFileName + '</span>';
+                    html += '</div>';
+                }
+                if (row.priceFileName) {
+                    html += '<div class="unified-edit-file-info">';
+                    html += '<span class="unified-edit-file-name">가격제안서: ' + row.priceFileName + '</span>';
+                    html += '</div>';
+                }
+                html += '<div class="unified-edit-actions" style="margin-top: 8px;">';
+                if (canEditProposal) {
+                    html += '<button class="btn btn-sm btn-outline" onclick="editProposalFromRow(' + row.proposalId + ')">수정</button>';
+                    html += '<button class="btn btn-sm btn-danger" onclick="deleteProposalFromRow(' + row.proposalId + ')">삭제</button>';
+                }
+                html += '</div>';
+            } else {
+                if (canEditProposal) {
+                    html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                    html += '<span class="unified-edit-empty">등록된 제안서가 없습니다.</span>';
+                    html += '<button class="btn btn-sm btn-primary" onclick="addProposalForRow()">제안서 등록</button>';
+                    html += '</div>';
+                } else {
+                    html += '<span class="unified-edit-empty">등록된 제안서가 없습니다.</span>';
+                }
+            }
+            html += '</div></div>';
+
+            content.innerHTML = html;
+            document.getElementById('unifiedEditModal').classList.add('show');
+        }
+
+        function closeUnifiedEditModal() {
+            document.getElementById('unifiedEditModal').classList.remove('show');
+            currentEditRow = null;
+        }
+
+        // EOI 관련
+        async function editEoiFromRow(eoiId) {
+            closeUnifiedEditModal();
+            try {
+                var response = await apiCall('/bidding/eoi/' + eoiId, 'GET');
+                if (response.success) {
+                    var eoi = response.data;
+                    document.getElementById('eoiModalTitle').textContent = 'EOI 수정';
+                    document.getElementById('eoiForm').reset();
+                    document.getElementById('eoiId').value = eoi.id;
+                    document.getElementById('eoiProjectId').value = eoi.consultingProjectId || '';
+
+                    if (eoi.consultingProjectId) {
+                        document.getElementById('eoiDirectInputToggle').checked = false;
+                        document.getElementById('eoiProjectSelectContainer').style.display = 'block';
+                        document.getElementById('eoiDirectInputFields').style.display = 'none';
+                        document.getElementById('eoiProjectText').textContent = eoi.title || '사업을 선택하세요';
+                    } else {
+                        document.getElementById('eoiDirectInputToggle').checked = true;
+                        document.getElementById('eoiProjectSelectContainer').style.display = 'none';
+                        document.getElementById('eoiDirectInputFields').style.display = 'block';
+                        document.getElementById('eoiDirectTitle').value = eoi.title || '';
+                        document.getElementById('eoiDirectCountry').value = eoi.country || '';
+                    }
+
+                    if (eoi.eoiFileName) {
+                        document.getElementById('eoiFileUploadText').textContent = '기존 파일: ' + eoi.eoiFileName;
+                        document.getElementById('eoiFileUploadArea').classList.add('has-file');
+                    }
+
+                    await loadEoiProjects();
+                    document.getElementById('eoiModal').classList.add('show');
+                }
+            } catch (error) {
+                console.error('EOI 조회 실패:', error);
+                Toast.error('데이터를 불러오는데 실패했습니다.');
+            }
+        }
+
+        async function deleteEoiFromRow(eoiId) {
+            if (!confirm('EOI를 삭제하시겠습니까?')) return;
+            closeUnifiedEditModal();
+            await deleteEoi(eoiId);
+        }
+
+        function addEoiForRow() {
+            closeUnifiedEditModal();
+            // EOI 등록 모달 열기 (프로젝트 미리 설정)
+            document.getElementById('eoiModalTitle').textContent = 'EOI 등록';
+            document.getElementById('eoiForm').reset();
+            document.getElementById('eoiId').value = '';
+            if (currentEditRow && currentEditRow.projectId) {
+                document.getElementById('eoiProjectId').value = currentEditRow.projectId;
+                document.getElementById('eoiProjectText').textContent = currentEditRow.title || '사업을 선택하세요';
+                document.getElementById('eoiDirectInputToggle').checked = false;
+                document.getElementById('eoiProjectSelectContainer').style.display = 'block';
+                document.getElementById('eoiDirectInputFields').style.display = 'none';
+            } else if (currentEditRow && currentEditRow.title) {
+                document.getElementById('eoiDirectInputToggle').checked = true;
+                document.getElementById('eoiProjectSelectContainer').style.display = 'none';
+                document.getElementById('eoiDirectInputFields').style.display = 'block';
+                document.getElementById('eoiDirectTitle').value = currentEditRow.title || '';
+                document.getElementById('eoiDirectCountry').value = currentEditRow.country || '';
+            }
+            document.getElementById('eoiFileUploadText').textContent = '클릭하여 EOI 파일 선택';
+            document.getElementById('eoiFileUploadArea').classList.remove('has-file');
+            loadEoiProjects().then(function() {
+                document.getElementById('eoiModal').classList.add('show');
+            });
+        }
+
+        // TOR/RFP 관련
+        function editTorRfpFromRow(torRfpId) {
+            closeUnifiedEditModal();
+            editTorRfp(torRfpId);
+        }
+
+        async function deleteTorFromRow(torRfpId) {
+            if (!confirm('TOR 파일을 삭제하시겠습니까?')) return;
+            closeUnifiedEditModal();
+            try {
+                var response = await apiCall('/tor-rfp/' + torRfpId + '/tor', 'DELETE');
+                if (response.success) {
+                    Toast.success('TOR 파일이 삭제되었습니다.');
+                    loadStats();
+                    loadData();
+                } else {
+                    Toast.error(response.message || '삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                Toast.error('오류가 발생했습니다.');
+            }
+        }
+
+        async function deleteRfpFromRow(torRfpId) {
+            if (!confirm('RFP 파일을 삭제하시겠습니까?')) return;
+            closeUnifiedEditModal();
+            try {
+                var response = await apiCall('/tor-rfp/' + torRfpId + '/rfp', 'DELETE');
+                if (response.success) {
+                    Toast.success('RFP 파일이 삭제되었습니다.');
+                    loadStats();
+                    loadData();
+                } else {
+                    Toast.error(response.message || '삭제에 실패했습니다.');
+                }
+            } catch (error) {
+                Toast.error('오류가 발생했습니다.');
+            }
+        }
+
+        function addTorRfpForRow() {
+            closeUnifiedEditModal();
+            // TOR/RFP 등록 모달 열기 (프로젝트 미리 설정)
+            document.getElementById('torRfpModalTitle').textContent = 'TOR/RFP 등록';
+            document.getElementById('torRfpForm').reset();
+            document.getElementById('torRfpId').value = '';
+            if (currentEditRow && currentEditRow.projectId) {
+                document.getElementById('torRfpDirectInputToggle').checked = false;
+                document.getElementById('torRfpProjectSelectContainer').style.display = 'block';
+                document.getElementById('torRfpDirectInputFields').style.display = 'none';
+                document.getElementById('torRfpProjectId').value = currentEditRow.projectId;
+                document.getElementById('torRfpProjectText').textContent = currentEditRow.title || '사업을 선택하세요';
+            } else if (currentEditRow && currentEditRow.title) {
+                document.getElementById('torRfpDirectInputToggle').checked = true;
+                document.getElementById('torRfpProjectSelectContainer').style.display = 'none';
+                document.getElementById('torRfpDirectInputFields').style.display = 'block';
+                document.getElementById('torRfpDirectTitle').value = currentEditRow.title || '';
+                document.getElementById('torRfpDirectCountry').value = currentEditRow.country || '';
+            }
+            document.getElementById('torFileUploadText').textContent = '클릭하여 TOR 파일 선택';
+            document.getElementById('torFileUploadArea').classList.remove('has-file');
+            document.getElementById('rfpFileUploadText').textContent = '클릭하여 RFP 파일 선택';
+            document.getElementById('rfpFileUploadArea').classList.remove('has-file');
+            loadTorRfpProjects().then(function() {
+                document.getElementById('torRfpModal').classList.add('show');
+            });
+        }
+
+        // 제안서 관련
+        function editProposalFromRow(proposalId) {
+            closeUnifiedEditModal();
+            editProposal(proposalId);
+        }
+
+        async function deleteProposalFromRow(proposalId) {
+            if (!confirm('제안서를 삭제하시겠습니까?')) return;
+            closeUnifiedEditModal();
+            await deleteProposal(proposalId);
+        }
+
+        function addProposalForRow() {
+            closeUnifiedEditModal();
+            // 제안서 등록 모달 열기 (프로젝트 미리 설정)
+            document.getElementById('proposalModalTitle').textContent = '제안서 등록';
+            document.getElementById('proposalForm').reset();
+            document.getElementById('proposalId').value = '';
+            if (currentEditRow && currentEditRow.projectId) {
+                document.getElementById('consultingProjectId').value = currentEditRow.projectId;
+                document.getElementById('proposalTitle').value = currentEditRow.title || '';
+                document.getElementById('proposalProjectText').textContent = currentEditRow.title || '사업을 선택하세요';
+                document.getElementById('proposalDirectInputToggle').checked = false;
+                document.getElementById('proposalProjectSelectContainer').style.display = 'block';
+                document.getElementById('proposalDirectTitle').style.display = 'none';
+            } else if (currentEditRow && currentEditRow.title) {
+                document.getElementById('proposalDirectInputToggle').checked = true;
+                document.getElementById('proposalProjectSelectContainer').style.display = 'none';
+                document.getElementById('proposalDirectTitle').style.display = 'block';
+                document.getElementById('proposalDirectTitle').value = currentEditRow.title || '';
+            }
+            if (currentEditRow) {
+                document.getElementById('proposalCountry').value = currentEditRow.country || '';
+                document.getElementById('proposalClient').value = currentEditRow.client || '';
+            }
+            document.getElementById('technicalFileUploadText').textContent = '클릭하여 파일 선택 (PDF 또는 ZIP)';
+            document.getElementById('technicalFileUploadArea').classList.remove('has-file');
+            document.getElementById('priceFileUploadText').textContent = '클릭하여 파일 선택 (PDF, ZIP, Excel)';
+            document.getElementById('priceFileUploadArea').classList.remove('has-file');
+            enableProposalFormFields(true);
+            document.getElementById('proposalSaveBtn').style.display = 'inline-block';
+            loadProposalProjects().then(function() {
+                document.getElementById('proposalModal').classList.add('show');
+            });
+        }
+
+        // ==================== 로그아웃 ====================
+        function logout() {
+            localStorage.removeItem('gbms_token');
+            localStorage.removeItem('gbms_user');
+            sessionStorage.removeItem('gbms_token');
+            sessionStorage.removeItem('gbms_user');
+            window.location.href = '../../index.html';
+        }
+    </script>
+</body>
+
+</html>
