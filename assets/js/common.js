@@ -262,19 +262,28 @@ function requireAuth(loginPath) {
     const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
     const path = window.location.pathname;
 
+    // 경로 깊이에 따른 상대 경로 계산 헬퍼
+    function getRelativePath(targetFile) {
+        const pagesIdx = path.indexOf('/pages/');
+        if (pagesIdx < 0) return targetFile;
+        // /pages/ 이후 경로에서 슬래시 개수로 깊이 계산
+        const afterPages = path.substring(pagesIdx + '/pages/'.length);
+        const depth = afterPages.split('/').filter(Boolean).length;
+        // depth 1 = pages/file.html → ../
+        // depth 2 = pages/admin/file.html → ../../
+        // depth 3 = pages/expansion/info/file.html → ../../../
+        if (depth <= 1) return '../' + targetFile;
+        return '../'.repeat(depth) + targetFile;
+    }
+
     // 토큰 없으면 로그인으로
     if (!token) {
         if (loginPath) {
             window.location.href = loginPath;
             return;
         }
-        if (path.includes('/pages/expansion/info/')) {
-            window.location.href = '../../../index.html';
-        } else if (path.includes('/pages/admin/') || path.includes('/pages/projects/') ||
-            path.includes('/pages/budget/') || path.includes('/pages/expansion/')) {
-            window.location.href = '../../index.html';
-        } else if (path.includes('/pages/')) {
-            window.location.href = '../index.html';
+        if (path.includes('/pages/')) {
+            window.location.href = getRelativePath('index.html');
         } else {
             window.location.href = 'index.html';
         }
@@ -285,13 +294,8 @@ function requireAuth(loginPath) {
     const userInfo = JSON.parse(localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user') || '{}');
     const scope = userInfo.permissionScope || userInfo.permission_scope || 'pending';
     if (scope === 'pending' && !path.includes('pending.html')) {
-        if (path.includes('/pages/expansion/info/')) {
-            window.location.href = '../../../pending.html';
-        } else if (path.includes('/pages/admin/') || path.includes('/pages/projects/') ||
-            path.includes('/pages/budget/') || path.includes('/pages/expansion/')) {
-            window.location.href = '../../pending.html';
-        } else if (path.includes('/pages/')) {
-            window.location.href = '../pending.html';
+        if (path.includes('/pages/')) {
+            window.location.href = getRelativePath('pending.html');
         } else {
             window.location.href = 'pending.html';
         }

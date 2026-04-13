@@ -95,7 +95,9 @@ def update_user(current_user, user_id):
     if 'role' in data:
         user.role = data['role']
     if 'permissionScope' in data:
-        user.permission_scope = data['permissionScope']
+        valid_scopes = ['pending', 'readonly', 'overseas_tech', 'expansion', 'oda', 'methane', 'all']
+        if data['permissionScope'] in valid_scopes:
+            user.permission_scope = data['permissionScope']
     if 'phone' in data:
         user.phone = data['phone']
     if 'position' in data:
@@ -121,7 +123,7 @@ def approve_user(current_user, user_id):
 
     # 권한 지정 (기본: readonly)
     new_scope = data.get('permissionScope', 'readonly')
-    valid_scopes = ['readonly', 'overseas_tech', 'expansion', 'oda', 'all']
+    valid_scopes = ['readonly', 'overseas_tech', 'expansion', 'oda', 'methane', 'all']
     if new_scope not in valid_scopes:
         new_scope = 'readonly'
 
@@ -291,6 +293,8 @@ def upload_users(current_user):
                         'expansion': 'expansion',
                         '국제협력사업': 'oda',
                         'oda': 'oda',
+                        '메탄감축사업': 'methane',
+                        'methane': 'methane',
                         '전체': 'all',
                         'all': 'all'
                     }

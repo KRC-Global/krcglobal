@@ -122,7 +122,7 @@ def token_required(f):
 
         # pending 사용자는 /api/auth/me만 허용, 나머지 API 차단
         if current_user.permission_scope == 'pending':
-            if not request.path.endswith('/auth/me'):
+            if request.path != '/api/auth/me':
                 return jsonify({'success': False, 'message': '관리자 승인 대기 중입니다.'}), 403
 
         return f(current_user, *args, **kwargs)
