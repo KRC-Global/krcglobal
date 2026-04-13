@@ -139,6 +139,12 @@ def file_too_large(error):
     return jsonify({'error': '파일 크기가 너무 큽니다.'}), 413
 
 
+# Root → index.html
+@app.route('/')
+def serve_index():
+    return app.send_static_file('index.html')
+
+
 # Health check
 @app.route('/api/health')
 def health_check():
