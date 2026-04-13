@@ -143,17 +143,19 @@
 /* ─── 모바일 카드형 테이블 ─── */
 @media (max-width: 768px) {
     .table-container:not(.no-mobile-card) {
-        overflow-x: visible;
+        overflow-x: visible !important;
     }
     .table-container:not(.no-mobile-card) .data-table thead {
-        display: none;
+        display: none !important;
     }
     .table-container:not(.no-mobile-card) .data-table,
     .table-container:not(.no-mobile-card) .data-table tbody {
-        display: block;
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
     }
     .table-container:not(.no-mobile-card) .data-table tbody tr {
-        display: block;
+        display: block !important;
         border: 1px solid var(--color-neutral-200);
         border-radius: var(--radius-md);
         margin-bottom: var(--spacing-3);
@@ -168,15 +170,17 @@
         border-bottom: none;
     }
     .table-container:not(.no-mobile-card) .data-table td {
-        display: flex;
+        display: flex !important;
         justify-content: space-between;
         align-items: flex-start;
         gap: var(--spacing-2);
         padding: var(--spacing-1) 0;
         border-bottom: 1px solid var(--color-neutral-100);
         font-size: var(--font-size-sm);
-        width: 100%;
+        width: 100% !important;
+        min-width: 0 !important;
         box-sizing: border-box;
+        text-align: left !important;
     }
     .table-container:not(.no-mobile-card) .data-table td:last-child {
         border-bottom: none;
@@ -193,14 +197,16 @@
     }
     /* 사업명 컬럼 → 카드 헤더 (1행) */
     .table-container:not(.no-mobile-card) .data-table td.col-title {
-        display: block;
+        display: block !important;
         font-weight: var(--font-weight-semibold);
         font-size: var(--font-size-base);
         color: var(--color-neutral-900);
         padding-bottom: var(--spacing-2);
         margin-bottom: var(--spacing-2);
         border-bottom: 2px solid #1A4B7C;
-        width: 100%;
+        width: 100% !important;
+        text-align: left !important;
+        vertical-align: top !important;
     }
     /* colspan 빈 행 */
     .table-container:not(.no-mobile-card) .data-table td[colspan] {
