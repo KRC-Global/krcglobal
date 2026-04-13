@@ -518,7 +518,7 @@ function initMenuForCurrentPage() {
         // 해외기술용역
         'overseas-tech': ['사업관리', '해외기술용역', '사업현황'],
         'overseas-tech-bidding': ['사업관리', '해외기술용역', 'TOR/RFP·제안서'],
-        'overseas-tech-contracts': ['사업관리', '해외기술용역', '계약서관리'],
+        'overseas-tech-contracts': ['사업관리', '해외기술용역', '계약서/최종보고서'],
         'overseas-tech-performance': ['사업관리', '해외기술용역', '실적관리'],
         'overseas-tech-board': ['사업관리', '해외기술용역', '기타'],
         // 국제협력사업
