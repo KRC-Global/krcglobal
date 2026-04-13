@@ -5,10 +5,19 @@ PDF 압축 엔진 (메모리 기반)
 - 강력한 압축 옵션 지원
 """
 
-import pikepdf
-from pikepdf import Pdf, PdfImage
-from PIL import Image
 from io import BytesIO
+
+try:
+    import pikepdf
+    from pikepdf import Pdf, PdfImage
+    from PIL import Image
+    HAS_PDF_LIBS = True
+except ImportError:
+    pikepdf = None
+    Pdf = None
+    PdfImage = None
+    Image = None
+    HAS_PDF_LIBS = False
 
 
 # 압축 레벨 프리셋
@@ -47,6 +56,8 @@ class PDFCompressor:
             max_dimension: 이미지 최대 픽셀 크기 (기본값 2000)
             preset: 압축 프리셋 ('low', 'medium', 'high', 'maximum')
         """
+        if not HAS_PDF_LIBS:
+            raise ImportError('PDF 압축 기능을 사용하려면 pikepdf, Pillow 패키지가 필요합니다.')
         if preset and preset in COMPRESSION_PRESETS:
             p = COMPRESSION_PRESETS[preset]
             self.quality = p['quality']
