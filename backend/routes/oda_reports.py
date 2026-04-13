@@ -68,27 +68,34 @@ def get_all_reports_by_project(current_user):
         # 페이지네이션
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
 
+        # 현재 페이지 프로젝트 IDs 수집
+        project_ids = [p.id for p in pagination.items]
+
+        # 보고서와 비고를 IN 쿼리로 한 번에 조회 (N+1 방지)
+        all_reports = OdaReport.query.filter(
+            OdaReport.oda_project_id.in_(project_ids)
+        ).order_by(OdaReport.created_at.asc()).all() if project_ids else []
+
+        all_notes = OdaNote.query.filter(
+            OdaNote.oda_project_id.in_(project_ids)
+        ).all() if project_ids else []
+
+        # project_id 기준으로 인덱싱
+        report_types = ['pcp', 'implementation_plan', 'fs', 'rod', 'proposal', 'pmc', 'performance', 'post_evaluation']
+        reports_by_project = {pid: {rt: [] for rt in report_types} for pid in project_ids}
+        for r in all_reports:
+            if r.oda_project_id in reports_by_project and r.report_type in report_types:
+                reports_by_project[r.oda_project_id][r.report_type].append(r.to_dict())
+
+        notes_by_project = {n.oda_project_id: n for n in all_notes}
+
         # 각 프로젝트별 보고서 정보 포함
         projects_data = []
         for project in pagination.items:
             project_dict = project.to_dict()
-
-            # 각 보고서 타입별 조회 (다중 파일 지원 - 배열 반환)
-            reports = {}
-            report_types = ['pcp', 'implementation_plan', 'fs', 'rod', 'proposal', 'pmc', 'performance', 'post_evaluation']
-            for report_type in report_types:
-                type_reports = OdaReport.query.filter_by(
-                    oda_project_id=project.id,
-                    report_type=report_type
-                ).order_by(OdaReport.created_at.asc()).all()
-                reports[report_type] = [r.to_dict() for r in type_reports]
-
-            project_dict['reports'] = reports
-
-            # 비고(note) 데이터 포함
-            note = OdaNote.query.filter_by(oda_project_id=project.id).first()
+            project_dict['reports'] = reports_by_project.get(project.id, {rt: [] for rt in report_types})
+            note = notes_by_project.get(project.id)
             project_dict['note'] = note.to_dict() if note else None
-
             projects_data.append(project_dict)
 
         return jsonify({
