@@ -5,6 +5,7 @@ GBMS - ODA Reports Routes
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from sqlalchemy.orm import joinedload
 from models import db, OdaReport, OdaProject, OdaNote, ActivityLog
 from routes.auth import token_required, admin_required, permission_required
 from utils.file_naming import make_oda_report_filename, make_oda_report_disk_filename
@@ -31,8 +32,8 @@ def get_all_reports_by_project(current_user):
         search = request.args.get('search')
         status = request.args.get('status')
 
-        # ODA 프로젝트 쿼리
-        query = OdaProject.query
+        # ODA 프로젝트 쿼리 (creator 즉시 로드 — N+1 방지)
+        query = OdaProject.query.options(joinedload(OdaProject.creator))
 
         if country:
             query = query.filter(OdaProject.country == country)
@@ -61,12 +62,12 @@ def get_all_reports_by_project(current_user):
         # 현재 페이지 프로젝트 IDs 수집
         project_ids = [p.id for p in pagination.items]
 
-        # 보고서와 비고를 IN 쿼리로 한 번에 조회 (N+1 방지)
-        all_reports = OdaReport.query.filter(
+        # 보고서와 비고를 IN 쿼리로 한 번에 조회 + creator 즉시 로드 (N+1 방지)
+        all_reports = OdaReport.query.options(joinedload(OdaReport.creator)).filter(
             OdaReport.oda_project_id.in_(project_ids)
         ).order_by(OdaReport.created_at.asc()).all() if project_ids else []
 
-        all_notes = OdaNote.query.filter(
+        all_notes = OdaNote.query.options(joinedload(OdaNote.creator)).filter(
             OdaNote.oda_project_id.in_(project_ids)
         ).all() if project_ids else []
 

@@ -1058,8 +1058,7 @@
                 }
             } catch (e) {}
 
-            await loadCountries();
-            await loadReports();
+            await Promise.all([loadCountries(), loadReports()]);
             setupEventListeners();
         });
 
