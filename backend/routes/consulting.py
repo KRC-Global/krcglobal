@@ -15,6 +15,7 @@ except ImportError:
 from werkzeug.utils import secure_filename
 from models import db, ConsultingProject, ConsultingPersonnel, ActivityLog, ProfitabilityData, ProposalStatus, ProjectLifecycle, Eoi, Proposal, Contract, PerformanceRecord, TorRfp, normalize_date_dot
 from routes.auth import token_required, permission_required
+from sqlalchemy.orm import joinedload
 import os
 import re
 
@@ -157,13 +158,11 @@ def get_consulting_projects(current_user):
     search = request.args.get('search')
     include_personnel = request.args.get('include_personnel', 'false').lower() == 'true'
 
-    # Build query
-    query = ConsultingProject.query
+    # Build query — joinedload로 creator N+1 쿼리 방지
+    query = ConsultingProject.query.options(joinedload(ConsultingProject.creator))
 
     if country:
         query = query.filter(ConsultingProject.country == country)
-
-    # status 필터는 진행률 계산 후 Python에서 처리
 
     if client:
         query = query.filter(ConsultingProject.client.ilike(f'%{client}%'))
@@ -183,21 +182,21 @@ def get_consulting_projects(current_user):
         ConsultingProject.contract_year.desc(),
         ConsultingProject.number.asc()
     )
-    
-    # Get all matching projects before year filtering & pagination
+
     projects = query.all()
 
-    # ===== 진행률 기반 자동 상태 업데이트 (필터링 전에 먼저 수행) =====
+    # ===== 진행률 기반 자동 상태 업데이트 =====
+    # 계산 결과를 캐시해서 이후 재사용 (이중 호출 방지)
+    progress_cache = {}
     updated_count = 0
     for project in projects:
-        progress, effective_status = calculate_progress(project)
-        # 진행률 100%이고 시행중/진행중이면 DB 상태를 준공으로 자동 업데이트
-        if progress >= 100 and project.status in ['시행중', '진행중']:
+        prog, effective_status = calculate_progress(project)
+        progress_cache[project.id] = prog
+        if prog >= 100 and project.status in ['시행중', '진행중']:
             project.status = '준공'
             project.updated_at = datetime.utcnow()
             updated_count += 1
 
-    # DB 변경사항 커밋
     if updated_count > 0:
         db.session.commit()
 
@@ -274,14 +273,12 @@ def get_consulting_projects(current_user):
     end_idx = start_idx + per_page
     paginated_items = projects[start_idx:end_idx]
 
-    # Convert to dict with calculated progress (status는 이미 업데이트됨)
+    # Convert to dict — progress는 캐시에서 재사용 (이중 계산 방지)
     data_with_progress = []
     for project in paginated_items:
-        progress, _ = calculate_progress(project)
         project_dict = project.to_dict()
-        project_dict['progress'] = progress
+        project_dict['progress'] = progress_cache.get(project.id, 0)
 
-        # 인력 정보 포함
         if include_personnel:
             project_dict['personnel'] = [person.to_dict() for person in project.personnel]
 
@@ -621,7 +618,7 @@ def export_consulting_projects(current_user):
     search = request.args.get('search')
 
     # Build query
-    query = ConsultingProject.query
+    query = ConsultingProject.query.options(joinedload(ConsultingProject.creator))
 
     if country:
         query = query.filter(ConsultingProject.country == country)

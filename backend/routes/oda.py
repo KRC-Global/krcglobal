@@ -15,6 +15,7 @@ except ImportError:
 from werkzeug.utils import secure_filename
 from models import db, OdaProject, ActivityLog, ProfitabilityData, OdaManualData
 from routes.auth import token_required, admin_required, permission_required
+from sqlalchemy.orm import joinedload
 import os
 
 oda_bp = Blueprint('oda', __name__)
@@ -105,7 +106,8 @@ def get_oda_projects(current_user):
     project_type = request.args.get('project_type')
     search = request.args.get('search')
 
-    query = OdaProject.query
+    # joinedload로 creator N+1 쿼리 방지
+    query = OdaProject.query.options(joinedload(OdaProject.creator))
 
     if country:
         query = query.filter(OdaProject.country == country)
@@ -123,13 +125,11 @@ def get_oda_projects(current_user):
                 OdaProject.country.ilike(f'%{search}%')
             )
         )
-        
-    # Get year filter
+
     year = request.args.get('year', type=int)
 
     query = query.order_by(OdaProject.number.asc())
-    
-    # Get all matching projects before year filtering & pagination
+
     projects = query.all()
     
     # Year filtering (Python-side due to custom period format)
@@ -402,7 +402,7 @@ def export_oda_projects(current_user):
     search = request.args.get('search')
     year = request.args.get('year', type=int)
 
-    query = OdaProject.query
+    query = OdaProject.query.options(joinedload(OdaProject.creator))
 
     if country:
         query = query.filter(OdaProject.country == country)
