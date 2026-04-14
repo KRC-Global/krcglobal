@@ -8,8 +8,9 @@ from datetime import timedelta
 # Base directory
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-# Supabase PostgreSQL (Transaction Pooler)
-DEFAULT_DATABASE_URL = 'postgresql://postgres.zzypdvwdwgwocczpaaiu:KrcGlobal2026!DB@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres'
+# Supabase PostgreSQL (Transaction Pooler - 포트 6543)
+# Session 모드(5432)는 동시 연결 수 제한 엄격 → Transaction 모드(6543) 사용
+DEFAULT_DATABASE_URL = 'postgresql://postgres.zzypdvwdwgwocczpaaiu:KrcGlobal2026!DB@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres'
 
 
 class Config:
@@ -26,16 +27,17 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or DEFAULT_DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # PostgreSQL pool settings for Supabase Transaction Pooler
+    # PostgreSQL pool settings for Supabase Transaction Pooler (포트 6543)
+    # Transaction 모드: 연결을 트랜잭션 단위로 공유 → 동시 클라이언트 수 제한 없음
+    # statement_timeout 등 세션 옵션은 Transaction 모드와 비호환 → 제거
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_pre_ping': False,      # Supabase 풀러가 연결 관리 → 불필요한 핑 제거
-        'pool_recycle': 1800,        # 30분 (Transaction Pooler 세션 수명 기준)
-        'pool_size': 10,             # 동시 연결 수 증가
-        'max_overflow': 20,
-        'pool_timeout': 10,          # 연결 대기 타임아웃 (초)
+        'pool_pre_ping': False,
+        'pool_recycle': 300,         # 5분 (Transaction 모드 권장)
+        'pool_size': 5,              # Transaction 모드는 소수 연결로 충분
+        'max_overflow': 10,
+        'pool_timeout': 10,
         'connect_args': {
-            'connect_timeout': 5,    # 초기 연결 타임아웃 (초)
-            'options': '-c statement_timeout=30000'  # 쿼리 타임아웃 30초
+            'connect_timeout': 5,
         }
     }
 
