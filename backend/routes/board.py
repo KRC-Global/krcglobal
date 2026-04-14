@@ -180,8 +180,9 @@ def update_post(current_user, id):
 
                 # 기존 R2 파일 삭제
                 if post.file_path:
+                    old_key = post.file_path if '/' in post.file_path else f'board/{post.file_path}'
                     try:
-                        delete_file(post.file_path)
+                        delete_file(old_key)
                     except Exception:
                         pass
 
@@ -228,8 +229,9 @@ def delete_post(current_user, id):
 
         # R2 파일 삭제
         if post.file_path:
+            del_key = post.file_path if '/' in post.file_path else f'board/{post.file_path}'
             try:
-                delete_file(post.file_path)
+                delete_file(del_key)
             except Exception:
                 pass
 
@@ -269,7 +271,13 @@ def download_file(id):
         _dl_year = post.created_at.year if post.created_at else None
         file_ext = '.' + post.file_path.rsplit('.', 1)[-1] if '.' in post.file_path else '.pdf'
         download_name = make_overseas_tech_filename('첨부', file_ext, _dl_proj, post.title, _dl_year)
-        return stream_from_r2(post.file_path, download_name=download_name)
+
+        # R2 키 결정: 이미 prefix 포함이면 그대로, 아니면 board/ 추가
+        r2_key = post.file_path if '/' in post.file_path else f'board/{post.file_path}'
+        try:
+            return stream_from_r2(r2_key, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
