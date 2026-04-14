@@ -247,9 +247,11 @@
         max-width: 60%;
     }
 
-    /* 사업명 컬럼 → 카드 헤더 */
+    /* 사업명 컬럼 → 카드 헤더 (맨 위 고정) */
     .table-container:not(.no-mobile-card) .data-table td.col-title {
+        order: -2;
         display: block !important;
+        flex: 0 0 100% !important;
         font-weight: var(--font-weight-bold);
         font-size: var(--font-size-base);
         color: var(--color-neutral-0);
@@ -260,6 +262,12 @@
         width: 100% !important;
         text-align: left !important;
         line-height: 1.4;
+    }
+
+    /* admin-only 액션 셀 — 카드 최하단 */
+    .table-container:not(.no-mobile-card) .data-table td.admin-only-col {
+        order: 99 !important;
+        justify-content: center !important;
     }
 
     /* 사업명 내 링크 색상 */
@@ -284,9 +292,11 @@
         padding: var(--spacing-6) !important;
     }
 
-    /* 파이프라인 셀 — 가로 스크롤 허용 */
+    /* 파이프라인 셀 — 카드 하단 고정, 가로 스크롤 허용 */
     .table-container:not(.no-mobile-card) .data-table td.pipeline-cell {
+        order: 98;
         display: block !important;
+        flex: 0 0 100% !important;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         padding: var(--spacing-3) var(--spacing-4) !important;
