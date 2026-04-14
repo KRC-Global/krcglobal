@@ -680,6 +680,33 @@
             gap: 4px;
             margin-top: 20px;
         }
+
+        /* 통계 카드 모바일 1행 레이아웃 */
+        @media (max-width: 768px) {
+            .stats-cards {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                gap: 4px !important;
+                margin-bottom: 12px !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+            .stats-cards .stat-card {
+                flex: 1 1 0 !important;
+                min-width: 48px !important;
+                padding: 8px 4px !important;
+            }
+            .stats-cards .stat-value {
+                font-size: 15px !important;
+                white-space: nowrap;
+            }
+            .stats-cards .stat-label {
+                font-size: 9px !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
     </style>
 </head>
 

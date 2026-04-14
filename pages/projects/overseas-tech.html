@@ -775,6 +775,44 @@
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
+
+        /* 통계 카드 모바일 1행 레이아웃 */
+        @media (max-width: 768px) {
+            .stats-grid {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+                gap: 6px !important;
+                margin-bottom: 12px !important;
+                padding-bottom: 2px;
+            }
+            .stats-grid .stat-card {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+                padding: var(--spacing-2) var(--spacing-2) !important;
+                gap: var(--spacing-1) !important;
+            }
+            .stats-grid .stat-icon {
+                width: 28px !important;
+                height: 28px !important;
+                flex-shrink: 0;
+            }
+            .stats-grid .stat-icon svg {
+                width: 14px !important;
+                height: 14px !important;
+            }
+            .stats-grid .stat-value {
+                font-size: 13px !important;
+                white-space: nowrap;
+            }
+            .stats-grid .stat-label {
+                font-size: 9px !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
     </style>
 </head>
 

@@ -557,6 +557,31 @@
             text-decoration: underline !important;
             color: var(--color-primary-700) !important;
         }
+
+        /* 통계 카드 모바일 1행 레이아웃 */
+        @media (max-width: 768px) {
+            .stats-cards {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                gap: 6px !important;
+                margin-bottom: 12px !important;
+            }
+            .stats-cards .stat-card {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+                padding: 10px 6px !important;
+            }
+            .stats-cards .stat-value {
+                font-size: 18px !important;
+                white-space: nowrap;
+            }
+            .stats-cards .stat-label {
+                font-size: 10px !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
     </style>
 </head>
 
