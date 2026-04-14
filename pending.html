@@ -26,19 +26,29 @@
                 <p style="font-size: var(--font-size-sm); color: var(--color-neutral-700); line-height: 1.6;">
                     로그인이 완료되었습니다.<br>
                     관리자가 계정을 승인한 후 시스템을 이용할 수 있습니다.<br>
-                    아래에서 이름을 확인하고 필요시 수정해주세요.
+                    아래에서 이름과 사번을 입력하고 저장해주세요.
                 </p>
-                <div style="margin-top: var(--spacing-3);">
-                    <label style="font-size: var(--font-size-xs); color: var(--color-neutral-600); font-weight: 600;">이름</label>
-                    <div style="display: flex; gap: 8px; margin-top: 4px;">
-                        <input type="text" id="pendingUserNameInput" class="form-input"
-                               maxlength="100" placeholder="이름을 입력하세요"
-                               style="flex: 1;">
-                        <button type="button" class="btn btn-primary" onclick="saveName()" id="saveNameBtn">
-                            저장
-                        </button>
+                <div style="margin-top: var(--spacing-3); display: flex; flex-direction: column; gap: var(--spacing-3);">
+                    <div>
+                        <label style="font-size: var(--font-size-xs); color: var(--color-neutral-600); font-weight: 600;">이름</label>
+                        <div style="margin-top: 4px;">
+                            <input type="text" id="pendingUserNameInput" class="form-input"
+                                   maxlength="100" placeholder="이름을 입력하세요"
+                                   style="width: 100%;">
+                        </div>
                     </div>
-                    <div id="saveNameMsg" style="font-size: var(--font-size-xs); margin-top: 4px; min-height: 18px;"></div>
+                    <div>
+                        <label style="font-size: var(--font-size-xs); color: var(--color-neutral-600); font-weight: 600;">사번</label>
+                        <div style="margin-top: 4px;">
+                            <input type="text" id="pendingEmployeeNumberInput" class="form-input"
+                                   maxlength="20" placeholder="사번을 입력하세요"
+                                   style="width: 100%;">
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="saveInfo()" id="saveNameBtn" style="width: 100%;">
+                        저장
+                    </button>
+                    <div id="saveNameMsg" style="font-size: var(--font-size-xs); margin-top: -8px; min-height: 18px;"></div>
                 </div>
                 <p style="font-size: var(--font-size-xs); color: var(--color-neutral-500); margin-top: var(--spacing-2);">
                     계정: <strong id="pendingUserEmail"></strong>
@@ -66,14 +76,21 @@
     <script src="assets/js/supabase-config.js"></script>
     <script src="assets/js/api.js"></script>
     <script>
-        async function saveName() {
+        async function saveInfo() {
             const nameInput = document.getElementById('pendingUserNameInput');
+            const empNumInput = document.getElementById('pendingEmployeeNumberInput');
             const msgEl = document.getElementById('saveNameMsg');
             const name = nameInput.value.trim();
+            const employeeNumber = empNumInput.value.trim();
 
             if (!name) {
                 msgEl.style.color = 'var(--color-danger-600, #dc2626)';
                 msgEl.textContent = '이름을 입력해주세요.';
+                return;
+            }
+            if (!employeeNumber) {
+                msgEl.style.color = 'var(--color-danger-600, #dc2626)';
+                msgEl.textContent = '사번을 입력해주세요.';
                 return;
             }
 
@@ -86,17 +103,18 @@
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + token
                     },
-                    body: JSON.stringify({ name: name })
+                    body: JSON.stringify({ name: name, employeeNumber: employeeNumber })
                 });
                 const data = await response.json();
 
                 if (data.success) {
                     const userInfo = JSON.parse(localStorage.getItem('gbms_user') || '{}');
                     userInfo.name = data.user.name;
+                    userInfo.employeeNumber = data.user.employeeNumber;
                     localStorage.setItem('gbms_user', JSON.stringify(userInfo));
 
                     msgEl.style.color = 'var(--color-success-600, #16a34a)';
-                    msgEl.textContent = '이름이 저장되었습니다.';
+                    msgEl.textContent = '정보가 저장되었습니다.';
                 } else {
                     msgEl.style.color = 'var(--color-danger-600, #dc2626)';
                     msgEl.textContent = data.message || '저장에 실패했습니다.';
@@ -112,6 +130,7 @@
         document.addEventListener('DOMContentLoaded', async function () {
             const userInfo = JSON.parse(localStorage.getItem('gbms_user') || '{}');
             document.getElementById('pendingUserNameInput').value = userInfo.name || '';
+            document.getElementById('pendingEmployeeNumberInput').value = userInfo.employeeNumber || '';
             document.getElementById('pendingUserEmail').textContent = userInfo.email || userInfo.userId || '';
 
             // 이미 승인된 사용자가 이 페이지에 온 경우
