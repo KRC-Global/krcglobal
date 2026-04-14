@@ -140,6 +140,25 @@
     border-bottom: none;
 }
 
+/* ─── 조회전용(readonly) 모드: 쓰기 액션 요소 숨김 ─── */
+/* body.readonly-mode 클래스는 common.js applyReadonlyMode()가 설정 */
+body.readonly-mode .btn-danger,
+body.readonly-mode .btn-delete,
+body.readonly-mode .btn-edit,
+body.readonly-mode .btn-sm.btn-edit,
+body.readonly-mode .btn-sm.btn-delete,
+body.readonly-mode .lifecycle-save-btn,
+body.readonly-mode .lifecycle-edit-btn,
+body.readonly-mode .sdp-delete-btn,
+body.readonly-mode .btn-delete-row,
+body.readonly-mode .btn-edit-proposal,
+body.readonly-mode .btn-add-proposal,
+body.readonly-mode .btn-save-proposal,
+body.readonly-mode .btn-cancel-proposal,
+body.readonly-mode .admin-only {
+    display: none !important;
+}
+
 /* ─── 모바일 카드형 테이블 ─── */
 @media (max-width: 768px) {
     .table-container:not(.no-mobile-card) {

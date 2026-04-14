@@ -543,6 +543,8 @@ function initMenuForCurrentPage() {
         'gis': ['글로벌맵'],
         // 편의기능
         'utilities': ['편의기능'],
+        // 분석 도구
+        'cn-global': ['편의기능'],
     };
 
     const targetMenuPath = menuMap[fileName];
@@ -1064,11 +1066,41 @@ function initCommonUI() {
     initSidebarToggle();
     initSidebar();
     addPasswordChangeMenu();
+    applyReadonlyMode();
+}
+
+/**
+ * 조회전용(readonly) 권한 시 쓰기 액션 요소 숨김
+ * - body.readonly-mode 클래스 추가 → CSS 규칙으로 동적 생성 버튼 포함 숨김
+ * - btn-primary/btn-success 중 쓰기 키워드 포함 버튼 직접 숨김
+ */
+function applyReadonlyMode() {
+    const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
+    if (!userInfo) return;
+    try {
+        const user = JSON.parse(userInfo);
+        const scope = user.permissionScope || user.permission_scope;
+        if (scope !== 'readonly') return;
+
+        // CSS 기반 숨김 활성화 (동적 생성 요소 포함)
+        document.body.classList.add('readonly-mode');
+
+        // 쓰기 액션 텍스트가 포함된 btn-primary/btn-success 버튼 직접 숨김
+        // (CSS 클래스로 구분되지 않는 페이지 전용 버튼 처리)
+        const WRITE_KEYWORDS = ['등록', '신규', '추가', '수정', '삭제', '저장', '업로드', '작성', '편집 모드'];
+        document.querySelectorAll('button.btn-primary, button.btn-success, a.btn-primary').forEach(function(el) {
+            const text = el.textContent.trim();
+            if (WRITE_KEYWORDS.some(function(kw) { return text.includes(kw); })) {
+                el.style.setProperty('display', 'none', 'important');
+            }
+        });
+    } catch (e) {}
 }
 
 // 페이지 로드 시 자동 초기화
 document.addEventListener('DOMContentLoaded', function () {
-    // 데이터분석 드롭다운 외부 클릭 시 닫기는 위에서 이미 처리됨
+    // initCommonUI()를 호출하지 않는 페이지를 위해 readonly 모드 적용
+    applyReadonlyMode();
 });
 
 // 전역으로 사용할 수 있도록 window 객체에 할당
