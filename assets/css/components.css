@@ -211,16 +211,16 @@ body.readonly-mode .admin-only {
         background: transparent;
     }
 
-    /* col-half: 2열 그리드 — 레이블 위, 값 아래 */
+    /* col-half: 2열 그리드 — 레이블 왼쪽, 값 오른쪽 (가로 컴팩트) */
     .table-container:not(.no-mobile-card) .data-table td.col-half {
         flex: 0 0 50% !important;
         width: 50% !important;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        justify-content: flex-start !important;
-        text-align: left !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        text-align: right !important;
         padding: var(--spacing-2) var(--spacing-3) !important;
-        gap: 3px !important;
+        gap: 6px !important;
         border-right: 1px solid var(--color-neutral-100);
     }
 
@@ -229,28 +229,29 @@ body.readonly-mode .admin-only {
         font-size: 10px;
         letter-spacing: 0.04em;
         color: var(--color-neutral-400);
-        font-weight: var(--font-weight-semibold);
+        font-weight: 700;
         text-transform: uppercase;
-        margin-bottom: 2px;
         flex-shrink: 0;
         white-space: nowrap;
+        text-align: left;
     }
 
     /* col-half 값 영역 */
     .table-container:not(.no-mobile-card) .data-table td.col-half > * {
-        max-width: 100%;
+        max-width: 60%;
+        text-align: right;
     }
 
-    /* col-third: 3열 그리드 — 레이블 위, 값 아래 */
+    /* col-third: 3열 그리드 — 레이블 왼쪽, 값 오른쪽 (가로 컴팩트) */
     .table-container:not(.no-mobile-card) .data-table td.col-third {
         flex: 0 0 33.333% !important;
         width: 33.333% !important;
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        justify-content: flex-start !important;
-        text-align: left !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        text-align: right !important;
         padding: var(--spacing-2) var(--spacing-3) !important;
-        gap: 3px !important;
+        gap: 4px !important;
         border-right: 1px solid var(--color-neutral-100);
     }
 
@@ -259,16 +260,17 @@ body.readonly-mode .admin-only {
         font-size: 10px;
         letter-spacing: 0.04em;
         color: var(--color-neutral-400);
-        font-weight: var(--font-weight-semibold);
+        font-weight: 700;
         text-transform: uppercase;
-        margin-bottom: 2px;
         flex-shrink: 0;
         white-space: nowrap;
+        text-align: left;
     }
 
     /* col-third 값 영역 */
     .table-container:not(.no-mobile-card) .data-table td.col-third > * {
-        max-width: 100%;
+        max-width: 55%;
+        text-align: right;
     }
     .table-container:not(.no-mobile-card) .data-table td:last-child {
         border-bottom: none;
@@ -282,8 +284,8 @@ body.readonly-mode .admin-only {
     /* data-label → ::before 레이블 */
     .table-container:not(.no-mobile-card) .data-table td[data-label]::before {
         content: attr(data-label);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-neutral-500);
+        font-weight: 700;
+        color: var(--color-neutral-600);
         font-size: 11px;
         letter-spacing: 0.03em;
         flex-shrink: 0;
@@ -302,7 +304,7 @@ body.readonly-mode .admin-only {
         display: block !important;
         flex: 0 0 100% !important;
         font-weight: var(--font-weight-bold);
-        font-size: var(--font-size-base);
+        font-size: 17px;
         color: var(--color-neutral-0);
         background: #1A4B7C !important;
         padding: var(--spacing-3) var(--spacing-4) !important;
@@ -334,10 +336,11 @@ body.readonly-mode .admin-only {
 
     /* 사업명 내 부제목(영문 등) */
     .table-container:not(.no-mobile-card) .data-table td.col-title div {
-        color: rgba(255, 255, 255, 0.75);
-        font-size: 11px;
+        color: #a8ccf0;
+        font-size: 11.5px;
         font-weight: var(--font-weight-normal);
-        margin-top: 3px;
+        margin-top: 4px;
+        letter-spacing: 0.01em;
     }
 
     /* colspan 빈 행 */

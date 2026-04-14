@@ -22,38 +22,247 @@
                 <p class="login-subtitle" style="margin-top: var(--spacing-2);">한국농어촌공사 글로벌사업관리시스템</p>
             </div>
 
-            <div style="margin-top: var(--spacing-6); padding: var(--spacing-4); background: var(--color-info-100, #e8f4fd); border-radius: var(--radius-md); text-align: left;">
-                <p style="font-size: var(--font-size-sm); color: var(--color-neutral-700); line-height: 1.6;">
-                    로그인이 완료되었습니다.<br>
-                    관리자가 계정을 승인한 후 시스템을 이용할 수 있습니다.<br>
-                    아래에서 이름과 사번을 입력하고 저장해주세요.
-                </p>
-                <div style="margin-top: var(--spacing-3); display: flex; flex-direction: column; gap: var(--spacing-3);">
-                    <div>
-                        <label style="font-size: var(--font-size-xs); color: var(--color-neutral-600); font-weight: 600;">이름</label>
-                        <div style="margin-top: 4px;">
-                            <input type="text" id="pendingUserNameInput" class="form-input"
-                                   maxlength="100" placeholder="이름을 입력하세요"
-                                   style="width: 100%;">
-                        </div>
-                    </div>
-                    <div>
-                        <label style="font-size: var(--font-size-xs); color: var(--color-neutral-600); font-weight: 600;">사번</label>
-                        <div style="margin-top: 4px;">
-                            <input type="text" id="pendingEmployeeNumberInput" class="form-input"
-                                   maxlength="20" placeholder="사번을 입력하세요"
-                                   style="width: 100%;">
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-primary" onclick="saveInfo()" id="saveNameBtn" style="width: 100%;">
-                        저장
-                    </button>
-                    <div id="saveNameMsg" style="font-size: var(--font-size-xs); margin-top: -8px; min-height: 18px;"></div>
-                </div>
-                <p style="font-size: var(--font-size-xs); color: var(--color-neutral-500); margin-top: var(--spacing-2);">
-                    계정: <strong id="pendingUserEmail"></strong>
+            <!-- 안내 배너 -->
+            <div style="margin-top: var(--spacing-6); padding: 14px 16px; background: linear-gradient(135deg, #eff6ff 0%, #e0f2fe 100%); border: 1px solid #bfdbfe; border-radius: var(--radius-lg); text-align: left; display: flex; gap: 12px; align-items: flex-start;">
+                <span style="font-size: 18px; flex-shrink: 0; margin-top: 1px;">ℹ️</span>
+                <p style="font-size: var(--font-size-sm); color: #1e40af; line-height: 1.65; margin: 0;">
+                    로그인이 완료되었습니다. <b>관리자 승인 후</b> 시스템을 이용할 수 있습니다.<br>
+                    아래에서 이름과 사번을 입력한 뒤 <b>저장</b>해주세요.
                 </p>
             </div>
+
+            <!-- 정보 입력 폼 -->
+            <div style="margin-top: var(--spacing-5);">
+
+                <!-- 이름 필드 -->
+                <div class="pf-field" id="pf-name-field">
+                    <div class="pf-input-wrap">
+                        <span class="pf-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </span>
+                        <input
+                            type="text"
+                            id="pendingUserNameInput"
+                            class="pf-input"
+                            maxlength="100"
+                            autocomplete="name"
+                            placeholder=" "
+                            oninput="pfClearMsg()"
+                        >
+                        <label class="pf-label" for="pendingUserNameInput">이름</label>
+                        <span class="pf-check" id="pf-name-check" aria-hidden="true"></span>
+                    </div>
+                    <div class="pf-hint" id="pf-name-hint"></div>
+                </div>
+
+                <!-- 사번 필드 -->
+                <div class="pf-field" id="pf-emp-field" style="margin-top: 14px;">
+                    <div class="pf-input-wrap">
+                        <span class="pf-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="5" width="20" height="14" rx="2"/>
+                                <path d="M16 10h.01M12 10h.01M8 10h.01M16 14h.01M12 14h.01M8 14h.01"/>
+                            </svg>
+                        </span>
+                        <input
+                            type="text"
+                            id="pendingEmployeeNumberInput"
+                            class="pf-input"
+                            maxlength="20"
+                            autocomplete="off"
+                            placeholder=" "
+                            oninput="pfClearMsg()"
+                        >
+                        <label class="pf-label" for="pendingEmployeeNumberInput">사번</label>
+                        <span class="pf-check" id="pf-emp-check" aria-hidden="true"></span>
+                    </div>
+                    <div class="pf-hint" id="pf-emp-hint"></div>
+                </div>
+
+                <!-- 저장 버튼 -->
+                <button type="button" id="saveNameBtn" onclick="saveInfo()" style="
+                    margin-top: 20px; width: 100%; height: 48px; border: none; border-radius: var(--radius-md);
+                    background: linear-gradient(135deg, var(--color-primary-600, #1d4ed8) 0%, var(--color-primary-700, #1A4B7C) 100%);
+                    color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+                    display: flex; align-items: center; justify-content: center; gap: 8px;
+                    transition: opacity 0.2s, transform 0.1s; box-shadow: 0 2px 8px rgba(26,75,124,0.25);
+                " onmouseover="this.style.opacity='0.92'" onmouseout="this.style.opacity='1'"
+                   onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'">
+                    <svg id="saveBtnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    <span id="saveBtnText">저장하기</span>
+                </button>
+
+                <!-- 저장 결과 메시지 -->
+                <div id="saveNameMsg" style="min-height: 32px; margin-top: 10px;"></div>
+
+                <!-- 계정 표시 -->
+                <div style="display: flex; align-items: center; gap: 6px; padding: 8px 10px; background: var(--color-neutral-50); border-radius: var(--radius-md); border: 1px solid var(--color-neutral-200);">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span style="font-size: 12px; color: var(--color-neutral-500);">계정:</span>
+                    <strong id="pendingUserEmail" style="font-size: 12px; color: var(--color-neutral-700);"></strong>
+                </div>
+            </div>
+
+            <style>
+                /* ── Pending Form 전용 컴포넌트 스타일 ── */
+                .pf-field { position: relative; }
+
+                .pf-input-wrap {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                }
+
+                .pf-icon {
+                    position: absolute;
+                    left: 14px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    color: var(--color-neutral-400);
+                    display: flex;
+                    align-items: center;
+                    pointer-events: none;
+                    transition: color 0.2s;
+                    z-index: 1;
+                }
+
+                .pf-input {
+                    width: 100%;
+                    height: 52px;
+                    padding: 18px 40px 6px 42px;
+                    border: 1.5px solid var(--color-neutral-300, #d1d5db);
+                    border-radius: var(--radius-md, 8px);
+                    font-size: 15px;
+                    font-family: inherit;
+                    color: var(--color-neutral-900);
+                    background: var(--color-neutral-0, #fff);
+                    outline: none;
+                    transition: border-color 0.2s, box-shadow 0.2s;
+                    box-sizing: border-box;
+                }
+
+                .pf-input:focus {
+                    border-color: var(--color-primary-500, #3b82f6);
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+                }
+
+                .pf-input:focus + .pf-label,
+                .pf-input:not(:placeholder-shown) + .pf-label {
+                    top: 9px;
+                    font-size: 10px;
+                    color: var(--color-primary-600, #2563eb);
+                    font-weight: 600;
+                    letter-spacing: 0.04em;
+                }
+
+                .pf-label {
+                    position: absolute;
+                    left: 43px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    font-size: 14px;
+                    color: var(--color-neutral-500, #6b7280);
+                    pointer-events: none;
+                    transition: top 0.18s ease, font-size 0.18s ease, color 0.18s ease;
+                    background: transparent;
+                    line-height: 1;
+                }
+
+                .pf-check {
+                    position: absolute;
+                    right: 14px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    font-size: 16px;
+                    opacity: 0;
+                    transition: opacity 0.2s;
+                }
+
+                /* 포커스 시 아이콘 색 변경 */
+                .pf-input:focus ~ .pf-icon,
+                .pf-input-wrap:focus-within .pf-icon {
+                    color: var(--color-primary-500, #3b82f6);
+                }
+
+                /* 오류 상태 */
+                .pf-field.is-error .pf-input {
+                    border-color: #ef4444;
+                    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+                    animation: pf-shake 0.35s ease;
+                }
+                .pf-field.is-error .pf-icon { color: #ef4444; }
+                .pf-field.is-error .pf-label { color: #ef4444; }
+                .pf-field.is-error .pf-input:focus + .pf-label,
+                .pf-field.is-error .pf-input:not(:placeholder-shown) + .pf-label { color: #ef4444; }
+
+                /* 성공 상태 */
+                .pf-field.is-success .pf-input {
+                    border-color: #22c55e;
+                    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+                }
+                .pf-field.is-success .pf-icon { color: #22c55e; }
+                .pf-field.is-success .pf-check { opacity: 1; }
+
+                @keyframes pf-shake {
+                    0%, 100% { transform: translateX(0); }
+                    20% { transform: translateX(-5px); }
+                    60% { transform: translateX(5px); }
+                    80% { transform: translateX(-3px); }
+                }
+
+                .pf-hint {
+                    margin-top: 5px;
+                    font-size: 12px;
+                    padding-left: 4px;
+                    min-height: 16px;
+                    line-height: 1;
+                }
+                .pf-hint.error { color: #dc2626; }
+                .pf-hint.success { color: #16a34a; }
+
+                /* 저장 결과 토스트형 메시지 */
+                .pf-result-msg {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 10px 14px;
+                    border-radius: var(--radius-md, 8px);
+                    font-size: 13px;
+                    font-weight: 600;
+                    animation: pf-fadein 0.25s ease;
+                }
+                .pf-result-msg.success {
+                    background: #f0fdf4;
+                    border: 1px solid #bbf7d0;
+                    color: #15803d;
+                }
+                .pf-result-msg.error {
+                    background: #fef2f2;
+                    border: 1px solid #fecaca;
+                    color: #b91c1c;
+                }
+                @keyframes pf-fadein {
+                    from { opacity: 0; transform: translateY(-4px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+
+                /* 버튼 로딩 스피너 */
+                .pf-spinner {
+                    width: 16px; height: 16px;
+                    border: 2px solid rgba(255,255,255,0.4);
+                    border-top-color: #fff;
+                    border-radius: 50%;
+                    animation: pf-spin 0.7s linear infinite;
+                }
+                @keyframes pf-spin { to { transform: rotate(360deg); } }
+            </style>
 
             <div style="margin-top: var(--spacing-6); display: flex; flex-direction: column; gap: var(--spacing-3);">
                 <button type="button" class="btn btn-primary" onclick="checkApproval()" style="width: 100%;">
@@ -76,26 +285,87 @@
     <script src="assets/js/supabase-config.js"></script>
     <script src="assets/js/api.js"></script>
     <script>
+        // 필드 상태 헬퍼
+        function pfSetError(fieldId, hintId, msg) {
+            const field = document.getElementById(fieldId);
+            const hint  = document.getElementById(hintId);
+            field.classList.remove('is-success');
+            field.classList.add('is-error');
+            hint.className = 'pf-hint error';
+            hint.textContent = msg;
+            const check = field.querySelector('.pf-check');
+            if (check) check.textContent = '';
+        }
+        function pfSetSuccess(fieldId, hintId) {
+            const field = document.getElementById(fieldId);
+            const hint  = document.getElementById(hintId);
+            field.classList.remove('is-error');
+            field.classList.add('is-success');
+            hint.className = 'pf-hint success';
+            hint.textContent = '';
+            const check = field.querySelector('.pf-check');
+            if (check) check.textContent = '✓';
+        }
+        function pfClearMsg() {
+            const msg = document.getElementById('saveNameMsg');
+            msg.innerHTML = '';
+        }
+        function pfClearField(fieldId, hintId) {
+            const field = document.getElementById(fieldId);
+            const hint  = document.getElementById(hintId);
+            field.classList.remove('is-error', 'is-success');
+            hint.textContent = '';
+            hint.className = 'pf-hint';
+            const check = field.querySelector('.pf-check');
+            if (check) check.textContent = '';
+        }
+
+        function pfShowResult(type, msg) {
+            const el = document.getElementById('saveNameMsg');
+            const icon = type === 'success' ? '✅' : '⚠️';
+            el.innerHTML = `<div class="pf-result-msg ${type}">${icon} ${msg}</div>`;
+        }
+
+        function pfSetBtnLoading(loading) {
+            const btn  = document.getElementById('saveNameBtn');
+            const icon = document.getElementById('saveBtnIcon');
+            const text = document.getElementById('saveBtnText');
+            btn.disabled = loading;
+            btn.style.opacity = loading ? '0.75' : '1';
+            if (loading) {
+                icon.outerHTML = `<div class="pf-spinner" id="saveBtnIcon"></div>`;
+                text.textContent = '저장 중...';
+            } else {
+                document.getElementById('saveBtnIcon').outerHTML = `<svg id="saveBtnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`;
+                text.textContent = '저장하기';
+            }
+        }
+
         async function saveInfo() {
             const nameInput = document.getElementById('pendingUserNameInput');
             const empNumInput = document.getElementById('pendingEmployeeNumberInput');
-            const msgEl = document.getElementById('saveNameMsg');
             const name = nameInput.value.trim();
             const employeeNumber = empNumInput.value.trim();
 
+            pfClearField('pf-name-field', 'pf-name-hint');
+            pfClearField('pf-emp-field', 'pf-emp-hint');
+            pfClearMsg();
+
+            let hasError = false;
             if (!name) {
-                msgEl.style.color = 'var(--color-danger-600, #dc2626)';
-                msgEl.textContent = '이름을 입력해주세요.';
-                return;
+                pfSetError('pf-name-field', 'pf-name-hint', '이름을 입력해주세요.');
+                nameInput.focus();
+                hasError = true;
             }
             if (!employeeNumber) {
-                msgEl.style.color = 'var(--color-danger-600, #dc2626)';
-                msgEl.textContent = '사번을 입력해주세요.';
-                return;
+                pfSetError('pf-emp-field', 'pf-emp-hint', '사번을 입력해주세요.');
+                if (!hasError) empNumInput.focus();
+                hasError = true;
             }
+            if (hasError) return;
 
+            pfSetBtnLoading(true);
             try {
-                document.getElementById('saveNameBtn').disabled = true;
                 const token = localStorage.getItem('gbms_token');
                 const response = await fetch(`${API_BASE_URL}/auth/me`, {
                     method: 'PUT',
@@ -103,7 +373,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + token
                     },
-                    body: JSON.stringify({ name: name, employeeNumber: employeeNumber })
+                    body: JSON.stringify({ name, employeeNumber })
                 });
                 const data = await response.json();
 
@@ -113,25 +383,47 @@
                     userInfo.employeeNumber = data.user.employeeNumber;
                     localStorage.setItem('gbms_user', JSON.stringify(userInfo));
 
-                    msgEl.style.color = 'var(--color-success-600, #16a34a)';
-                    msgEl.textContent = '정보가 저장되었습니다.';
+                    pfSetSuccess('pf-name-field', 'pf-name-hint');
+                    pfSetSuccess('pf-emp-field', 'pf-emp-hint');
+                    pfShowResult('success', '정보가 저장되었습니다.');
                 } else {
-                    msgEl.style.color = 'var(--color-danger-600, #dc2626)';
-                    msgEl.textContent = data.message || '저장에 실패했습니다.';
+                    pfShowResult('error', data.message || '저장에 실패했습니다.');
                 }
             } catch (e) {
-                msgEl.style.color = 'var(--color-danger-600, #dc2626)';
-                msgEl.textContent = '서버 연결에 실패했습니다.';
+                pfShowResult('error', '서버 연결에 실패했습니다.');
             } finally {
-                document.getElementById('saveNameBtn').disabled = false;
+                pfSetBtnLoading(false);
             }
         }
 
         document.addEventListener('DOMContentLoaded', async function () {
             const userInfo = JSON.parse(localStorage.getItem('gbms_user') || '{}');
-            document.getElementById('pendingUserNameInput').value = userInfo.name || '';
-            document.getElementById('pendingEmployeeNumberInput').value = userInfo.employeeNumber || '';
+            const nameInput = document.getElementById('pendingUserNameInput');
+            const empInput  = document.getElementById('pendingEmployeeNumberInput');
+            nameInput.value = userInfo.name || '';
+            empInput.value  = userInfo.employeeNumber || '';
             document.getElementById('pendingUserEmail').textContent = userInfo.email || userInfo.userId || '';
+
+            // 이미 값이 있으면 성공 상태 표시
+            if (nameInput.value) pfSetSuccess('pf-name-field', 'pf-name-hint');
+            if (empInput.value)  pfSetSuccess('pf-emp-field',  'pf-emp-hint');
+
+            // blur 시 실시간 검증
+            nameInput.addEventListener('blur', function() {
+                if (this.value.trim()) pfSetSuccess('pf-name-field', 'pf-name-hint');
+                else pfSetError('pf-name-field', 'pf-name-hint', '이름을 입력해주세요.');
+            });
+            empInput.addEventListener('blur', function() {
+                if (this.value.trim()) pfSetSuccess('pf-emp-field', 'pf-emp-hint');
+                else pfSetError('pf-emp-field', 'pf-emp-hint', '사번을 입력해주세요.');
+            });
+            // 다시 타이핑 시 오류 해제
+            nameInput.addEventListener('input', function() {
+                if (this.value.trim()) pfClearField('pf-name-field', 'pf-name-hint');
+            });
+            empInput.addEventListener('input', function() {
+                if (this.value.trim()) pfClearField('pf-emp-field', 'pf-emp-hint');
+            });
 
             // 이미 승인된 사용자가 이 페이지에 온 경우
             if (userInfo.permissionScope && userInfo.permissionScope !== 'pending') {
