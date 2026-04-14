@@ -157,7 +157,8 @@
 
     /* 카드 컨테이너 */
     .table-container:not(.no-mobile-card) .data-table tbody tr {
-        display: block !important;
+        display: flex !important;
+        flex-wrap: wrap;
         border: 1px solid var(--color-neutral-200);
         border-radius: 10px;
         margin-bottom: var(--spacing-3);
@@ -177,6 +178,7 @@
     /* 일반 항목 행 */
     .table-container:not(.no-mobile-card) .data-table td {
         display: flex !important;
+        flex: 0 0 100%;
         justify-content: space-between;
         align-items: center;
         gap: var(--spacing-3);
@@ -189,12 +191,42 @@
         text-align: right !important;
         background: transparent;
     }
+
+    /* col-half: 2열 그리드 — 레이블 위, 값 아래 */
+    .table-container:not(.no-mobile-card) .data-table td.col-half {
+        flex: 0 0 50% !important;
+        width: 50% !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        padding: var(--spacing-2) var(--spacing-3) !important;
+        gap: 3px !important;
+        border-right: 1px solid var(--color-neutral-100);
+    }
+
+    /* col-half 레이블 */
+    .table-container:not(.no-mobile-card) .data-table td.col-half[data-label]::before {
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        color: var(--color-neutral-400);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        margin-bottom: 2px;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    /* col-half 값 영역 */
+    .table-container:not(.no-mobile-card) .data-table td.col-half > * {
+        max-width: 100%;
+    }
     .table-container:not(.no-mobile-card) .data-table td:last-child {
         border-bottom: none;
     }
 
-    /* 짝수 행 배경 — 줄무늬로 가독성 향상 */
-    .table-container:not(.no-mobile-card) .data-table td:not(.col-title):not(.pipeline-cell):nth-child(even) {
+    /* 짝수 행 배경 — 줄무늬로 가독성 향상 (col-half 제외) */
+    .table-container:not(.no-mobile-card) .data-table td:not(.col-title):not(.pipeline-cell):not(.col-half):nth-child(even) {
         background: var(--color-secondary-50, #faf9f7);
     }
 

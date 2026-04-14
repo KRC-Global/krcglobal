@@ -1551,10 +1551,10 @@
                         <a href="#" onclick="viewProject(${project.id});return false;" style="color:#0066cc;font-weight:500;">${project.titleKr || '-'}</a>
                         ${project.titleEn ? `<div style="font-size:11px;color:#6c757d;margin-top:2px;">${project.titleEn}</div>` : ''}
                     </td>
-                    <td data-label="상태" style="text-align:center;vertical-align:middle;"><span class="badge ${statusClass}">${statusText}</span></td>
-                    <td data-label="형태" style="text-align:center;vertical-align:middle;">${createTypeBadgesHTML(project)}</td>
-                    <td data-label="용역비" style="text-align:center;vertical-align:middle;">${project.budget ? project.budget.toLocaleString() : '-'}</td>
-                    <td data-label="지분" style="text-align:center;vertical-align:middle;">${krcHtml}</td>
+                    <td class="col-half" data-label="상태" style="text-align:center;vertical-align:middle;"><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td class="col-half" data-label="형태" style="text-align:center;vertical-align:middle;">${createTypeBadgesHTML(project)}</td>
+                    <td class="col-half" data-label="용역비" style="text-align:center;vertical-align:middle;">${project.budget ? project.budget.toLocaleString() : '-'}</td>
+                    <td class="col-half" data-label="지분" style="text-align:center;vertical-align:middle;">${krcHtml}</td>
                     <td class="pipeline-cell lifecycle-row" data-project-id="${project.id}" style="vertical-align:middle;">${pipelineHtml}</td>
                     ${actionCell}
                 </tr>`;
