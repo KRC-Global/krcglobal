@@ -3,7 +3,9 @@ GBMS - ODA Reports Routes
 글로벌사업처 해외사업관리시스템 - ODA 보고서관리 API
 """
 import logging
-from flask import Blueprint, request, jsonify
+import os
+import mimetypes
+from flask import Blueprint, request, jsonify, send_file, current_app
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from sqlalchemy.orm import joinedload
@@ -16,13 +18,34 @@ logger = logging.getLogger(__name__)
 
 
 def stream_file(file_path, folder, download_name=None, content_type=None, inline=False):
-    """R2에서 파일 스트리밍. bare 파일명이면 folder/ prefix 자동 추가."""
+    """파일 스트리밍. R2 먼저 시도 후 로컬 스토리지로 폴백."""
     if not file_path:
         raise FileNotFoundError('file_path가 없습니다.')
 
     r2_key = file_path if '/' in file_path else f'{folder}/{file_path}'
-    return stream_from_r2(r2_key, content_type=content_type,
-                           download_name=download_name, inline=inline)
+
+    # R2 먼저 시도
+    try:
+        return stream_from_r2(r2_key, content_type=content_type,
+                               download_name=download_name, inline=inline)
+    except Exception:
+        pass
+
+    # 로컬 스토리지 폴백
+    filename = file_path.split('/')[-1]
+    local_path = os.path.join(current_app.config['UPLOAD_FOLDER'], folder, filename)
+    if not os.path.exists(local_path):
+        raise FileNotFoundError(f'파일을 찾을 수 없습니다: {filename}')
+
+    mime = content_type or mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+    attachment_filename = download_name or filename
+    disposition = 'inline' if inline else 'attachment'
+    return send_file(
+        local_path,
+        mimetype=mime,
+        as_attachment=(not inline),
+        download_name=attachment_filename
+    )
 
 oda_reports_bp = Blueprint('oda_reports', __name__)
 

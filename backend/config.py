@@ -26,12 +26,17 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or DEFAULT_DATABASE_URL
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # PostgreSQL pool settings for serverless
+    # PostgreSQL pool settings for Supabase Transaction Pooler
     SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_pre_ping': True,
-        'pool_recycle': 300,
-        'pool_size': 5,
-        'max_overflow': 10,
+        'pool_pre_ping': False,      # Supabase 풀러가 연결 관리 → 불필요한 핑 제거
+        'pool_recycle': 1800,        # 30분 (Transaction Pooler 세션 수명 기준)
+        'pool_size': 10,             # 동시 연결 수 증가
+        'max_overflow': 20,
+        'pool_timeout': 10,          # 연결 대기 타임아웃 (초)
+        'connect_args': {
+            'connect_timeout': 5,    # 초기 연결 타임아웃 (초)
+            'options': '-c statement_timeout=30000'  # 쿼리 타임아웃 30초
+        }
     }
 
     # JWT configuration
