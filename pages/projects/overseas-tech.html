@@ -2043,10 +2043,11 @@
 
         // 라이프사이클 단계 편집 HTML 생성
         function buildLifecycleEditHTML(stages) {
-            const allStageKeys = ['eoi', 'proposal', 'contract', 'completion'];
+            const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'kickoff', 'design', 'construction', 'completion'];
             const stageLabels = {
-                eoi: 'EOI제출', proposal: '제안서제출',
-                contract: '계약', completion: '준공'
+                eoi: 'EOI제출', shortlist: '숏리스트', proposal: '제안서제출',
+                contract: '계약', kickoff: '착수', design: '설계',
+                construction: '시공감리', completion: '준공'
             };
 
             const stageMap = {};
@@ -2343,7 +2344,7 @@
                 if (data.success) {
                     // 라이프사이클 정보 저장 (수정 모드에서만)
                     if (editingProjectId) {
-                        const allStageKeys = ['eoi', 'proposal', 'contract', 'completion'];
+                        const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'kickoff', 'design', 'construction', 'completion'];
                         const lifecycleItem = { consultingProjectId: editingProjectId };
                         allStageKeys.forEach(key => {
                             const dateEl = document.getElementById(`lc_date_${key}`);
@@ -2408,10 +2409,14 @@
 
         // 단계 라벨 매핑
         const STAGE_LABELS = {
-            'eoi': 'EOI제출',
-            'proposal': '제안서제출',
-            'contract': '계약',
-            'completion': '준공'
+            'eoi':          'EOI제출',
+            'shortlist':    '숏리스트',
+            'proposal':     '제안서제출',
+            'contract':     '계약',
+            'kickoff':      '착수',
+            'design':       '설계',
+            'construction': '시공감리',
+            'completion':   '준공'
         };
 
         // 사업형태 배지 HTML 생성
@@ -2427,9 +2432,15 @@
             return badges.length > 0 ? badges.join('') : `<span style="color:var(--color-neutral-400);font-size:12px;">${item.projectType || '-'}</span>`;
         }
 
-        // 사업형태별 단계 구성 (체크박스 기반)
+        // 사업형태별 단계 구성 (체크박스 기반) — 백엔드 get_lifecycle_stages_from_project와 동일 로직
         function getLifecycleStageKeys(item) {
-            return ['eoi', 'proposal', 'contract', 'completion'];
+            const hasDesign = item.typeBasicDesign || item.typeDetailedDesign;
+            const hasConstruction = item.typeConstruction;
+            const keys = ['eoi', 'shortlist', 'proposal', 'contract', 'kickoff'];
+            if (hasDesign) keys.push('design');
+            if (hasConstruction) keys.push('construction');
+            keys.push('completion');
+            return keys;
         }
 
         // 단계별 흑백 SVG 픽토그램 아이콘
@@ -2437,6 +2448,10 @@
             'eoi': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="1.5" y="3.5" width="13" height="9" rx="1"/>
                 <polyline points="1.5,4.2 8,9.2 14.5,4.2"/>
+            </svg>`,
+            'shortlist': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8" cy="8" r="6"/>
+                <polyline points="5.5,8 7,9.5 10.5,6"/>
             </svg>`,
             'proposal': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="1.5" width="10" height="13" rx="1"/>
@@ -2449,6 +2464,21 @@
                 <path d="M9 2H3.5A1 1 0 003 3v10a1 1 0 001 1h8a1 1 0 001-1V6.5L9 2z"/>
                 <path d="M9 2v4.5h4"/>
                 <polyline points="5.5,9.5 7,11 10.5,7.5"/>
+            </svg>`,
+            'kickoff': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="3,2 13,8 3,14"/>
+            </svg>`,
+            'design': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="12" height="12" rx="1"/>
+                <line x1="5" y1="5" x2="11" y2="5"/>
+                <line x1="5" y1="8" x2="11" y2="8"/>
+                <line x1="5" y1="11" x2="8" y2="11"/>
+                <line x1="2" y1="8" x2="14" y2="8" stroke-dasharray="2,2"/>
+            </svg>`,
+            'construction': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="10" width="12" height="4" rx="0.5"/>
+                <path d="M5 10V7l3-4 3 4v3"/>
+                <line x1="8" y1="7" x2="8" y2="10"/>
             </svg>`,
             'completion': `<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="8" cy="6.5" r="4"/>
@@ -2620,7 +2650,7 @@
             rows.forEach(row => {
                 const projectId = parseInt(row.dataset.projectId);
                 const item = { consultingProjectId: projectId };
-                const allStageKeys = ['eoi', 'proposal', 'contract', 'completion'];
+                const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'kickoff', 'design', 'construction', 'completion'];
                 allStageKeys.forEach(key => {
                     const dateInput = row.querySelector(`input[name="${key}Date"]`);
                     const progressInput = row.querySelector(`input[name="${key}Progress"]`);
