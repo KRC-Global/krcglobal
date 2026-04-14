@@ -1298,24 +1298,93 @@
             }, 10);
         }
 
-        // PDF 미리보기
+        // PDF 미리보기 / 파일 다운로드 (fetch+blob 방식)
         function previewOdaReport(reportId, fileName) {
-            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
-            const baseUrl = getApiBaseUrl();
-            const url = `${baseUrl}/api/oda-reports/preview/${reportId}?token=${encodeURIComponent(token)}`;
-
-            const newWindow = window.open(url, '_blank');
-            if (!newWindow) {
-                // 팝업 차단 시 현재 탭에서 열기
-                window.location.href = url;
-            }
+            _fetchOdaFile(reportId, fileName, true);
         }
 
-        // 파일 다운로드
         function downloadOdaReport(reportId) {
+            _fetchOdaFile(reportId, '', false);
+        }
+
+        function _fetchOdaFile(reportId, fileName, isPreview) {
             const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
-            const baseUrl = getApiBaseUrl();
-            window.location.href = `${baseUrl}/api/oda-reports/download/${reportId}?token=${token}`;
+            const endpoint = isPreview ? 'preview' : 'download';
+
+            fetch(`${API_BASE_URL}/oda-reports/${endpoint}/${reportId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(async r => {
+                if (!r.ok) {
+                    // 에러 응답에서 메시지 추출 (JSON 또는 HTML)
+                    let msg = '파일을 불러올 수 없습니다.';
+                    const ct = r.headers.get('Content-Type') || '';
+                    try {
+                        if (ct.includes('json')) {
+                            const d = await r.json();
+                            msg = d.message || msg;
+                        } else {
+                            const text = await r.text();
+                            const m = text.match(/<p>(.*?)<\/p>/);
+                            if (m) msg = m[1];
+                        }
+                    } catch (_) {}
+                    throw new Error(msg);
+                }
+                // Content-Disposition에서 파일명 추출
+                const disposition = r.headers.get('Content-Disposition') || '';
+                let dlName = fileName || 'download';
+                const match = disposition.match(/filename="?([^";\n]+)"?/);
+                if (match) dlName = decodeURIComponent(match[1]);
+                return r.blob().then(blob => ({ blob, dlName }));
+            })
+            .then(({ blob, dlName }) => {
+                const blobUrl = URL.createObjectURL(blob);
+                const isPdf = dlName.toLowerCase().endsWith('.pdf');
+                if (isPdf || isPreview) {
+                    window.open(blobUrl, '_blank');
+                } else {
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = dlName;
+                    a.click();
+                    URL.revokeObjectURL(blobUrl);
+                }
+            })
+            .catch(e => Toast.error(e.message));
+        }
+
+        // 비고 첨부파일 다운로드
+        function downloadNoteFile(noteId, fileName) {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            fetch(`${API_BASE_URL}/oda-reports/note/download/${noteId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(async r => {
+                if (!r.ok) {
+                    let msg = '파일 다운로드에 실패했습니다.';
+                    try { const d = await r.json(); msg = d.message || msg; } catch (_) {}
+                    throw new Error(msg);
+                }
+                const disposition = r.headers.get('Content-Disposition') || '';
+                let dlName = fileName || 'download';
+                const match = disposition.match(/filename="?([^";\n]+)"?/);
+                if (match) dlName = decodeURIComponent(match[1]);
+                return r.blob().then(blob => ({ blob, dlName }));
+            })
+            .then(({ blob, dlName }) => {
+                const blobUrl = URL.createObjectURL(blob);
+                if (dlName.toLowerCase().endsWith('.pdf')) {
+                    window.open(blobUrl, '_blank');
+                } else {
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = dlName;
+                    a.click();
+                    URL.revokeObjectURL(blobUrl);
+                }
+            })
+            .catch(e => Toast.error(e.message));
         }
 
         // 파일 삭제
@@ -1477,7 +1546,7 @@
                     <span style="font-size: 18px;">📎</span>
                     <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${note.fileName}</span>
                     ${fileSizeText ? `<span style="color: var(--color-neutral-500); font-size: 12px;">${fileSizeText}</span>` : ''}
-                    <a href="${baseUrl}/api/oda-reports/note/download/${note.id}?token=${token}" class="btn-sm btn-outline-edit" style="font-size: 12px; padding: 3px 8px; text-decoration: none;">다운로드</a>
+                    <button onclick="downloadNoteFile(${note.id}, '${(note.fileName || '').replace(/'/g, "\\'")}')" class="btn-sm btn-outline-edit" style="font-size: 12px; padding: 3px 8px; cursor: pointer;">다운로드</button>
                 `;
             } else {
                 fileSection.style.display = 'none';
