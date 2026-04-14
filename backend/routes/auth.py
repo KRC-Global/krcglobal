@@ -327,6 +327,63 @@ def logout(current_user):
     return jsonify({'success': True, 'message': '로그아웃되었습니다.'})
 
 
+@auth_bp.route('/google-login', methods=['POST'])
+def google_login():
+    """Google OAuth 로그인 후 접속 로그 기록"""
+    token = request.headers.get('Authorization', '').replace('Bearer ', '').strip()
+    if not token:
+        return jsonify({'success': False, 'message': '인증 토큰이 필요합니다.'}), 401
+
+    current_user = verify_token(token)
+    if not current_user:
+        # 로그인 실패 로그
+        access_log = AccessLog(
+            user_id=None,
+            username='(google)',
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', '')[:500],
+            action='login_failed',
+            success=False,
+            message='Google 토큰 검증 실패'
+        )
+        db.session.add(access_log)
+        db.session.commit()
+        return jsonify({'success': False, 'message': '유효하지 않은 토큰입니다.'}), 401
+
+    if not current_user.is_active:
+        return jsonify({'success': False, 'message': '비활성화된 계정입니다.'}), 401
+
+    # 로그인 성공 로그
+    current_user.last_login = datetime.utcnow()
+
+    access_log = AccessLog(
+        user_id=current_user.id,
+        username=current_user.email or current_user.user_id,
+        ip_address=request.remote_addr,
+        user_agent=request.headers.get('User-Agent', '')[:500],
+        action='login',
+        success=True,
+        message='Google 로그인 성공'
+    )
+    db.session.add(access_log)
+
+    activity_log = ActivityLog(
+        user_id=current_user.id,
+        action='login',
+        entity_type='user',
+        entity_id=current_user.id,
+        description=f'{current_user.name}님이 Google 계정으로 로그인했습니다.',
+        ip_address=request.remote_addr
+    )
+    db.session.add(activity_log)
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'user': current_user.to_dict()
+    })
+
+
 @auth_bp.route('/me', methods=['GET'])
 @token_required
 def get_current_user(current_user):

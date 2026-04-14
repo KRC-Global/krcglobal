@@ -322,6 +322,94 @@
             padding-top: 16px;
             border-top: 1px solid var(--color-neutral-200);
         }
+
+        /* ── 모바일 카드형 레이아웃 ── */
+        @media (max-width: 768px) {
+            /* 필터 영역 */
+            .section-actions {
+                flex-direction: column !important;
+                width: 100%;
+            }
+            .section-actions .form-input,
+            .section-actions select {
+                width: 100% !important;
+            }
+
+            /* 사용자 테이블 카드 전환 */
+            .data-table thead { display: none; }
+            .data-table tbody tr {
+                display: block;
+                border: 1px solid var(--color-neutral-200);
+                border-radius: 10px;
+                margin-bottom: 12px;
+                padding: 14px 16px;
+                background: var(--color-neutral-0);
+                box-shadow: 0 1px 4px rgba(0,0,0,.06);
+            }
+            .data-table td {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 5px 0;
+                border: none;
+                font-size: 13px;
+            }
+            .data-table td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: var(--color-neutral-500);
+                font-size: 11px;
+                min-width: 72px;
+                flex-shrink: 0;
+            }
+            /* 이름 셀은 카드 상단 강조 */
+            .data-table td[data-label="이름"] {
+                font-size: 15px;
+                font-weight: 700;
+                border-bottom: 1px solid var(--color-neutral-100);
+                padding-bottom: 10px;
+                margin-bottom: 4px;
+            }
+            .data-table td[data-label="이름"]::before { display: none; }
+            /* 작업 버튼 셀 */
+            .data-table td[data-label="작업"] {
+                justify-content: flex-end;
+                padding-top: 10px;
+                margin-top: 4px;
+                border-top: 1px solid var(--color-neutral-100);
+            }
+            .data-table td[data-label="작업"]::before { display: none; }
+
+            /* 접속 로그 모달 */
+            .user-modal-box { width: 95% !important; }
+            .user-modal-box form { padding: 0 16px 16px; }
+            .user-modal-box .modal-header { padding: 16px; }
+            /* 접속 로그 테이블 카드 전환 */
+            #accessLogTableBody tr {
+                display: block;
+                border: 1px solid var(--color-neutral-200);
+                border-radius: 8px;
+                margin-bottom: 10px;
+                padding: 10px 12px;
+                background: var(--color-neutral-0);
+            }
+            #accessLogTableBody td {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 4px 0;
+                border: none;
+                font-size: 12px;
+            }
+            #accessLogTableBody td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: var(--color-neutral-500);
+                font-size: 11px;
+                min-width: 64px;
+                flex-shrink: 0;
+            }
+        }
     </style>
 </head>
 
@@ -702,15 +790,15 @@
 
     <!-- 접속 로그 모달 -->
     <div id="accessLogModal" class="user-modal-overlay">
-        <div class="user-modal-box" style="max-width: 900px;">
+        <div class="user-modal-box" style="max-width: 900px; width: 95%;">
             <div class="modal-header">
                 <h3 class="modal-title">접속자 로그</h3>
                 <button class="close-btn" onclick="closeAccessLogModal()">&times;</button>
             </div>
-            <div style="padding: 0 32px 24px;">
-                <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-                    <input type="text" id="accessLogSearch" class="form-input" placeholder="사용자 ID 검색..." style="width: 200px;">
-                    <select id="accessLogFilter" class="form-select" style="width: 150px;">
+            <div style="padding: 0 20px 20px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+                    <input type="text" id="accessLogSearch" class="form-input" placeholder="사용자 ID 검색..." style="flex:1; min-width:120px;">
+                    <select id="accessLogFilter" class="form-select" style="flex:1; min-width:120px;">
                         <option value="">전체 액션</option>
                         <option value="login">로그인 성공</option>
                         <option value="login_failed">로그인 실패</option>
@@ -972,22 +1060,22 @@
 
             tbody.innerHTML = users.map(user => `
                 <tr>
-                    <td><strong>${user.userId || '-'}</strong></td>
-                    <td>${user.name}</td>
-                    <td>${user.departmentName || user.department || '-'}</td>
-                    <td>${user.position || '-'}</td>
-                    <td>
+                    <td data-label="이름"><strong>${user.name}</strong><span style="font-size:11px;color:var(--color-neutral-400);margin-left:6px;">${user.userId || ''}</span></td>
+                    <td data-label="사번"><strong>${user.userId || '-'}</strong></td>
+                    <td data-label="부서">${user.departmentName || user.department || '-'}</td>
+                    <td data-label="직급">${user.position || '-'}</td>
+                    <td data-label="역할">
                         <span class="role-badge ${user.role === 'admin' ? 'role-admin' : 'role-user'}">
                             ${user.role === 'admin' ? '관리자' : '사용자'}
                         </span>
                     </td>
-                    <td>${getPermissionBadge(user.permissionScope)}</td>
-                    <td>
+                    <td data-label="수정권한">${getPermissionBadge(user.permissionScope)}</td>
+                    <td data-label="상태">
                         <span class="badge ${user.isActive ? 'badge-success' : 'badge-secondary'}">
                             ${user.isActive ? '활성' : '비활성'}
                         </span>
                     </td>
-                    <td>
+                    <td data-label="작업">
                         <div class="action-buttons">
                             <button class="btn btn-sm btn-outline" onclick="editUser(${user.id})" title="수정">
                                 ✏️
@@ -1342,13 +1430,13 @@
 
                 return `
                     <tr>
-                        <td style="white-space: nowrap; font-size: 13px;">${createdAt}</td>
-                        <td><strong>${displayUsername}</strong></td>
-                        <td>${displayName}</td>
-                        <td style="font-family: monospace; font-size: 13px;">${log.ipAddress || '-'}</td>
-                        <td>${actionText}</td>
-                        <td>${successBadge}</td>
-                        <td style="font-size: 13px; color: var(--color-neutral-600);">${log.message || '-'}</td>
+                        <td data-label="시간" style="white-space: nowrap; font-size: 13px;">${createdAt}</td>
+                        <td data-label="사용자 ID"><strong>${displayUsername}</strong></td>
+                        <td data-label="이름">${displayName}</td>
+                        <td data-label="IP" style="font-family: monospace; font-size: 13px;">${log.ipAddress || '-'}</td>
+                        <td data-label="액션">${actionText}</td>
+                        <td data-label="결과">${successBadge}</td>
+                        <td data-label="메시지" style="font-size: 13px; color: var(--color-neutral-600);">${log.message || '-'}</td>
                     </tr>
                 `;
             }).join('');

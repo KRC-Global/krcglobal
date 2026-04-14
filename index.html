@@ -105,9 +105,10 @@
             // 1. Supabase 토큰 저장
             localStorage.setItem('gbms_token', session.access_token);
 
-            // 2. 백엔드에서 실제 사용자 정보 가져오기 (자동 생성 포함)
+            // 2. 백엔드 로그인 처리 (접속 로그 기록 + 사용자 정보 조회)
             try {
-                const response = await fetch(`${API_BASE_URL}/auth/me`, {
+                const response = await fetch(`${API_BASE_URL}/auth/google-login`, {
+                    method: 'POST',
                     headers: { 'Authorization': 'Bearer ' + session.access_token }
                 });
 
