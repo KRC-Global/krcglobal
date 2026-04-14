@@ -90,6 +90,25 @@ def generate_presigned_url(key, expires_in=3600):
     )
 
 
+def _build_content_disposition(inline, filename):
+    """Content-Disposition 헤더 값 생성.
+    한글 등 non-ASCII 파일명은 RFC 5987 (filename*=UTF-8''...) 형식으로 인코딩.
+    HTTP 헤더는 Latin-1만 허용하므로 한글을 그대로 넣으면 UnicodeEncodeError 발생.
+    """
+    from urllib.parse import quote
+    disposition_type = 'inline' if inline else 'attachment'
+    if not filename:
+        return disposition_type
+    try:
+        filename.encode('ascii')
+        # ASCII 파일명 — 일반 형식
+        return f'{disposition_type}; filename="{filename}"'
+    except UnicodeEncodeError:
+        # 한글 등 non-ASCII — RFC 5987 인코딩
+        encoded = quote(filename, safe='')
+        return f"{disposition_type}; filename*=UTF-8''{encoded}"
+
+
 def stream_from_r2(key, content_type=None, download_name=None, inline=False):
     """R2 파일을 반환.
     Vercel serverless 호환: 전체 바이트를 메모리로 읽어 Flask Response로 반환.
@@ -104,7 +123,7 @@ def stream_from_r2(key, content_type=None, download_name=None, inline=False):
     body = obj['Body'].read()
     actual_content_type = content_type or obj.get('ContentType', 'application/octet-stream')
     filename = download_name or key.split('/')[-1]
-    disposition = 'inline' if inline else f'attachment; filename="{filename}"'
+    disposition = _build_content_disposition(inline, filename)
     return Response(
         body,
         content_type=actual_content_type,

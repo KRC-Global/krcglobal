@@ -57,8 +57,7 @@
             display: grid;
             grid-template-columns: 1fr 340px;
             gap: 20px;
-            height: calc(100vh - 200px);
-            min-height: 500px;
+            align-items: start;  /* 컨트롤 패널이 지도 높이에 맞춰 늘어나지 않도록 */
         }
 
         .map-wrapper {
@@ -71,8 +70,8 @@
 
         #cn-map {
             width: 100%;
-            height: 100%;
-            min-height: 500px;
+            height: calc(100vh - 300px);  /* 헤더+페이지타이틀+여백 제외 */
+            min-height: 480px;
         }
 
         /* 분석 진행 오버레이 */
@@ -129,6 +128,7 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            max-height: calc(100vh - 300px);
             overflow-y: auto;
         }
 
@@ -396,9 +396,9 @@
         @media (max-width: 1024px) {
             .cn-layout {
                 grid-template-columns: 1fr;
-                height: auto;
             }
-            #cn-map { height: 400px; }
+            #cn-map { height: 400px; min-height: 400px; }
+            .control-panel { max-height: none; }
             .summary-cards { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 640px) {
@@ -831,6 +831,10 @@
             return div;
         };
         legend.addTo(map);
+
+        // 레이아웃 정착 후 지도 크기 재계산 (height:100% 해석 타이밍 문제 방지)
+        setTimeout(() => map.invalidateSize(), 100);
+        window.addEventListener('resize', () => map.invalidateSize());
 
         // ─── 이벤트: 폴리곤 그리기 완료 ───────────────────────
         map.on(L.Draw.Event.CREATED, function(e) {
