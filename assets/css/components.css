@@ -300,8 +300,9 @@
         justify-content: center !important;
     }
 
-    /* 사업명 내 링크 색상 */
-    .table-container:not(.no-mobile-card) .data-table td.col-title a {
+    /* 사업명 내 링크·클릭 텍스트 색상 */
+    .table-container:not(.no-mobile-card) .data-table td.col-title a,
+    .table-container:not(.no-mobile-card) .data-table td.col-title span.project-name {
         color: var(--color-neutral-0) !important;
         text-decoration: none;
     }
