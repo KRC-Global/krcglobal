@@ -272,12 +272,36 @@ body.readonly-mode .admin-only {
         max-width: 55%;
         text-align: right;
     }
+
+    /* col-quarter: 4열 그리드 (번호·대상국·사업기간·사업비 등) */
+    .table-container:not(.no-mobile-card) .data-table td.col-quarter {
+        flex: 0 0 25% !important;
+        width: 25% !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        padding: var(--spacing-2) var(--spacing-1) !important;
+        gap: 1px !important;
+        border-right: 1px solid var(--color-neutral-100);
+        font-size: 12px;
+    }
+    .table-container:not(.no-mobile-card) .data-table td.col-quarter[data-label]::before {
+        font-size: 9px;
+        letter-spacing: 0.04em;
+        color: var(--color-neutral-400);
+        font-weight: 700;
+        flex-shrink: 0;
+        white-space: nowrap;
+        text-align: center;
+    }
+
     .table-container:not(.no-mobile-card) .data-table td:last-child {
         border-bottom: none;
     }
 
-    /* 짝수 행 배경 — 줄무늬로 가독성 향상 (col-half, col-third 제외) */
-    .table-container:not(.no-mobile-card) .data-table td:not(.col-title):not(.pipeline-cell):not(.col-half):not(.col-third):nth-child(even) {
+    /* 짝수 행 배경 — 줄무늬로 가독성 향상 (col-half, col-third, col-quarter 제외) */
+    .table-container:not(.no-mobile-card) .data-table td:not(.col-title):not(.pipeline-cell):not(.col-half):not(.col-third):not(.col-quarter):nth-child(even) {
         background: var(--color-secondary-50, #faf9f7);
     }
 

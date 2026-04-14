@@ -157,6 +157,14 @@
             }
         }
 
+        /* 진행중 뱃지 — 기본 badge-success보다 대비 강화 */
+        .badge-in-progress {
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #fed7aa;
+            font-weight: 600;
+        }
+
         /* 사업 설명 박스 */
         .project-overview {
             background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
@@ -714,15 +722,15 @@
                         <table class="data-table">
                             <thead>
                                 <tr>
-                                    <th scope="col" style="width: 40px;">
+                                    <th scope="col" style="display:none;">
                                         <input type="checkbox" id="select-all" aria-label="전체 선택">
                                     </th>
                                     <th scope="col" style="width: auto; min-width: 200px;">사업명</th>
-                                    <th scope="col" style="width: 100px;">대상국가</th>
+                                    <th scope="col" style="width: 50px;">번호</th>
+                                    <th scope="col" style="width: 90px;">대상국가</th>
                                     <th scope="col" style="width: 100px;">사업기간</th>
                                     <th scope="col" style="width: 110px;">사업비(백만원)</th>
                                     <th scope="col" style="width: 100px;">진행률</th>
-                                    <th scope="col" style="width: 80px;">상태</th>
                                     <th scope="col" style="width: 120px;">관리</th>
                                 </tr>
                             </thead>
@@ -1344,7 +1352,7 @@
             if (projects.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" style="text-align: center; padding: 40px;">
+                        <td colspan="8" style="text-align: center; padding: 40px;">
                             <div>등록된 프로젝트가 없습니다.</div>
                         </td>
                     </tr>
@@ -1390,7 +1398,7 @@
                 if (progress >= 100 && (statusText === '진행중' || statusText === '시행중')) {
                     statusText = '준공';
                 }
-                const statusClass = statusText === '준공' || statusText === '완료' ? 'badge-secondary' : 'badge-success';
+                const statusClass = statusText === '준공' || statusText === '완료' ? 'badge-secondary' : 'badge-in-progress';
 
                 // ODA 쓰기 권한 체크
                 const canEditOda = typeof hasWritePermission === 'function' ? hasWritePermission('oda') : false;
@@ -1399,22 +1407,27 @@
                        <button class="btn btn-sm btn-outline" style="margin-left: 4px; color: #dc3545;" onclick="deleteProject(${project.id}, '${title.replace(/'/g, "\\'")}')">삭제</button>`
                     : `<span style="color: var(--color-neutral-500); font-size: 13px;">조회 전용</span>`;
 
+                const seqNum = projects.length - projects.indexOf(project);
+
                 return `
                     <tr>
-                        <td><input type="checkbox" aria-label="선택" data-id="${project.id}" ${currentUserRole === 'guest' ? 'disabled' : ''}></td>
-                        <td>
-                            <a href="#" onclick="viewProject(${project.id}); return false;" style="color: #0066cc; font-weight: 500;">${title}</a>
+                        <td style="display:none;"><input type="checkbox" aria-label="선택" data-id="${project.id}" ${currentUserRole === 'guest' ? 'disabled' : ''}></td>
+                        <td class="col-title" style="vertical-align:middle;">
+                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                <a href="#" onclick="viewProject(${project.id}); return false;" style="color: #0066cc; font-weight: 500;">${title}</a>
+                                <span class="badge ${statusClass}" style="flex-shrink:0;">${statusText}</span>
+                            </div>
                         </td>
-                        <td>${project.country || '-'}</td>
-                        <td>${period}</td>
-                        <td>${project.budget ? project.budget.toLocaleString() : '-'}</td>
-                        <td>
-                            <div class="progress" style="width: 80px;">
+                        <td class="col-quarter" data-label="번호" style="text-align:center;">${seqNum}</td>
+                        <td class="col-quarter" data-label="대상국">${project.country || '-'}</td>
+                        <td class="col-quarter" data-label="사업기간">${period}</td>
+                        <td class="col-quarter" data-label="사업비">${project.budget ? project.budget.toLocaleString() : '-'}</td>
+                        <td data-label="진행률">
+                            <div class="progress" style="width: 80px; display:inline-block;">
                                 <div class="progress-bar ${progress >= 100 ? 'success' : ''}" style="width: ${progress}%"></div>
                             </div>
                             <small>${progress}%</small>
                         </td>
-                        <td><span class="badge ${statusClass}">${statusText}</span></td>
                         <td>${actionButtons}</td>
                     </tr>
                 `;
