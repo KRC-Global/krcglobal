@@ -707,9 +707,14 @@
 
         <div class="header-right">
             <div class="analysis-menu">
-                <button class="analysis-btn" disabled style="opacity: 0.5; cursor: default;">
-                    📊 해외기술정보 (준비중)
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
                 </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="/cn/" target="_blank">🔢 CN산정</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
             </div>
             <div class="user-menu">
                 <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
@@ -1780,12 +1785,8 @@
                 const dotsContainer = document.getElementById('bannerDots');
                 const banners = res.data;
 
-                // API base URL 구하기
-                const host = window.location.hostname || '127.0.0.1';
-                const baseUrl = `http://${host}:5001/api`;
-
                 slidesContainer.innerHTML = banners.map(b =>
-                    `<div class="banner-slide"><img src="${baseUrl}/banners/${b.id}/image" alt="${b.title || '배너'}"></div>`
+                    `<div class="banner-slide"><img src="${API_BASE_URL}/banners/${b.id}/image" alt="${b.title || '배너'}"></div>`
                 ).join('');
 
                 dotsContainer.innerHTML = banners.map((_, i) =>
