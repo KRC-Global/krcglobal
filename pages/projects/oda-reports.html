@@ -1309,29 +1309,18 @@
 
         function _fetchOdaFile(reportId, fileName, isPreview) {
             const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
-            const endpoint = isPreview ? 'preview' : 'download';
+            // preview/download 구분 없이 download 엔드포인트 통일 (Bearer 토큰)
+            Toast.info('파일을 불러오는 중...');
 
-            fetch(`${API_BASE_URL}/oda-reports/${endpoint}/${reportId}`, {
+            fetch(`${API_BASE_URL}/oda-reports/download/${reportId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
             .then(async r => {
                 if (!r.ok) {
-                    // 에러 응답에서 메시지 추출 (JSON 또는 HTML)
                     let msg = '파일을 불러올 수 없습니다.';
-                    const ct = r.headers.get('Content-Type') || '';
-                    try {
-                        if (ct.includes('json')) {
-                            const d = await r.json();
-                            msg = d.message || msg;
-                        } else {
-                            const text = await r.text();
-                            const m = text.match(/<p>(.*?)<\/p>/);
-                            if (m) msg = m[1];
-                        }
-                    } catch (_) {}
+                    try { const d = await r.json(); msg = d.message || msg; } catch (_) {}
                     throw new Error(msg);
                 }
-                // Content-Disposition에서 파일명 추출
                 const disposition = r.headers.get('Content-Disposition') || '';
                 let dlName = fileName || 'download';
                 const match = disposition.match(/filename="?([^";\n]+)"?/);
@@ -1341,8 +1330,9 @@
             .then(({ blob, dlName }) => {
                 const blobUrl = URL.createObjectURL(blob);
                 const isPdf = dlName.toLowerCase().endsWith('.pdf');
-                if (isPdf || isPreview) {
-                    window.open(blobUrl, '_blank');
+                if (isPdf) {
+                    const w = window.open(blobUrl, '_blank');
+                    if (!w) { const a = document.createElement('a'); a.href = blobUrl; a.download = dlName; a.click(); }
                 } else {
                     const a = document.createElement('a');
                     a.href = blobUrl;
@@ -1375,7 +1365,8 @@
             .then(({ blob, dlName }) => {
                 const blobUrl = URL.createObjectURL(blob);
                 if (dlName.toLowerCase().endsWith('.pdf')) {
-                    window.open(blobUrl, '_blank');
+                    const w = window.open(blobUrl, '_blank');
+                    if (!w) { const a = document.createElement('a'); a.href = blobUrl; a.download = dlName; a.click(); }
                 } else {
                     const a = document.createElement('a');
                     a.href = blobUrl;
