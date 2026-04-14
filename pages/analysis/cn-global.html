@@ -932,10 +932,18 @@
             fd.append('crs', 'EPSG:4326');
             fd.append('force_global', 'true');
 
-            const res = await fetch('/cn/api/analyze', {
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const res = await fetch('/api/cn/analyze', {
                 method: 'POST',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
                 body: fd
             });
+
+            // 응답이 JSON인지 확인 (HTML 404 등 방지)
+            const contentType = res.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error(`서버 오류 (HTTP ${res.status}): CN 분석 서비스에 연결할 수 없습니다.`);
+            }
 
             const data = await res.json();
 
@@ -957,6 +965,9 @@
 
     // ─── 결과 표시 ───────────────────────────────────────────
     function showResults(data) {
+        // 보고서 파일 지원 여부 (로컬 서버: report_url 존재, Vercel: null)
+        reportAvailable = !!(data.report_url || data.download_url);
+
         const results = data.results || [];
         const geojson = data.geojson;
 
@@ -1101,9 +1112,15 @@
     }
 
     // ─── 다운로드 ─────────────────────────────────────────────
+    let reportAvailable = false;  // 서버가 보고서 파일 저장을 지원하는 경우에만 true
+
     function downloadReport(type) {
         if (!currentAnalysisId) {
             Toast.warning('먼저 분석을 실행해주세요.');
+            return;
+        }
+        if (!reportAvailable) {
+            Toast.warning('보고서 다운로드는 로컬 서버 실행 환경에서만 지원됩니다.');
             return;
         }
         const id = currentAnalysisId;

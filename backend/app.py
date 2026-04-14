@@ -67,6 +67,7 @@ from routes.utilities import utilities_bp
 from routes.bidding import bidding_bp
 from routes.board import board_bp
 from routes.banners import banners_bp
+from routes.cn_analysis import cn_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(projects_bp, url_prefix='/api/projects')
@@ -90,6 +91,7 @@ app.register_blueprint(utilities_bp, url_prefix='/api/utilities')
 app.register_blueprint(bidding_bp, url_prefix='/api/bidding')
 app.register_blueprint(board_bp, url_prefix='/api/board')
 app.register_blueprint(banners_bp, url_prefix='/api/banners')
+app.register_blueprint(cn_bp, url_prefix='/api/cn')
 
 
 # Security headers
