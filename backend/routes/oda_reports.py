@@ -2,7 +2,9 @@
 GBMS - ODA Reports Routes
 글로벌사업처 해외사업관리시스템 - ODA 보고서관리 API
 """
-from flask import Blueprint, request, jsonify
+import logging
+import os
+from flask import Blueprint, request, jsonify, send_file, current_app
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from sqlalchemy.orm import joinedload
@@ -10,6 +12,33 @@ from models import db, OdaReport, OdaProject, OdaNote, ActivityLog
 from routes.auth import token_required, admin_required, permission_required
 from utils.file_naming import make_oda_report_filename, make_oda_report_disk_filename
 from utils.r2_storage import upload_file, download_file, delete_file, check_storage_limit, stream_from_r2
+
+logger = logging.getLogger(__name__)
+
+
+def stream_file(file_path, folder, download_name=None, content_type=None, inline=False):
+    """file_path가 bare 파일명이면 로컬에서, prefix 포함이면 R2에서 서브.
+    folder: 로컬 uploads 하위 디렉토리명 (예: 'oda_reports', 'oda_notes')
+    """
+    if not file_path:
+        raise FileNotFoundError('file_path가 없습니다.')
+
+    if '/' not in file_path:
+        # 구형 레코드: 로컬 파일 서브
+        upload_dir = os.path.join(current_app.root_path, 'uploads', folder)
+        local_path = os.path.join(upload_dir, file_path)
+        if not os.path.exists(local_path):
+            raise FileNotFoundError(f'로컬 파일 없음: {local_path}')
+        return send_file(
+            local_path,
+            mimetype=content_type,
+            as_attachment=not inline,
+            download_name=download_name or file_path
+        )
+    else:
+        # 신형 레코드: R2 서브
+        return stream_from_r2(file_path, content_type=content_type,
+                               download_name=download_name, inline=inline)
 
 oda_reports_bp = Blueprint('oda_reports', __name__)
 
@@ -272,8 +301,9 @@ def download_report(report_id):
         download_name = make_oda_report_filename(report.report_type, file_ext, project)
 
         try:
-            return stream_from_r2(report.file_path, download_name=download_name)
-        except Exception:
+            return stream_file(report.file_path, 'oda_reports', download_name=download_name)
+        except Exception as err:
+            logger.error(f'File download error — path={report.file_path!r}, error={err!r}')
             return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
@@ -321,8 +351,9 @@ def preview_report(report_id):
         }
         mimetype = mimetype_map.get(ext, 'application/octet-stream')
         try:
-            return stream_from_r2(report.file_path, content_type=mimetype, inline=True)
-        except Exception:
+            return stream_file(report.file_path, 'oda_reports', content_type=mimetype, inline=True)
+        except Exception as err:
+            logger.error(f'File preview error — path={report.file_path!r}, error={err!r}')
             return '<html><body><h1>오류</h1><p>파일을 찾을 수 없습니다.</p></body></html>', 404
 
     except Exception as e:
@@ -538,8 +569,9 @@ def download_note_file(note_id):
 
         download_name = note.file_name or f'note.{note.file_type or "dat"}'
         try:
-            return stream_from_r2(note.file_path, download_name=download_name)
-        except Exception:
+            return stream_file(note.file_path, 'oda_notes', download_name=download_name)
+        except Exception as err:
+            logger.error(f'Note file download error — path={note.file_path!r}, error={err!r}')
             return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:

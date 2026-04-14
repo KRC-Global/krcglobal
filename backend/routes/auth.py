@@ -340,7 +340,7 @@ def get_current_user(current_user):
 @auth_bp.route('/me', methods=['PUT'])
 @token_required
 def update_current_user(current_user):
-    """승인 대기 중인 사용자가 자기 이름을 수정"""
+    """승인 대기 중인 사용자가 이름·사번을 입력·수정"""
     if current_user.permission_scope != 'pending':
         return jsonify({'success': False, 'message': '이미 승인된 사용자는 이 기능을 사용할 수 없습니다.'}), 403
 
@@ -349,20 +349,27 @@ def update_current_user(current_user):
         return jsonify({'success': False, 'message': '요청 데이터가 없습니다.'}), 400
 
     name = data.get('name', '').strip()
+    employee_number = data.get('employeeNumber', '').strip()
+
     if not name or len(name) > 100:
         return jsonify({'success': False, 'message': '이름을 1~100자로 입력해주세요.'}), 400
+    if not employee_number:
+        return jsonify({'success': False, 'message': '사번을 입력해주세요.'}), 400
+    if len(employee_number) > 20:
+        return jsonify({'success': False, 'message': '사번은 20자 이내로 입력해주세요.'}), 400
 
     try:
         current_user.name = name
+        current_user.employee_number = employee_number
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        print(f"이름 저장 오류: {e}")
-        return jsonify({'success': False, 'message': '이름 저장에 실패했습니다.'}), 500
+        print(f"사용자 정보 저장 오류: {e}")
+        return jsonify({'success': False, 'message': '정보 저장에 실패했습니다.'}), 500
 
     return jsonify({
         'success': True,
-        'message': '이름이 저장되었습니다.',
+        'message': '정보가 저장되었습니다.',
         'user': current_user.to_dict()
     })
 

@@ -57,6 +57,7 @@ class User(db.Model):
     department = db.Column(db.String(50), nullable=False)  # gad, gb, aidc
     role = db.Column(db.String(20), default='user')  # admin, manager, user
     permission_scope = db.Column(db.String(50), default='readonly')  # all, overseas_tech, expansion, oda, readonly
+    employee_number = db.Column(db.String(20))   # 사번
     phone = db.Column(db.String(20))
     position = db.Column(db.String(50))
     is_active = db.Column(db.Boolean, default=True)
@@ -97,6 +98,7 @@ class User(db.Model):
             'departmentName': dept_names.get(self.department, self.department),
             'role': self.role,
             'permissionScope': self.permission_scope or 'readonly',
+            'employeeNumber': self.employee_number,
             'phone': self.phone,
             'position': self.position,
             'isActive': self.is_active
