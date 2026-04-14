@@ -446,14 +446,15 @@ def update_consulting_project(current_user, project_id):
         }), 400
 
     # 중복 체크 (자기 자신은 제외)
+    # contractYear가 없으면 기존 프로젝트 값을 사용 — 연도 미포함 시 너무 넓은 검사로 409 오발생 방지
     if data.get('titleKr') and data.get('country'):
+        check_year = data.get('contractYear') or project.contract_year
         existing = ConsultingProject.query.filter(
             ConsultingProject.id != project_id,
             ConsultingProject.title_kr == data['titleKr'].strip(),
-            ConsultingProject.country == data['country'].strip()
+            ConsultingProject.country == data['country'].strip(),
+            ConsultingProject.contract_year == check_year
         )
-        if data.get('contractYear'):
-            existing = existing.filter_by(contract_year=data['contractYear'])
 
         if existing.first():
             return jsonify({
