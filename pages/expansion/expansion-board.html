@@ -1037,8 +1037,34 @@
         // 파일 다운로드
         function downloadFile(id) {
             const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
-            const baseUrl = `${window.location.protocol}//${window.location.host}`;
-            window.location.href = `${baseUrl}/api/board/${id}/download?token=${token}`;
+            fetch(`${API_BASE_URL}/board/${id}/download`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(async r => {
+                if (!r.ok) {
+                    let msg = '파일 다운로드에 실패했습니다.';
+                    try { const d = await r.json(); msg = d.message || msg; } catch (_) {}
+                    throw new Error(msg);
+                }
+                const disposition = r.headers.get('Content-Disposition') || '';
+                let fileName = 'download';
+                const match = disposition.match(/filename="?([^";\n]+)"?/);
+                if (match) fileName = decodeURIComponent(match[1]);
+                return r.blob().then(blob => ({ blob, fileName }));
+            })
+            .then(({ blob, fileName }) => {
+                const blobUrl = URL.createObjectURL(blob);
+                if (fileName.toLowerCase().endsWith('.pdf')) {
+                    window.open(blobUrl, '_blank');
+                } else {
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = fileName;
+                    a.click();
+                    URL.revokeObjectURL(blobUrl);
+                }
+            })
+            .catch(e => Toast.error(e.message));
         }
 
         // 등록 모달 열기
