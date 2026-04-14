@@ -618,6 +618,11 @@
         .user-dropdown-item span {
             font-size: 18px;
         }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
@@ -844,8 +849,16 @@
             </table>
             </div><!-- /.table-container -->
 
-            <!-- 페이지네이션 -->
-            <div class="pagination" id="pagination"></div>
+            <!-- 무한스크롤 sentinel -->
+            <div id="infiniteScrollSentinel" style="height: 60px; display: flex; align-items: center; justify-content: center;">
+                <div id="loadMoreSpinner" style="display: none; gap: 8px; align-items: center; color: var(--color-neutral-400); font-size: 13px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;">
+                        <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                    </svg>
+                    불러오는 중...
+                </div>
+                <div id="noMoreData" style="display: none; color: var(--color-neutral-300); font-size: 12px;">— 모든 데이터를 불러왔습니다 —</div>
+            </div>
         </div>
     </main>
 
@@ -940,7 +953,9 @@
 
     <script>
         let currentPage = 1;
-        let totalPages = 1;
+        let isLoading = false;
+        let hasMore = true;
+        let totalRowCount = 0;       // 누적 행 번호 추적
         let allReportsData = [];
         let currentFilters = {
             country: '',
@@ -1066,7 +1081,7 @@
                 }
             } catch (e) {}
 
-            await Promise.all([loadCountries(), loadReports()]);
+            await Promise.all([loadCountries(), loadReports(false)]);
             setupEventListeners();
         });
 
@@ -1088,8 +1103,14 @@
             }
         }
 
-        // 보고서 목록 로드
-        async function loadReports() {
+        // 보고서 목록 로드 (append=true면 기존 테이블에 추가)
+        async function loadReports(append = false) {
+            if (isLoading || (!append && currentPage > 1)) return;
+            if (append && !hasMore) return;
+
+            isLoading = true;
+            setLoadingUI(true);
+
             try {
                 const params = new URLSearchParams({
                     page: currentPage,
@@ -1099,15 +1120,42 @@
 
                 const response = await apiCall(`/oda-reports?${params}`, 'GET');
                 if (response.success) {
-                    renderReportsTable(response.data);
-                    renderPagination(response.currentPage, response.pages);
+                    if (append) {
+                        appendReportsRows(response.data);
+                    } else {
+                        totalRowCount = 0;
+                        renderReportsTable(response.data);
+                    }
+                    const pages = response.pages || 1;
+                    hasMore = currentPage < pages;
+                    currentPage++;
+                    setLoadingUI(false, !hasMore);
                 } else {
                     Toast.error(response.message);
+                    setLoadingUI(false);
                 }
             } catch (error) {
                 console.error('보고서 목록 로드 실패:', error);
                 Toast.error('데이터를 불러오는데 실패했습니다.');
+                setLoadingUI(false);
             }
+
+            isLoading = false;
+        }
+
+        // 필터 변경 시 초기화 후 재로드
+        function resetAndLoad() {
+            currentPage = 1;
+            hasMore = true;
+            totalRowCount = 0;
+            isLoading = false;
+            document.getElementById('noMoreData').style.display = 'none';
+            loadReports(false);
+        }
+
+        function setLoadingUI(loading, noMore = false) {
+            document.getElementById('loadMoreSpinner').style.display = loading ? 'flex' : 'none';
+            document.getElementById('noMoreData').style.display = (!loading && noMore) ? 'block' : 'none';
         }
 
         // 상태 배지 생성
@@ -1166,7 +1214,39 @@
             return html;
         }
 
-        // 보고서 테이블 렌더링
+        // 보고서 행 HTML 생성 (공통)
+        function makeReportRowHTML(project, rowNum) {
+            const canEdit = typeof hasWritePermission === 'function' ? hasWritePermission('oda') : false;
+            const note = project.note;
+            const hasNote = note && (note.memo || note.fileName);
+
+            const noteCell = hasNote
+                ? `<td style="text-align: center;">
+                    <button class="btn-sm btn-outline-edit" onclick="openNoteViewModal(${project.id}, '${project.title.replace(/'/g, "\\'")}')" style="font-size: 12px; padding: 4px 10px;">보기</button>
+                   </td>`
+                : `<td style="text-align: center;">
+                    ${canEdit ? `<button class="btn-sm btn-outline-edit" onclick="openNoteEditModalDirect(${project.id}, '${project.title.replace(/'/g, "\\'")}')" style="font-size: 12px; padding: 4px 10px; color: var(--color-neutral-400); border-color: var(--color-neutral-300);">작성</button>` : '<span style="color: var(--color-neutral-400);">-</span>'}
+                   </td>`;
+
+            return `
+                <tr>
+                    <td class="col-half" data-label="번호" style="text-align:center;vertical-align:middle;color:var(--color-neutral-500);font-size:12px;">${rowNum}</td>
+                    <td class="col-title" style="vertical-align:middle;">
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            <span class="project-name" onclick="showProjectDetail(${project.id})">${project.title}</span>
+                            <span style="flex-shrink:0;">${getStatusBadge(project.period, project.status)}</span>
+                        </div>
+                    </td>
+                    <td class="col-half" data-label="대상국" style="text-align:center;vertical-align:middle;">${project.country || '-'}</td>
+                    <td class="col-half" data-label="사업기간" style="text-align:center;vertical-align:middle;">${project.period || '-'}</td>
+                    <td class="col-half" data-label="사업비" style="text-align:center;vertical-align:middle;">${project.budget ? formatNumber(project.budget) : '-'}</td>
+                    <td class="pipeline-cell" style="vertical-align:middle;">${createOdaPipelineHTML(project.id, project.reports)}</td>
+                    ${noteCell}
+                </tr>
+            `;
+        }
+
+        // 보고서 테이블 초기 렌더링 (전체 교체)
         function renderReportsTable(data) {
             allReportsData = data || [];
             const tbody = document.getElementById('reportsTableBody');
@@ -1176,37 +1256,25 @@
                 return;
             }
 
-            const canEdit = typeof hasWritePermission === 'function' ? hasWritePermission('oda') : false;
-
             tbody.innerHTML = data.map((project, index) => {
-                const note = project.note;
-                const hasNote = note && (note.memo || note.fileName);
-
-                const noteCell = hasNote
-                    ? `<td style="text-align: center;">
-                        <button class="btn-sm btn-outline-edit" onclick="openNoteViewModal(${project.id}, '${project.title.replace(/'/g, "\\'")}')" style="font-size: 12px; padding: 4px 10px;">보기</button>
-                       </td>`
-                    : `<td style="text-align: center;">
-                        ${canEdit ? `<button class="btn-sm btn-outline-edit" onclick="openNoteEditModalDirect(${project.id}, '${project.title.replace(/'/g, "\\'")}')" style="font-size: 12px; padding: 4px 10px; color: var(--color-neutral-400); border-color: var(--color-neutral-300);">작성</button>` : '<span style="color: var(--color-neutral-400);">-</span>'}
-                       </td>`;
-
-                return `
-                    <tr>
-                        <td class="col-half" data-label="번호" style="text-align:center;vertical-align:middle;color:var(--color-neutral-500);font-size:12px;">${(currentPage - 1) * 20 + index + 1}</td>
-                        <td class="col-title" style="vertical-align:middle;">
-                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                                <span class="project-name" onclick="showProjectDetail(${project.id})">${project.title}</span>
-                                <span style="flex-shrink:0;">${getStatusBadge(project.period, project.status)}</span>
-                            </div>
-                        </td>
-                        <td class="col-half" data-label="대상국" style="text-align:center;vertical-align:middle;">${project.country || '-'}</td>
-                        <td class="col-half" data-label="사업기간" style="text-align:center;vertical-align:middle;">${project.period || '-'}</td>
-                        <td class="col-half" data-label="사업비" style="text-align:center;vertical-align:middle;">${project.budget ? formatNumber(project.budget) : '-'}</td>
-                        <td class="pipeline-cell" style="vertical-align:middle;">${createOdaPipelineHTML(project.id, project.reports)}</td>
-                        ${noteCell}
-                    </tr>
-                `;
+                totalRowCount++;
+                return makeReportRowHTML(project, totalRowCount);
             }).join('');
+        }
+
+        // 무한스크롤: 다음 페이지 행 추가
+        function appendReportsRows(data) {
+            if (!data || data.length === 0) return;
+            allReportsData = allReportsData.concat(data);
+            const tbody = document.getElementById('reportsTableBody');
+            // 빈 상태 행 제거
+            const emptyRow = tbody.querySelector('td[colspan="7"]');
+            if (emptyRow) emptyRow.closest('tr').remove();
+
+            data.forEach(project => {
+                totalRowCount++;
+                tbody.insertAdjacentHTML('beforeend', makeReportRowHTML(project, totalRowCount));
+            });
         }
 
         // ==================== 드롭다운 패널 ====================
@@ -1388,7 +1456,7 @@
                 if (response.success) {
                     Toast.success('삭제되었습니다.');
                     closeDropdownPanel();
-                    await loadReports();
+                    resetAndLoad();
                 } else {
                     Toast.error(response.message);
                 }
@@ -1442,7 +1510,7 @@
                     if (result.success) {
                         Toast.success(result.message);
                         closeDropdownPanel();
-                        await loadReports();
+                        resetAndLoad();
                     } else {
                         Toast.error(result.message || '업로드 실패');
                     }
@@ -1661,7 +1729,7 @@
                 if (result.success) {
                     Toast.success(result.message);
                     closeNoteEditModal();
-                    await loadReports();
+                    resetAndLoad();
                 } else {
                     Toast.error(result.message);
                 }
@@ -1678,7 +1746,7 @@
                 if (response.success) {
                     Toast.success(response.message);
                     document.getElementById('noteCurrentFile').style.display = 'none';
-                    await loadReports();
+                    resetAndLoad();
                 } else {
                     Toast.error(response.message);
                 }
@@ -1710,50 +1778,29 @@
         function setupEventListeners() {
             document.getElementById('countryFilter').addEventListener('change', (e) => {
                 currentFilters.country = e.target.value;
-                currentPage = 1;
-                loadReports();
+                resetAndLoad();
             });
 
             document.getElementById('statusFilter').addEventListener('change', (e) => {
                 currentFilters.status = e.target.value;
-                currentPage = 1;
-                loadReports();
+                resetAndLoad();
             });
 
             document.getElementById('searchInput').addEventListener('input', debounce((e) => {
                 currentFilters.search = e.target.value;
-                currentPage = 1;
-                loadReports();
+                resetAndLoad();
             }, 500));
 
             document.getElementById('btnExcelDownload').addEventListener('click', downloadExcel);
-        }
 
-        // ==================== 페이지네이션 ====================
-        function renderPagination(current, total) {
-            totalPages = total;
-            const pagination = document.getElementById('pagination');
-
-            if (total <= 1) {
-                pagination.innerHTML = '';
-                return;
-            }
-
-            let html = '';
-            html += `<button class="page-btn" ${current === 1 ? 'disabled' : ''} onclick="goToPage(${current - 1})">이전</button>`;
-            const startPage = Math.max(1, current - 2);
-            const endPage = Math.min(total, current + 2);
-            for (let i = startPage; i <= endPage; i++) {
-                html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-            }
-            html += `<button class="page-btn" ${current === total ? 'disabled' : ''} onclick="goToPage(${current + 1})">다음</button>`;
-            pagination.innerHTML = html;
-        }
-
-        function goToPage(page) {
-            if (page < 1 || page > totalPages) return;
-            currentPage = page;
-            loadReports();
+            // 무한스크롤 IntersectionObserver
+            const sentinel = document.getElementById('infiniteScrollSentinel');
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && !isLoading && hasMore) {
+                    loadReports(true);
+                }
+            }, { rootMargin: '100px' });
+            observer.observe(sentinel);
         }
 
         // ==================== 엑셀 다운로드 ====================
