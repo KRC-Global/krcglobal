@@ -1749,12 +1749,19 @@ def get_lifecycle_stages_from_project(project):
         has_design = '설계' in pt
         has_construction = '시공감리' in pt or ('시공' in pt and '감리' in pt) or '공사감독' in pt
 
-    return [
-        {'key': 'eoi', 'label': 'EOI제출'},
-        {'key': 'proposal', 'label': '제안서제출'},
-        {'key': 'contract', 'label': '계약'},
-        {'key': 'completion', 'label': '준공'},
+    stages = [
+        {'key': 'eoi',       'label': 'EOI제출'},
+        {'key': 'shortlist', 'label': '숏리스트'},
+        {'key': 'proposal',  'label': '제안서제출'},
+        {'key': 'contract',  'label': '계약'},
+        {'key': 'kickoff',   'label': '착수'},
     ]
+    if has_design:
+        stages.append({'key': 'design', 'label': '설계'})
+    if has_construction:
+        stages.append({'key': 'construction', 'label': '시공감리'})
+    stages.append({'key': 'completion', 'label': '준공'})
+    return stages
 
 
 def format_date_short(date_val):
@@ -1786,13 +1793,14 @@ def build_lifecycle_data(project, lifecycle_record, eoi_list=None, proposal_list
     stage_data_map = {}
     if lc:
         stage_data_map = {
-            'eoi': {'date': lc.eoi_date, 'completed': lc.eoi_completed, 'progress': lc.eoi_progress},
-            'proposal': {'date': lc.proposal_date, 'completed': lc.proposal_completed, 'progress': lc.proposal_progress},
-            'contract': {'date': lc.contract_date, 'completed': lc.contract_completed, 'progress': lc.contract_progress},
-            'kickoff': {'date': lc.kickoff_date, 'completed': lc.kickoff_completed, 'progress': lc.kickoff_progress},
-            'design': {'date': lc.design_date, 'completed': lc.design_completed, 'progress': lc.design_progress},
+            'eoi':          {'date': lc.eoi_date,          'completed': lc.eoi_completed,          'progress': lc.eoi_progress},
+            'shortlist':    {'date': lc.shortlist_date,    'completed': lc.shortlist_completed,    'progress': lc.shortlist_progress},
+            'proposal':     {'date': lc.proposal_date,     'completed': lc.proposal_completed,     'progress': lc.proposal_progress},
+            'contract':     {'date': lc.contract_date,     'completed': lc.contract_completed,     'progress': lc.contract_progress},
+            'kickoff':      {'date': lc.kickoff_date,      'completed': lc.kickoff_completed,      'progress': lc.kickoff_progress},
+            'design':       {'date': lc.design_date,       'completed': lc.design_completed,       'progress': lc.design_progress},
             'construction': {'date': lc.construction_date, 'completed': lc.construction_completed, 'progress': lc.construction_progress},
-            'completion': {'date': lc.completion_date, 'completed': lc.completion_completed, 'progress': lc.completion_progress},
+            'completion':   {'date': lc.completion_date,   'completed': lc.completion_completed,   'progress': lc.completion_progress},
         }
 
     # 2단계: 관련 모델 데이터로 보강 (lifecycle_record에 값이 없을 때만)
