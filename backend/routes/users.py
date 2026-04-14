@@ -128,6 +128,12 @@ def approve_user(current_user, user_id):
         new_scope = 'readonly'
 
     user.permission_scope = new_scope
+    user.is_active = True  # 승인 시 활성화 보장
+
+    # 부서가 없으면 글로벌사업부(gb)로 기본 지정
+    if not user.department:
+        user.department = 'gb'
+
     if new_scope == 'all':
         user.role = 'admin'
 
