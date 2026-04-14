@@ -17,28 +17,30 @@ logger = logging.getLogger(__name__)
 
 
 def stream_file(file_path, folder, download_name=None, content_type=None, inline=False):
-    """file_path가 bare 파일명이면 로컬에서, prefix 포함이면 R2에서 서브.
+    """file_path → 로컬 우선, 없으면 R2 fallback.
     folder: 로컬 uploads 하위 디렉토리명 (예: 'oda_reports', 'oda_notes')
     """
     if not file_path:
         raise FileNotFoundError('file_path가 없습니다.')
 
+    # R2 키 결정
+    r2_key = file_path if '/' in file_path else f'{folder}/{file_path}'
+
     if '/' not in file_path:
-        # 구형 레코드: 로컬 파일 서브
+        # 구형 레코드: 로컬 먼저 시도
         upload_dir = os.path.join(current_app.root_path, 'uploads', folder)
         local_path = os.path.join(upload_dir, file_path)
-        if not os.path.exists(local_path):
-            raise FileNotFoundError(f'로컬 파일 없음: {local_path}')
-        return send_file(
-            local_path,
-            mimetype=content_type,
-            as_attachment=not inline,
-            download_name=download_name or file_path
-        )
-    else:
-        # 신형 레코드: R2 서브
-        return stream_from_r2(file_path, content_type=content_type,
-                               download_name=download_name, inline=inline)
+        if os.path.exists(local_path):
+            return send_file(
+                local_path,
+                mimetype=content_type,
+                as_attachment=not inline,
+                download_name=download_name or file_path
+            )
+
+    # 로컬 없거나 신형 레코드 → R2
+    return stream_from_r2(r2_key, content_type=content_type,
+                           download_name=download_name, inline=inline)
 
 oda_reports_bp = Blueprint('oda_reports', __name__)
 
