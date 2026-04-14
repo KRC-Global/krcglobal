@@ -154,73 +154,113 @@
         width: 100% !important;
         min-width: 0 !important;
     }
+
+    /* 카드 컨테이너 */
     .table-container:not(.no-mobile-card) .data-table tbody tr {
         display: block !important;
         border: 1px solid var(--color-neutral-200);
-        border-radius: var(--radius-md);
+        border-radius: 10px;
         margin-bottom: var(--spacing-3);
-        padding: var(--spacing-3);
+        padding: 0;
         background: var(--color-neutral-0);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
     }
     .table-container:not(.no-mobile-card) .data-table tbody tr:hover {
         background: var(--color-neutral-0);
+        box-shadow: 0 4px 12px rgba(26, 75, 124, 0.12);
     }
     .table-container:not(.no-mobile-card) .data-table tbody tr:last-child td {
         border-bottom: none;
     }
+
+    /* 일반 항목 행 */
     .table-container:not(.no-mobile-card) .data-table td {
         display: flex !important;
         justify-content: space-between;
-        align-items: flex-start;
-        gap: var(--spacing-2);
-        padding: var(--spacing-1) 0;
+        align-items: center;
+        gap: var(--spacing-3);
+        padding: 9px var(--spacing-4);
         border-bottom: 1px solid var(--color-neutral-100);
         font-size: var(--font-size-sm);
         width: 100% !important;
         min-width: 0 !important;
         box-sizing: border-box;
-        text-align: left !important;
+        text-align: right !important;
+        background: transparent;
     }
     .table-container:not(.no-mobile-card) .data-table td:last-child {
         border-bottom: none;
     }
-    /* data-label → ::before 로 레이블 자동 표시 */
+
+    /* 짝수 행 배경 — 줄무늬로 가독성 향상 */
+    .table-container:not(.no-mobile-card) .data-table td:not(.col-title):not(.pipeline-cell):nth-child(even) {
+        background: var(--color-secondary-50, #faf9f7);
+    }
+
+    /* data-label → ::before 레이블 */
     .table-container:not(.no-mobile-card) .data-table td[data-label]::before {
         content: attr(data-label);
         font-weight: var(--font-weight-semibold);
         color: var(--color-neutral-500);
-        min-width: 64px;
+        font-size: 11px;
+        letter-spacing: 0.03em;
         flex-shrink: 0;
-        font-size: var(--font-size-xs);
-        padding-top: 2px;
-    }
-    /* 사업명 컬럼 → 카드 헤더 (1행) */
-    .table-container:not(.no-mobile-card) .data-table td.col-title {
-        display: block !important;
-        font-weight: var(--font-weight-semibold);
-        font-size: var(--font-size-base);
-        color: var(--color-neutral-900);
-        padding-bottom: var(--spacing-2);
-        margin-bottom: var(--spacing-2);
-        border-bottom: 2px solid #1A4B7C;
-        width: 100% !important;
-        text-align: left !important;
-        vertical-align: top !important;
-    }
-    /* colspan 빈 행 */
-    .table-container:not(.no-mobile-card) .data-table td[colspan] {
-        display: block;
-        text-align: center;
+        text-align: left;
+        white-space: nowrap;
     }
 
-    /* 파이프라인 셀 — 카드 내에서 가로 스크롤 허용 */
+    /* 값 영역 — 오른쪽 정렬·줄임표 */
+    .table-container:not(.no-mobile-card) .data-table td[data-label] > * {
+        max-width: 60%;
+    }
+
+    /* 사업명 컬럼 → 카드 헤더 */
+    .table-container:not(.no-mobile-card) .data-table td.col-title {
+        display: block !important;
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-base);
+        color: var(--color-neutral-0);
+        background: #1A4B7C !important;
+        padding: var(--spacing-3) var(--spacing-4) !important;
+        margin: 0;
+        border-bottom: none !important;
+        width: 100% !important;
+        text-align: left !important;
+        line-height: 1.4;
+    }
+
+    /* 사업명 내 링크 색상 */
+    .table-container:not(.no-mobile-card) .data-table td.col-title a {
+        color: var(--color-neutral-0) !important;
+        text-decoration: none;
+    }
+
+    /* 사업명 내 부제목(영문 등) */
+    .table-container:not(.no-mobile-card) .data-table td.col-title div {
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 11px;
+        font-weight: var(--font-weight-normal);
+        margin-top: 3px;
+    }
+
+    /* colspan 빈 행 */
+    .table-container:not(.no-mobile-card) .data-table td[colspan] {
+        display: block !important;
+        text-align: center;
+        color: var(--color-neutral-500);
+        padding: var(--spacing-6) !important;
+    }
+
+    /* 파이프라인 셀 — 가로 스크롤 허용 */
     .table-container:not(.no-mobile-card) .data-table td.pipeline-cell {
         display: block !important;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        padding-bottom: var(--spacing-2);
+        padding: var(--spacing-3) var(--spacing-4) !important;
         text-align: left !important;
+        border-bottom: none;
+        background: var(--color-secondary-50, #faf9f7);
     }
 }
 
