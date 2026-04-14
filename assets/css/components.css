@@ -906,12 +906,18 @@
 }
 @media (max-width: 768px) {
     .analysis-btn {
-        padding: 6px 8px;
+        padding: 4px;
         font-size: 0;
+        border: none;
+        background: none;
+        box-shadow: none;
+        min-width: 32px;
+        min-height: 32px;
+        justify-content: center;
     }
     .analysis-btn::before {
         content: '📊';
-        font-size: 18px;
+        font-size: 20px;
     }
     .analysis-btn > * {
         display: none;
