@@ -825,10 +825,10 @@
 
                 <!-- 사업 선택 버튼 -->
                 <div class="biz-select-group" style="display: flex; gap: 12px; margin-top: var(--spacing-3); margin-bottom: var(--spacing-4);">
-                    <button class="biz-select-btn" data-tab="consulting" disabled style="opacity: 0.5; cursor: default;">
-                        해외기술용역사업 (준비중)
+                    <button class="biz-select-btn active" data-tab="consulting" onclick="switchDashboardTab('consulting')">
+                        해외기술용역사업
                     </button>
-                    <button class="biz-select-btn active" data-tab="oda" onclick="switchDashboardTab('oda')">
+                    <button class="biz-select-btn" data-tab="oda" onclick="switchDashboardTab('oda')">
                         국제협력사업
                     </button>
                     <button class="biz-select-btn" data-tab="loan" onclick="switchDashboardTab('loan')">
@@ -838,8 +838,8 @@
 
                 <!-- 사업 콘텐츠 -->
                 <div class="card">
-                    <!-- 해외기술용역사업 탭 (비활성) -->
-                    <div class="dashboard-tab-content" id="tab-consulting" style="display:none;">
+                    <!-- 해외기술용역사업 탭 -->
+                    <div class="dashboard-tab-content active" id="tab-consulting">
                         <!-- 사업제안 및 수주현황 테이블 -->
                         <div class="dashboard-accordion collapsed">
                             <div class="dashboard-accordion-header" onclick="toggleAccordion(this)">
@@ -957,7 +957,7 @@
                     </div>
 
                     <!-- 국제협력사업 탭 -->
-                    <div class="dashboard-tab-content active" id="tab-oda">
+                    <div class="dashboard-tab-content" id="tab-oda" style="display:none;">
                         <h4 style="font-size: var(--font-size-base); font-weight: 600; margin-bottom: var(--spacing-3); display: flex; align-items: center; gap: 8px; cursor: pointer;"
                             onclick="window.location.href='pages/projects/international-cooperation.html'">
                             <span style="color: var(--color-primary-600);">📊</span> 2026년도 사업현황
@@ -1375,7 +1375,6 @@
 
         // 사업 선택 전환 함수
         function switchDashboardTab(tabName) {
-            if (tabName === 'consulting') return; // 해외기술용역 비활성화
             // 모든 버튼 비활성화
             document.querySelectorAll('.biz-select-btn').forEach(btn => {
                 btn.classList.remove('active');
