@@ -598,35 +598,14 @@
                 </ol>
             </nav>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 class="page-title">사용자 관리</h2>
+                <h2 class="page-title" style="white-space: nowrap;">사용자 관리</h2>
                 <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-primary" onclick="openAddUserModal()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" style="margin-right: 4px;">
-                            <path d="M12 5v14M5 12h14" />
-                        </svg>
-                        사용자 추가
-                    </button>
                     <button class="btn btn-secondary" onclick="openAccessLogModal()">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" style="margin-right: 4px;">
                             <path d="M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         접속자 로그
-                    </button>
-                    <button class="btn btn-secondary" id="uploadExcelBtn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" style="margin-right: 4px;">
-                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                        </svg>
-                        Excel 업로드
-                    </button>
-                    <button class="btn btn-secondary" id="downloadTemplateBtn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" style="margin-right: 4px;">
-                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
-                        </svg>
-                        템플릿 다운로드
                     </button>
                     <button class="btn btn-secondary" onclick="openBannerModal()">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
