@@ -1754,12 +1754,9 @@ def get_lifecycle_stages_from_project(project):
         {'key': 'shortlist', 'label': '숏리스트'},
         {'key': 'proposal',  'label': '제안서제출'},
         {'key': 'contract',  'label': '계약'},
-        {'key': 'kickoff',   'label': '착수'},
     ]
     if has_design:
         stages.append({'key': 'design', 'label': '설계'})
-    if has_construction:
-        stages.append({'key': 'construction', 'label': '시공감리'})
     stages.append({'key': 'completion', 'label': '준공'})
     return stages
 

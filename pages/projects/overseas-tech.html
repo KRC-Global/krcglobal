@@ -2043,11 +2043,10 @@
 
         // 라이프사이클 단계 편집 HTML 생성
         function buildLifecycleEditHTML(stages) {
-            const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'kickoff', 'design', 'construction', 'completion'];
+            const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'design', 'completion'];
             const stageLabels = {
                 eoi: 'EOI제출', shortlist: '숏리스트', proposal: '제안서제출',
-                contract: '계약', kickoff: '착수', design: '설계',
-                construction: '시공감리', completion: '준공'
+                contract: '계약', design: '설계', completion: '준공'
             };
 
             const stageMap = {};
@@ -2344,7 +2343,7 @@
                 if (data.success) {
                     // 라이프사이클 정보 저장 (수정 모드에서만)
                     if (editingProjectId) {
-                        const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'kickoff', 'design', 'construction', 'completion'];
+                        const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'design', 'completion'];
                         const lifecycleItem = { consultingProjectId: editingProjectId };
                         allStageKeys.forEach(key => {
                             const dateEl = document.getElementById(`lc_date_${key}`);
@@ -2413,9 +2412,7 @@
             'shortlist':    '숏리스트',
             'proposal':     '제안서제출',
             'contract':     '계약',
-            'kickoff':      '착수',
             'design':       '설계',
-            'construction': '시공감리',
             'completion':   '준공'
         };
 
@@ -2435,10 +2432,8 @@
         // 사업형태별 단계 구성 (체크박스 기반) — 백엔드 get_lifecycle_stages_from_project와 동일 로직
         function getLifecycleStageKeys(item) {
             const hasDesign = item.typeBasicDesign || item.typeDetailedDesign;
-            const hasConstruction = item.typeConstruction;
-            const keys = ['eoi', 'shortlist', 'proposal', 'contract', 'kickoff'];
+            const keys = ['eoi', 'shortlist', 'proposal', 'contract'];
             if (hasDesign) keys.push('design');
-            if (hasConstruction) keys.push('construction');
             keys.push('completion');
             return keys;
         }
@@ -2650,7 +2645,7 @@
             rows.forEach(row => {
                 const projectId = parseInt(row.dataset.projectId);
                 const item = { consultingProjectId: projectId };
-                const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'kickoff', 'design', 'construction', 'completion'];
+                const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'design', 'completion'];
                 allStageKeys.forEach(key => {
                     const dateInput = row.querySelector(`input[name="${key}Date"]`);
                     const progressInput = row.querySelector(`input[name="${key}Progress"]`);
