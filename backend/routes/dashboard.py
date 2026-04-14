@@ -8,7 +8,6 @@ from sqlalchemy import func, case, Integer
 from models import db, Project, Budget, Document, Office, ConsultingProject, OdaProject, MethaneProject
 from models.expansion import Loan, CompanyCollateral, Company
 from routes.auth import token_required
-from routes.oda import parse_end_year_from_period
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -22,15 +21,16 @@ def get_status_counts():
     ).count()
     consulting_completed = consulting_total - consulting_active - consulting_proposing
 
-    # ODA Projects - 사업기간 기반으로 진행 여부 판단
+    # ODA Projects - contract_year 기반 DB 집계 (전체 로드 제거)
     current_year = datetime.now().year
-    all_oda_projects = OdaProject.query.all()
-    oda_total = len(all_oda_projects)
-    oda_active = 0
-    for project in all_oda_projects:
-        end_year = parse_end_year_from_period(project.period)
-        if end_year is None or end_year >= current_year:
-            oda_active += 1
+    oda_total = OdaProject.query.count()
+    oda_active = OdaProject.query.filter(
+        db.or_(
+            OdaProject.contract_year == None,
+            OdaProject.contract_year >= current_year - 10
+        ),
+        OdaProject.status.notin_(['완료', '종료', '준공'])
+    ).count()
 
     oda_planning = OdaProject.query.filter(OdaProject.status.like('%기획%') | OdaProject.status.like('%발굴%')).count()
     oda_completed = oda_total - oda_active - oda_planning
@@ -64,14 +64,15 @@ def get_overview(current_user):
     # 2. ODA Projects (국제협력사업)
     oda_total = OdaProject.query.count()
 
-    # 진행: 사업기간이 금년도 이상인 프로젝트만 (상태와 관계없이 기간 기준)
+    # 진행: contract_year 기반 DB 집계 (전체 로드 제거)
     current_year = datetime.now().year
-    all_oda_projects = OdaProject.query.all()
-    oda_active = 0
-    for project in all_oda_projects:
-        end_year = parse_end_year_from_period(project.period)
-        if end_year is None or end_year >= current_year:
-            oda_active += 1
+    oda_active = OdaProject.query.filter(
+        db.or_(
+            OdaProject.contract_year == None,
+            OdaProject.contract_year >= current_year - 10
+        ),
+        OdaProject.status.notin_(['완료', '종료', '준공'])
+    ).count()
 
     oda_planning = OdaProject.query.filter(OdaProject.status.like('%기획%') | OdaProject.status.like('%발굴%')).count()
     # 종료: 전체에서 진행과 기획을 제외한 나머지
@@ -219,15 +220,15 @@ def consulting_active_planning_count():
     return ConsultingProject.query.filter(ConsultingProject.status != '준공').count()
 
 def oda_active_planning_count():
-    # 사업기간 기반으로 금년도 이상인 프로젝트 카운트
+    # contract_year 기반 DB 집계 (전체 로드 제거)
     current_year = datetime.now().year
-    all_oda_projects = OdaProject.query.all()
-    count = 0
-    for project in all_oda_projects:
-        end_year = parse_end_year_from_period(project.period)
-        if end_year is None or end_year >= current_year:
-            count += 1
-    return count
+    return OdaProject.query.filter(
+        db.or_(
+            OdaProject.contract_year == None,
+            OdaProject.contract_year >= current_year - 10
+        ),
+        OdaProject.status.notin_(['완료', '종료', '준공'])
+    ).count()
 
 
 @dashboard_bp.route('/recent-projects', methods=['GET'])

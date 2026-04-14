@@ -833,10 +833,9 @@
             // 초기화 (Sidebar toggle은 initCommonUI()에서 처리)
             updateCurrentYearTabTitle(); // 탭 타이틀에 현재 연도 적용
             initYears();
-            loadCountries();
-            loadStats();
+            // 독립 API 호출을 병렬 처리
+            Promise.all([loadCountries(), loadStats(), loadCurrentYearProjects()]);
             loadProjects();
-            loadCurrentYearProjects();
 
             // 신규 등록 버튼
             const newProjectBtn = document.getElementById('newProjectBtn');
@@ -1275,6 +1274,10 @@
 
         // 프로젝트 목록 로드
         async function loadProjects(page = 1) {
+            const tbody = document.getElementById('projectsTableBody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;color:#6b7280;">데이터를 불러오는 중...</td></tr>`;
+            }
             try {
                 const params = {
                     page: page,
