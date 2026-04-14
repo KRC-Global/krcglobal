@@ -1100,8 +1100,12 @@
                     </table>
                 </div>
 
-                <!-- 페이지네이션 -->
-                <div class="pagination" id="pagination"></div>
+                <!-- 무한 스크롤 -->
+                <div id="loading-more" style="display:none;text-align:center;padding:20px 0;color:var(--color-neutral-500);font-size:14px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px;"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>불러오는 중...
+                </div>
+                <div id="scroll-sentinel" style="height:1px;"></div>
+                <style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
             </div>
         </div>
     </main>
@@ -1218,7 +1222,9 @@
         let currentTotal = 0;
         let currentFilters = {};
         let editingProjectId = null;
-        let currentUserRole = 'guest'; // Default to guest
+        let currentUserRole = 'guest';
+        let isLoadingProjects = false;
+        let hasMoreProjects = true;
 
         document.addEventListener('DOMContentLoaded', function () {
             // 인증 확인 - 글로벌사업관리시스템 표준 형식 사용
@@ -1397,8 +1403,13 @@
             }
         }
 
-        // 프로젝트 목록 로드 (lifecycle-list API 사용)
-        async function loadProjects(page = 1) {
+        // 프로젝트 목록 로드 — append=true 이면 기존 목록에 추가 (무한스크롤)
+        async function loadProjects(page = 1, append = false) {
+            if (isLoadingProjects) return;
+            isLoadingProjects = true;
+            const loadingEl = document.getElementById('loading-more');
+            if (loadingEl) loadingEl.style.display = 'block';
+
             try {
                 const params = { page, per_page: 20 };
                 if (currentFilters.year) params.year = currentFilters.year;
@@ -1419,33 +1430,49 @@
                     currentPage = data.currentPage;
                     totalPages = data.pages;
                     currentTotal = data.total;
-                    lifecycleData = data.data;
+                    hasMoreProjects = currentPage < totalPages;
+                    lifecycleData = append ? (lifecycleData || []).concat(data.data) : data.data;
 
                     const totalBadge = document.getElementById('totalProjectCount');
                     if (totalBadge) totalBadge.textContent = data.total;
 
-                    displayProjects(data.data);
-                    renderPagination(currentPage, totalPages);
+                    if (append) {
+                        appendProjects(data.data);
+                    } else {
+                        displayProjects(data.data);
+                    }
                 } else {
                     throw new Error(data?.message || '데이터를 불러올 수 없습니다.');
                 }
             } catch (error) {
                 console.error('프로젝트 로드 실패:', error);
-                const tbody = document.getElementById('projectsTableBody');
-                if (tbody) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="10" style="text-align: center; padding: 40px; color: #dc3545;">
-                                <div>프로젝트를 불러오는데 실패했습니다.</div>
-                                <div style="font-size: 12px; margin-top: 8px; color: #6c757d;">${error.message || ''}</div>
-                            </td>
-                        </tr>
-                    `;
+                if (!append) {
+                    const tbody = document.getElementById('projectsTableBody');
+                    if (tbody) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="10" style="text-align:center;padding:40px;color:#dc3545;">
+                                    <div>프로젝트를 불러오는데 실패했습니다.</div>
+                                    <div style="font-size:12px;margin-top:8px;color:#6c757d;">${error.message || ''}</div>
+                                </td>
+                            </tr>`;
+                    }
                 }
                 if (typeof Toast !== 'undefined') {
                     Toast.error('프로젝트를 불러오는데 실패했습니다.');
                 }
+            } finally {
+                isLoadingProjects = false;
+                if (loadingEl) loadingEl.style.display = 'none';
             }
+        }
+
+        // 기존 목록에 행 추가 (무한스크롤용)
+        function appendProjects(projects) {
+            const tbody = document.getElementById('projectsTableBody');
+            if (!tbody || !projects.length) return;
+            const html = buildProjectsHTML(projects, (lifecycleData || []).length - projects.length);
+            tbody.insertAdjacentHTML('beforeend', html);
         }
 
         // 날짜 파싱 헬퍼 함수
@@ -1482,28 +1509,12 @@
         }
 
         // 프로젝트 테이블 표시 (2행 구조: 정보행 + 라이프사이클행)
-        function displayProjects(projects) {
-            const tbody = document.getElementById('projectsTableBody');
-            if (!tbody) return;
-
+        // TR HTML 생성 (displayProjects / appendProjects 공용)
+        function buildProjectsHTML(projects, startOffset) {
             const canEdit = typeof hasPermission === 'function' ? hasPermission('overseas_tech') : (currentUserRole === 'admin');
-            const colCount = 10;
-
-            if (projects.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="${colCount}" style="text-align: center; padding: 40px;">
-                            <div>등록된 프로젝트가 없습니다.</div>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
             let html = '';
             projects.forEach((project, idx) => {
-                // 역순 번호 (전체 건수 기준)
-                const rowNum = currentTotal - ((currentPage - 1) * 20 + idx);
+                const seqNum = currentTotal - (startOffset + idx); // 역순 번호
 
                 let status = project.status || '시행중';
                 let statusClass, statusText;
@@ -1518,7 +1529,6 @@
                         statusClass = 'badge-status-active'; statusText = status || '시행중';
                 }
 
-                // 공사지분 표시
                 let krcHtml = project.krcBudget ? project.krcBudget.toLocaleString() : '-';
                 if (project.krcShareRatio) {
                     let ratioColor = '#6c757d';
@@ -1536,7 +1546,6 @@
                        </td>`
                     : '<td class="admin-only-col"></td>';
 
-                // 라이프사이클 파이프라인
                 if (project.stages) {
                     project.stages.forEach(s => { s._projectId = project.id; });
                 }
@@ -1545,8 +1554,8 @@
                     : '<span style="font-size:12px;color:var(--color-neutral-400);">라이프사이클 정보 없음</span>';
 
                 html += `<tr class="project-row" data-id="${project.id}">
-                    <td style="text-align:center;vertical-align:middle;color:var(--color-neutral-500);font-size:12px;">${rowNum}</td>
-                    <td data-label="연도" style="text-align:center;vertical-align:middle;font-size:13px;color:#374151;">${project.contractYear || '-'}</td>
+                    <td class="col-half" data-label="No." style="text-align:center;vertical-align:middle;color:var(--color-neutral-500);font-size:12px;">${seqNum}</td>
+                    <td class="col-half" data-label="연도" style="text-align:center;vertical-align:middle;font-size:13px;color:#374151;">${project.contractYear || '-'}</td>
                     <td class="col-title" style="vertical-align:middle;">
                         <a href="#" onclick="viewProject(${project.id});return false;" style="color:#0066cc;font-weight:500;">${project.titleKr || '-'}</a>
                         ${project.titleEn ? `<div style="font-size:11px;color:#6c757d;margin-top:2px;">${project.titleEn}</div>` : ''}
@@ -1559,8 +1568,24 @@
                     ${actionCell}
                 </tr>`;
             });
+            return html;
+        }
 
-            tbody.innerHTML = html;
+        function displayProjects(projects) {
+            const tbody = document.getElementById('projectsTableBody');
+            if (!tbody) return;
+
+            if (projects.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" style="text-align:center;padding:40px;">
+                            <div>등록된 프로젝트가 없습니다.</div>
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = buildProjectsHTML(projects, 0);
         }
 
         // 간트 타임라인 HTML 생성
@@ -1624,41 +1649,17 @@
             </div>`;
         }
 
-        // 페이지네이션 업데이트
-        function renderPagination(current, total) {
-            totalPages = total;
-            const pagination = document.getElementById('pagination');
-
-            if (total <= 1) {
-                pagination.innerHTML = '';
-                return;
-            }
-
-            const groupSize = 10;
-            const currentGroup = Math.ceil(current / groupSize);
-            const startPage = (currentGroup - 1) * groupSize + 1;
-            const endPage = Math.min(currentGroup * groupSize, total);
-
-            let html = '';
-            html += `<button class="page-btn" ${current === 1 ? 'disabled' : ''} onclick="goToPage(1)">«</button>`;
-            html += `<button class="page-btn" ${startPage === 1 ? 'disabled' : ''} onclick="goToPage(${startPage - 1})">‹</button>`;
-
-            for (let i = startPage; i <= endPage; i++) {
-                html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-            }
-
-            html += `<button class="page-btn" ${endPage >= total ? 'disabled' : ''} onclick="goToPage(${endPage + 1})">›</button>`;
-            html += `<button class="page-btn" ${current === total ? 'disabled' : ''} onclick="goToPage(${total})">»</button>`;
-
-            pagination.innerHTML = html;
-        }
-
-        function goToPage(page) {
-            if (page >= 1 && page <= totalPages) {
-                currentPage = page;
-                loadProjects(currentPage);
-            }
-        }
+        // 무한 스크롤 — IntersectionObserver
+        (function initInfiniteScroll() {
+            const sentinel = document.getElementById('scroll-sentinel');
+            if (!sentinel || !window.IntersectionObserver) return;
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && hasMoreProjects && !isLoadingProjects) {
+                    loadProjects(currentPage + 1, true);
+                }
+            }, { rootMargin: '300px' });
+            observer.observe(sentinel);
+        })();
 
         // 필터 적용
         function applyFilters() {
@@ -1675,6 +1676,7 @@
             if (client) currentFilters.client = client;
             if (funding) currentFilters.funding_source = funding;
             if (search) currentFilters.search = search;
+            hasMoreProjects = true; lifecycleData = [];
             loadProjects(1);
             loadStats(currentFilters);
         }
@@ -1686,6 +1688,7 @@
                 if (el) el.value = '';
             });
             currentFilters = {};
+            hasMoreProjects = true; lifecycleData = [];
             loadProjects(1);
             loadStats();
         }
