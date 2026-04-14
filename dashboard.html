@@ -541,6 +541,83 @@
         .btn-delete-row:hover {
             background: #fdf0ef;
         }
+
+        /* ===== 모바일 반응형 ===== */
+        @media (max-width: 768px) {
+            /* 배너 */
+            .banner-carousel {
+                aspect-ratio: 3 / 1;
+                border-radius: 8px;
+                margin-bottom: var(--spacing-3);
+            }
+            .banner-slide img {
+                object-fit: cover;
+            }
+            /* 배너 dots - pill 형태 + 44px 터치 영역 */
+            .banner-dot {
+                width: 24px;
+                height: 6px;
+                border-radius: 3px;
+                padding: 0;
+            }
+            .banner-dots {
+                bottom: 4px;
+                gap: 6px;
+                padding: 19px 12px;
+            }
+            /* 테이블 가로 스크롤 힌트 */
+            .table-container {
+                position: relative;
+            }
+            .table-container::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                right: 0;
+                width: 24px;
+                height: 100%;
+                background: linear-gradient(to left, rgba(255,255,255,0.8), transparent);
+                pointer-events: none;
+                z-index: 1;
+            }
+            /* 아코디언 헤더 터치 영역 */
+            .accordion-header,
+            [onclick*="toggleSection"],
+            [onclick*="toggleAccordion"] {
+                min-height: 44px;
+            }
+            /* 페이지 타이틀/브레드크럼 축소 */
+            .page-title {
+                font-size: var(--font-size-lg) !important;
+            }
+            .breadcrumb {
+                font-size: var(--font-size-xs);
+            }
+        }
+
+        @media (max-width: 480px) {
+            /* 배너 */
+            .banner-carousel {
+                aspect-ratio: 2.5 / 1;
+            }
+            /* 사업 선택 버튼 - 2+1 배치 */
+            .biz-select-group {
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+            }
+            .biz-select-group .biz-select-btn {
+                flex: 1 1 calc(50% - 4px);
+                min-width: 0;
+                padding: 10px 8px;
+                font-size: var(--font-size-sm);
+            }
+            /* 섹션 헤더 세로 배치 */
+            .dashboard-section-header {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 4px;
+            }
+        }
     </style>
 
     <!-- Chart.js (로컬) -->
@@ -740,14 +817,14 @@
 
             <!-- 금년도 사업 현황 (탭 구성) -->
             <section style="margin-bottom: var(--spacing-4);">
-                <header
+                <header class="dashboard-section-header"
                     style="margin-bottom: 0; display: flex; justify-content: space-between; align-items: center;">
                     <h3 style="font-size: var(--font-size-xl); font-weight: 600;">2026년 사업 현황</h3>
                     <span style="font-size: var(--font-size-sm); color: var(--color-neutral-600);">(단위: 백만원)</span>
                 </header>
 
                 <!-- 사업 선택 버튼 -->
-                <div style="display: flex; gap: 12px; margin-top: var(--spacing-3); margin-bottom: var(--spacing-4);">
+                <div class="biz-select-group" style="display: flex; gap: 12px; margin-top: var(--spacing-3); margin-bottom: var(--spacing-4);">
                     <button class="biz-select-btn" data-tab="consulting" disabled style="opacity: 0.5; cursor: default;">
                         해외기술용역사업 (준비중)
                     </button>
@@ -1675,6 +1752,40 @@
                 dot.classList.toggle('active', i === index);
             });
         }
+
+        // 터치 스와이프 지원
+        (function setupBannerSwipe() {
+            const carousel = document.getElementById('bannerCarousel');
+            let touchStartX = 0, touchStartY = 0;
+
+            carousel.addEventListener('touchstart', function(e) {
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+                if (bannerInterval) { clearInterval(bannerInterval); bannerInterval = null; }
+            }, { passive: true });
+
+            carousel.addEventListener('touchend', function(e) {
+                const diffX = e.changedTouches[0].screenX - touchStartX;
+                const diffY = e.changedTouches[0].screenY - touchStartY;
+                if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
+                    const totalSlides = document.querySelectorAll('.banner-slide').length;
+                    if (totalSlides > 1) {
+                        if (diffX < 0) {
+                            goToBanner((bannerIndex + 1) % totalSlides);
+                        } else {
+                            goToBanner((bannerIndex - 1 + totalSlides) % totalSlides);
+                        }
+                    }
+                }
+                // 자동 회전 재개
+                const totalSlides = document.querySelectorAll('.banner-slide').length;
+                if (totalSlides > 1) {
+                    bannerInterval = setInterval(() => {
+                        goToBanner((bannerIndex + 1) % totalSlides);
+                    }, 5000);
+                }
+            }, { passive: true });
+        })();
 
         // Call on page load
         displayUserInfo();
