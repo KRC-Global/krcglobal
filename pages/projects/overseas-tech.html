@@ -1585,10 +1585,10 @@
                         </div>
                         ${project.titleEn ? `<div style="font-size:11px;color:#6c757d;margin-top:2px;">${project.titleEn}</div>` : ''}
                     </td>
-                    <td class="col-half" data-label="형태" style="text-align:center;vertical-align:middle;">${createTypeBadgesHTML(project)}</td>
-                    <td class="col-half" data-label="용역비" style="text-align:center;vertical-align:middle;">${project.budget ? project.budget.toLocaleString() : '-'}</td>
-                    <td class="col-half" data-label="지분" style="text-align:center;vertical-align:middle;">${krcHtml}</td>
-                    <td class="pipeline-cell lifecycle-row" data-project-id="${project.id}" style="vertical-align:middle;width:420px;min-width:420px;max-width:420px;">${pipelineHtml}</td>
+                    <td class="col-third" data-label="형태">${createTypeBadgesHTML(project)}</td>
+                    <td class="col-third" data-label="용역비">${project.budget ? project.budget.toLocaleString() : '-'}</td>
+                    <td class="col-third" data-label="지분">${krcHtml}</td>
+                    <td class="pipeline-cell lifecycle-row" data-project-id="${project.id}">${pipelineHtml}</td>
                     ${actionCell}
                 </tr>`;
             });

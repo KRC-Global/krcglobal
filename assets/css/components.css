@@ -221,12 +221,42 @@
     .table-container:not(.no-mobile-card) .data-table td.col-half > * {
         max-width: 100%;
     }
+
+    /* col-third: 3열 그리드 — 레이블 위, 값 아래 */
+    .table-container:not(.no-mobile-card) .data-table td.col-third {
+        flex: 0 0 33.333% !important;
+        width: 33.333% !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        padding: var(--spacing-2) var(--spacing-3) !important;
+        gap: 3px !important;
+        border-right: 1px solid var(--color-neutral-100);
+    }
+
+    /* col-third 레이블 */
+    .table-container:not(.no-mobile-card) .data-table td.col-third[data-label]::before {
+        font-size: 10px;
+        letter-spacing: 0.04em;
+        color: var(--color-neutral-400);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        margin-bottom: 2px;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    /* col-third 값 영역 */
+    .table-container:not(.no-mobile-card) .data-table td.col-third > * {
+        max-width: 100%;
+    }
     .table-container:not(.no-mobile-card) .data-table td:last-child {
         border-bottom: none;
     }
 
-    /* 짝수 행 배경 — 줄무늬로 가독성 향상 (col-half 제외) */
-    .table-container:not(.no-mobile-card) .data-table td:not(.col-title):not(.pipeline-cell):not(.col-half):nth-child(even) {
+    /* 짝수 행 배경 — 줄무늬로 가독성 향상 (col-half, col-third 제외) */
+    .table-container:not(.no-mobile-card) .data-table td:not(.col-title):not(.pipeline-cell):not(.col-half):not(.col-third):nth-child(even) {
         background: var(--color-secondary-50, #faf9f7);
     }
 
@@ -298,18 +328,50 @@
         padding: var(--spacing-6) !important;
     }
 
-    /* 파이프라인 셀 — 카드 하단 고정, 가로 스크롤 허용 */
+    /* 파이프라인 셀 — 카드 하단 고정, 균등 배치 */
     .table-container:not(.no-mobile-card) .data-table td.pipeline-cell {
         order: 98;
         display: block !important;
         flex: 0 0 100% !important;
-        overflow-x: auto;
+        overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
         padding: var(--spacing-3) var(--spacing-4) !important;
         text-align: left !important;
         border-bottom: none;
         background: var(--color-secondary-50, #faf9f7);
     }
+
+    /* 파이프라인 스텝 — 카드 안에서 전체 너비 균등 분배 */
+    .table-container:not(.no-mobile-card) .data-table td.pipeline-cell .pipeline-stepper {
+        width: 100% !important;
+        min-width: 0 !important;
+        justify-content: space-between !important;
+    }
+
+    .table-container:not(.no-mobile-card) .data-table td.pipeline-cell .pipeline-step {
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0 !important;
+    }
+
+    .table-container:not(.no-mobile-card) .data-table td.pipeline-cell .pipeline-line {
+        flex: 1 1 0 !important;
+        min-width: 4px !important;
+    }
+
+    .table-container:not(.no-mobile-card) .data-table td.pipeline-cell .pipeline-label {
+        font-size: 9px !important;
+        word-break: keep-all !important;
+        text-align: center !important;
+        width: 100% !important;
+    }
+
+    .table-container:not(.no-mobile-card) .data-table td.pipeline-cell .pipeline-date {
+        font-size: 9px !important;
+        text-align: center !important;
+        width: 100% !important;
+    }
+
 }
 
 /* ─── 모바일 공통 UI ─── */
