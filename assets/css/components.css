@@ -213,6 +213,66 @@
         display: block;
         text-align: center;
     }
+
+    /* 파이프라인 셀 — 카드 내에서 가로 스크롤 허용 */
+    .table-container:not(.no-mobile-card) .data-table td.pipeline-cell {
+        display: block !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: var(--spacing-2);
+        text-align: left !important;
+    }
+}
+
+/* ─── 모바일 공통 UI ─── */
+@media (max-width: 768px) {
+    /* 버튼 터치 영역 44px */
+    .btn {
+        min-height: 44px;
+        font-size: var(--font-size-base);
+    }
+
+    .btn-sm {
+        min-height: 36px;
+    }
+
+    /* 페이지네이션 버튼 44px */
+    .page-btn {
+        min-width: 44px;
+        height: 44px;
+    }
+
+    /* 섹션 액션버튼 줄바꿈 */
+    .section-actions .btn {
+        flex: 1 1 auto;
+        text-align: center;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    /* 토스트 너비 유동화 */
+    .toast-container {
+        left: var(--spacing-3);
+        right: var(--spacing-3);
+        top: var(--spacing-3);
+        min-width: unset;
+    }
+
+    .toast {
+        min-width: unset;
+        width: 100%;
+    }
+
+    /* 모달 패딩 축소 */
+    .modal-content {
+        padding: var(--spacing-4);
+    }
+
+    .modal-header,
+    .modal-footer {
+        padding: var(--spacing-3) var(--spacing-4);
+    }
 }
 
 /* ─── 배지 ─── */

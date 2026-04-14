@@ -657,10 +657,35 @@ function initSidebarToggle() {
     const sidebar = document.getElementById('sidebar') || document.querySelector('.app-sidebar');
 
     if (sidebarToggle && sidebar) {
+        // 백드롭 생성 (모바일에서 사이드바 외부 탭으로 닫기)
+        let backdrop = document.querySelector('.sidebar-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.className = 'sidebar-backdrop';
+            document.body.appendChild(backdrop);
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            backdrop.classList.remove('active');
+            sidebarToggle.setAttribute('aria-expanded', 'false');
+        }
+
         sidebarToggle.addEventListener('click', function () {
             sidebar.classList.toggle('open');
             const isOpen = sidebar.classList.contains('open');
+            backdrop.classList.toggle('active', isOpen);
             sidebarToggle.setAttribute('aria-expanded', isOpen);
+        });
+
+        // 백드롭 클릭 → 사이드바 닫기
+        backdrop.addEventListener('click', closeSidebar);
+
+        // ESC 키 → 사이드바 닫기
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+                closeSidebar();
+            }
         });
     }
 }

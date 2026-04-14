@@ -437,6 +437,12 @@
 @media (max-width: 768px) {
     .app-header {
         padding: 0 var(--spacing-4);
+        height: 52px; /* 64px → 52px 축소 */
+    }
+
+    .app-main {
+        padding: var(--spacing-3);
+        padding-top: 52px; /* 축소된 헤더 높이와 동기화 */
     }
 
     .app-title {
@@ -455,16 +461,19 @@
         /* 모바일 서브타이틀 작게 */
     }
 
-    .app-main {
-        padding: var(--spacing-3);
-    }
-
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 
     .search-form {
         grid-template-columns: 1fr;
+    }
+
+    /* 검색폼 input 16px — iOS Safari 자동 줌 방지 */
+    .search-form input,
+    .search-form select,
+    .search-form textarea {
+        font-size: 16px;
     }
 
     .section-header {
@@ -476,6 +485,35 @@
     .section-actions {
         width: 100%;
         flex-wrap: wrap;
+        gap: var(--spacing-2);
+    }
+
+    /* 햄버거 버튼 터치 영역 44px 확보 */
+    #sidebarToggle {
+        width: 44px;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* 사이드바 너비 축소 (260px → 240px) */
+    .app-sidebar {
+        width: 240px;
+        top: 52px; /* 축소된 헤더 높이 */
+    }
+
+    /* 사이드바 백드롭 오버레이 */
+    .sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: calc(var(--z-modal) - 1);
+    }
+
+    .sidebar-backdrop.active {
+        display: block;
     }
 }
 
@@ -505,6 +543,16 @@
     .login-subtitle {
         font-size: var(--font-size-xs);
         /* 작은 모바일 서브타이틀 */
+    }
+
+    /* 소형 화면 패딩 축소 */
+    .app-main {
+        padding: var(--spacing-2);
+        padding-top: 52px;
+    }
+
+    .page-header {
+        padding: var(--spacing-3) 0;
     }
 }
 
