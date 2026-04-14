@@ -616,62 +616,97 @@
         /* 수주현황 셀 레이블 — 데스크탑에선 숨김 */
         .p-cell-label { display: none; }
 
-        /* 수주현황 모바일 4열 레이아웃 */
-        @media (max-width: 768px) {
+        /* 수주현황 모바일 3행 카드 레이아웃
+           행1: No + 사업명 + 재원
+           행2: 컨소시엄 (한 줄)
+           행3: 파이프라인 (한 줄) */
+        @media (max-width: 768px), (max-width: 1024px) and (orientation: portrait) {
             .p-cell-label {
-                display: block !important;
+                display: inline !important;
                 font-size: 9px !important;
                 color: var(--color-neutral-400);
                 font-weight: 600;
                 letter-spacing: 0.04em;
-                margin-bottom: 2px;
+                margin-right: 4px;
                 white-space: nowrap;
             }
+            /* 행1: No */
             .table-container:not(.no-mobile-card) .data-table td.p-no {
-                order: -10 !important;
+                order: 1 !important;
                 flex: 0 0 28px !important;
-                width: 28px !important;
-                flex-direction: column !important;
                 justify-content: center !important;
                 align-items: center !important;
                 font-size: 12px !important;
-                font-weight: 600 !important;
+                font-weight: 700 !important;
                 padding: 8px 4px !important;
                 background: var(--color-neutral-50) !important;
                 border-right: 1px solid var(--color-neutral-100);
+                border-bottom: 1px solid var(--color-neutral-100) !important;
+                align-self: stretch !important;
             }
+            /* 행1: 사업명 */
             .table-container:not(.no-mobile-card) .data-table td.p-name {
-                order: -9 !important;
-                flex: 1 1 auto !important;
-                width: auto !important;
-                flex-direction: column !important;
-                justify-content: center !important;
-                align-items: flex-start !important;
+                order: 2 !important;
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+                align-items: center !important;
                 font-size: 12px !important;
                 font-weight: 600 !important;
                 padding: 8px 6px !important;
-                border-right: 1px solid var(--color-neutral-100);
+                border-bottom: 1px solid var(--color-neutral-100) !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
             }
+            /* 행1: 재원 */
             .table-container:not(.no-mobile-card) .data-table td.p-fund {
-                order: -8 !important;
-                flex: 0 0 72px !important;
-                width: 72px !important;
-                flex-direction: column !important;
-                justify-content: flex-start !important;
-                align-items: flex-start !important;
+                order: 3 !important;
+                flex: 0 0 auto !important;
+                width: auto !important;
+                align-items: center !important;
                 font-size: 11px !important;
-                padding: 8px 6px !important;
-                border-right: 1px solid var(--color-neutral-100);
+                padding: 8px 8px 8px 4px !important;
+                border-bottom: 1px solid var(--color-neutral-100) !important;
+                white-space: nowrap !important;
+                color: var(--color-neutral-600) !important;
             }
+            /* 행2: 컨소시엄 — 전체 폭, 한 줄 */
             .table-container:not(.no-mobile-card) .data-table td.p-consortium {
-                order: -7 !important;
-                flex: 0 0 90px !important;
-                width: 90px !important;
-                flex-direction: column !important;
-                justify-content: flex-start !important;
-                align-items: flex-start !important;
+                order: 4 !important;
+                flex: 0 0 100% !important;
+                width: 100% !important;
+                align-items: center !important;
                 font-size: 11px !important;
-                padding: 8px 6px !important;
+                padding: 5px 10px 5px 10px !important;
+                border-bottom: 1px solid var(--color-neutral-100) !important;
+                background: var(--color-neutral-50) !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                min-height: 0 !important;
+            }
+            /* 컨소시엄 내부 — 한 줄 가로 나열 */
+            .table-container:not(.no-mobile-card) .data-table td.p-consortium .consortium-wrap,
+            .table-container:not(.no-mobile-card) .data-table td.p-consortium .consortium-members {
+                display: inline !important;
+            }
+            .table-container:not(.no-mobile-card) .data-table td.p-consortium .consortium-tag,
+            .table-container:not(.no-mobile-card) .data-table td.p-consortium .consortium-lead {
+                display: inline !important;
+                white-space: nowrap !important;
+            }
+            /* 복수 구성원일 때만 lead 뒤에 구분자 */
+            .table-container:not(.no-mobile-card) .data-table td.p-consortium .consortium-wrap .consortium-lead::after {
+                content: ' / ';
+                color: var(--color-neutral-400);
+            }
+            /* 행3: 파이프라인 — 전체 폭 */
+            .table-container:not(.no-mobile-card) .data-table td.pipeline-cell {
+                order: 5 !important;
+                flex: 0 0 100% !important;
+                width: 100% !important;
+                padding: 6px 8px !important;
+                min-height: 0 !important;
             }
         }
     </style>
