@@ -2063,10 +2063,10 @@
 
         // 라이프사이클 단계 편집 HTML 생성
         function buildLifecycleEditHTML(stages) {
-            const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'design', 'completion'];
+            const allStageKeys = ['eoi', 'proposal', 'contract', 'completion'];
             const stageLabels = {
-                eoi: 'EOI제출', shortlist: '숏리스트', proposal: '제안서제출',
-                contract: '계약', design: '설계', completion: '준공'
+                eoi: 'EOI제출', proposal: '제안서제출',
+                contract: '계약', completion: '준공'
             };
 
             const stageMap = {};
@@ -2429,10 +2429,8 @@
         // 단계 라벨 매핑
         const STAGE_LABELS = {
             'eoi':          'EOI제출',
-            'shortlist':    '숏리스트',
             'proposal':     '제안서제출',
             'contract':     '계약',
-            'design':       '설계',
             'completion':   '준공'
         };
 
@@ -2451,11 +2449,7 @@
 
         // 사업형태별 단계 구성 (체크박스 기반) — 백엔드 get_lifecycle_stages_from_project와 동일 로직
         function getLifecycleStageKeys(item) {
-            const hasDesign = item.typeBasicDesign || item.typeDetailedDesign;
-            const keys = ['eoi', 'shortlist', 'proposal', 'contract'];
-            if (hasDesign) keys.push('design');
-            keys.push('completion');
-            return keys;
+            return ['eoi', 'proposal', 'contract', 'completion'];
         }
 
         // 단계별 흑백 SVG 픽토그램 아이콘

@@ -1740,24 +1740,12 @@ def delete_proposal_status(current_user, id):
 
 def get_lifecycle_stages_from_project(project):
     """프로젝트의 체크박스 필드 기반으로 라이프사이클 단계 구성 반환"""
-    has_design = getattr(project, 'type_basic_design', False) or getattr(project, 'type_detailed_design', False)
-    has_construction = getattr(project, 'type_construction', False)
-
-    # 체크박스가 하나도 없으면 기존 project_type 텍스트에서 폴백
-    if not has_design and not has_construction:
-        pt = project.project_type or ''
-        has_design = '설계' in pt
-        has_construction = '시공감리' in pt or ('시공' in pt and '감리' in pt) or '공사감독' in pt
-
     stages = [
-        {'key': 'eoi',       'label': 'EOI제출'},
-        {'key': 'shortlist', 'label': '숏리스트'},
-        {'key': 'proposal',  'label': '제안서제출'},
-        {'key': 'contract',  'label': '계약'},
+        {'key': 'eoi',        'label': 'EOI제출'},
+        {'key': 'proposal',   'label': '제안서제출'},
+        {'key': 'contract',   'label': '계약'},
+        {'key': 'completion', 'label': '준공'},
     ]
-    if has_design:
-        stages.append({'key': 'design', 'label': '설계'})
-    stages.append({'key': 'completion', 'label': '준공'})
     return stages
 
 
