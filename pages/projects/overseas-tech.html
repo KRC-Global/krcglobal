@@ -2074,22 +2074,18 @@
 
             let html = `<div class="lifecycle-edit-section">
                 <div style="font-weight:600;margin-bottom:12px;color:#374151;">라이프사이클 단계 편집</div>
-                <div style="display:grid;grid-template-columns:110px 130px 70px 70px;gap:4px 8px;align-items:center;margin-bottom:6px;font-size:12px;color:#6b7280;font-weight:600;">
-                    <span>단계</span><span>날짜 (예: '25.03)</span><span style="text-align:center;">완료</span><span style="text-align:center;">진행중</span>
+                <div style="display:grid;grid-template-columns:110px 1fr;gap:4px 8px;align-items:center;margin-bottom:6px;font-size:12px;color:#6b7280;font-weight:600;">
+                    <span>단계</span><span>날짜 (예: '25.03)</span>
                 </div>`;
 
             allStageKeys.forEach(key => {
                 const stage = stageMap[key] || {};
                 const label = stageLabels[key];
-                const completedChecked = stage.status === 'completed' || stage.status === 'completed-nodata' ? 'checked' : '';
-                const progressChecked = stage.status === 'in-progress' ? 'checked' : '';
 
-                html += `<div class="lifecycle-stage-row" data-stage-key="${key}" style="display:grid;grid-template-columns:110px 130px 70px 70px;gap:4px 8px;align-items:center;margin-bottom:4px;">
+                html += `<div class="lifecycle-stage-row" data-stage-key="${key}" style="display:grid;grid-template-columns:110px 1fr;gap:4px 8px;align-items:center;margin-bottom:4px;">
                     <label style="font-size:13px;font-weight:500;">${label}</label>
                     <input type="text" id="lc_date_${key}" value="${stage.date || ''}" placeholder="'YY.MM"
                         style="padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:13px;width:100%;">
-                    <div style="text-align:center;"><input type="checkbox" id="lc_completed_${key}" ${completedChecked}></div>
-                    <div style="text-align:center;"><input type="checkbox" id="lc_progress_${key}" ${progressChecked}></div>
                 </div>`;
             });
 
@@ -2367,13 +2363,10 @@
                         const lifecycleItem = { consultingProjectId: editingProjectId };
                         allStageKeys.forEach(key => {
                             const dateEl = document.getElementById(`lc_date_${key}`);
-                            const completedEl = document.getElementById(`lc_completed_${key}`);
-                            const progressEl = document.getElementById(`lc_progress_${key}`);
                             if (dateEl) {
-                                const camelKey = key.charAt(0).toUpperCase() + key.slice(1);
                                 lifecycleItem[`${key}Date`] = dateEl.value.trim() || null;
-                                lifecycleItem[`${key}Completed`] = completedEl ? completedEl.checked : false;
-                                lifecycleItem[`${key}Progress`] = progressEl ? progressEl.checked : false;
+                                lifecycleItem[`${key}Completed`] = !!dateEl.value.trim();
+                                lifecycleItem[`${key}Progress`] = false;
                             }
                         });
                         try {
@@ -2636,14 +2629,10 @@
             stageKeys.forEach(key => {
                 const stage = stageMap[key] || {};
                 const dateVal = stage.date || '';
-                const isProgress = stage.status === 'in-progress';
                 html += `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:78px;">
                     <div style="font-size:10px;font-weight:600;color:var(--color-neutral-600);white-space:nowrap;">${STAGE_LABELS[key]}</div>
-                    <input type="text" name="${key}Date" value="${dateVal}" placeholder="YYYY.MM"
+                    <input type="text" name="${key}Date" value="${dateVal}" placeholder="'YY.MM"
                         style="width:75px;padding:3px 4px;border:1px solid var(--color-neutral-300);border-radius:3px;font-size:11px;text-align:center;">
-                    <label style="font-size:10px;display:flex;align-items:center;gap:2px;cursor:pointer;">
-                        <input type="checkbox" name="${key}Progress" ${isProgress ? 'checked' : ''}> 진행중
-                    </label>
                 </div>`;
             });
             html += '</div>';
@@ -2662,11 +2651,10 @@
                 const allStageKeys = ['eoi', 'shortlist', 'proposal', 'contract', 'design', 'completion'];
                 allStageKeys.forEach(key => {
                     const dateInput = row.querySelector(`input[name="${key}Date"]`);
-                    const progressInput = row.querySelector(`input[name="${key}Progress"]`);
                     if (dateInput) {
-                        item[`${key}Date`] = dateInput.value;
-                        item[`${key}Completed`] = !!dateInput.value;
-                        item[`${key}Progress`] = progressInput ? progressInput.checked : false;
+                        item[`${key}Date`] = dateInput.value.trim();
+                        item[`${key}Completed`] = !!dateInput.value.trim();
+                        item[`${key}Progress`] = false;
                     }
                 });
                 items.push(item);

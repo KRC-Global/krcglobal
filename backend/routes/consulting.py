@@ -1832,7 +1832,7 @@ def build_lifecycle_data(project, lifecycle_record, eoi_list=None, proposal_list
 
     # --- EOI ---
     eoi_data = stage_data_map.get('eoi', {})
-    if not eoi_data.get('date') and not eoi_data.get('completed') and not eoi_data.get('progress'):
+    if not eoi_data.get('date'):
         if eoi_list:
             # 가장 최신 EOI
             latest_eoi = eoi_list[-1] if eoi_list else None
@@ -1848,7 +1848,7 @@ def build_lifecycle_data(project, lifecycle_record, eoi_list=None, proposal_list
                 }
     # --- 제안서 ---
     prop_data = stage_data_map.get('proposal', {})
-    if not prop_data.get('date') and not prop_data.get('completed') and not prop_data.get('progress'):
+    if not prop_data.get('date'):
         if proposal_list:
             latest_prop = proposal_list[-1] if proposal_list else None
             if latest_prop:
@@ -1864,7 +1864,7 @@ def build_lifecycle_data(project, lifecycle_record, eoi_list=None, proposal_list
 
     # --- 계약 ---
     cont_data = stage_data_map.get('contract', {})
-    if not cont_data.get('date') and not cont_data.get('completed'):
+    if not cont_data.get('date'):
         if contract_list:
             # contract 타입인 것 중 가장 최신
             contracts = [c for c in contract_list if c.document_type == 'contract']
@@ -1875,14 +1875,14 @@ def build_lifecycle_data(project, lifecycle_record, eoi_list=None, proposal_list
 
     # --- 착수 (ConsultingProject.start_date) ---
     kickoff_data = stage_data_map.get('kickoff', {})
-    if not kickoff_data.get('date') and not kickoff_data.get('completed'):
+    if not kickoff_data.get('date'):
         if project.start_date:
             kickoff_date = format_date_short(project.start_date)
             stage_data_map['kickoff'] = {'date': kickoff_date, 'completed': True, 'progress': False}
 
     # --- 준공 (ConsultingProject.end_date 또는 PerformanceRecord.end_date) ---
     comp_data = stage_data_map.get('completion', {})
-    if not comp_data.get('date') and not comp_data.get('completed'):
+    if not comp_data.get('date'):
         comp_date = ''
         # PerformanceRecord에서 end_date 확인
         if perf_list:
@@ -2271,14 +2271,14 @@ def update_lifecycle_bulk(current_user):
         lc.completion_completed = item_data.get('completionCompleted', lc.completion_completed)
         lc.completion_progress = item_data.get('completionProgress', lc.completion_progress)
 
-        # 착수일/준공일을 메인 프로젝트 데이터에 동기화
-        kickoff_date = item_data.get('kickoffDate', '')
-        completion_date = item_data.get('completionDate', '')
-        if kickoff_date or completion_date:
+        # 계약일/준공일을 메인 프로젝트 데이터에 동기화 (착수일 = 계약일)
+        contract_date = item_data.get('contractDate') or ''
+        completion_date = item_data.get('completionDate') or ''
+        if contract_date or completion_date:
             project = ConsultingProject.query.get(project_id)
             if project:
-                if kickoff_date:
-                    project.start_date = kickoff_date.replace('.', '-')
+                if contract_date:
+                    project.start_date = contract_date.replace('.', '-')
                 if completion_date:
                     project.end_date = completion_date.replace('.', '-')
 
