@@ -3,8 +3,7 @@ GBMS - ODA Reports Routes
 글로벌사업처 해외사업관리시스템 - ODA 보고서관리 API
 """
 import logging
-import os
-from flask import Blueprint, request, jsonify, send_file, current_app
+from flask import Blueprint, request, jsonify
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from sqlalchemy.orm import joinedload
@@ -17,28 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 def stream_file(file_path, folder, download_name=None, content_type=None, inline=False):
-    """file_path → 로컬 우선, 없으면 R2 fallback.
-    folder: 로컬 uploads 하위 디렉토리명 (예: 'oda_reports', 'oda_notes')
-    """
+    """R2에서 파일 스트리밍. bare 파일명이면 folder/ prefix 자동 추가."""
     if not file_path:
         raise FileNotFoundError('file_path가 없습니다.')
 
-    # R2 키 결정
     r2_key = file_path if '/' in file_path else f'{folder}/{file_path}'
-
-    if '/' not in file_path:
-        # 구형 레코드: 로컬 먼저 시도
-        upload_dir = os.path.join(current_app.root_path, 'uploads', folder)
-        local_path = os.path.join(upload_dir, file_path)
-        if os.path.exists(local_path):
-            return send_file(
-                local_path,
-                mimetype=content_type,
-                as_attachment=not inline,
-                download_name=download_name or file_path
-            )
-
-    # 로컬 없거나 신형 레코드 → R2
     return stream_from_r2(r2_key, content_type=content_type,
                            download_name=download_name, inline=inline)
 
