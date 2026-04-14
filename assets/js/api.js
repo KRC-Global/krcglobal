@@ -69,10 +69,7 @@ async function apiCall(endpoint, options = {}) {
             localStorage.removeItem('gbms_token');
             sessionStorage.removeItem('gbms_token');
             sessionStorage.removeItem('gbms_user');
-            // 상대 경로 사용 (페이지 위치에 관계없이 작동)
-            const depth = (window.location.pathname.match(/\//g) || []).length - 1;
-            const prefix = depth > 1 ? '../'.repeat(depth - 1) : '';
-            window.location.href = `${prefix}index.html`;
+            window.location.href = '/index.html';
             throw new Error('Unauthorized');
         }
 
@@ -116,7 +113,7 @@ async function apiCallFormData(endpoint, method = 'POST', formData) {
             localStorage.removeItem('gbms_token');
             sessionStorage.removeItem('gbms_token');
             sessionStorage.removeItem('gbms_user');
-            window.location.href = '../../index.html';
+            window.location.href = '/index.html';
             throw new Error('Unauthorized');
         }
 
