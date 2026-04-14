@@ -115,6 +115,48 @@
             color: var(--color-text-primary);
         }
 
+        /* ─── 모바일 반응형 ─── */
+        @media (max-width: 768px) {
+            .tab-btn {
+                padding: 10px 8px;
+                font-size: 12px;
+                gap: 4px;
+            }
+            .tab-btn .tab-badge {
+                padding: 1px 5px;
+                font-size: 11px;
+            }
+            .tab-content {
+                padding: 12px;
+            }
+            .project-overview {
+                padding: 14px;
+                margin-bottom: 14px;
+            }
+            .project-overview-icon {
+                font-size: 24px;
+            }
+            .project-overview-title {
+                font-size: 16px;
+            }
+            .project-overview-text {
+                font-size: 13px;
+            }
+            .project-highlight {
+                font-size: 12px;
+                padding: 4px 10px;
+            }
+        }
+        @media (max-width: 480px) {
+            .tab-btn {
+                padding: 8px 4px;
+                font-size: 11px;
+            }
+            .tab-btn .tab-badge {
+                display: none;
+            }
+        }
+
         /* 사업 설명 박스 */
         .project-overview {
             background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);

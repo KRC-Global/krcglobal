@@ -489,6 +489,36 @@
 
     .stats-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-3);
+    }
+
+    /* 통계 카드 내부 크기 축소 */
+    .stat-card {
+        gap: var(--spacing-2);
+    }
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        flex-shrink: 0;
+    }
+    .stat-icon svg {
+        width: 20px;
+        height: 20px;
+    }
+    .stat-value {
+        font-size: var(--font-size-xl); /* 24px → 20px */
+    }
+    .stat-label {
+        font-size: var(--font-size-xs);
+    }
+    /* 카드 패딩 축소 */
+    .stats-grid .card {
+        padding: var(--spacing-3) var(--spacing-4);
+    }
+    /* 페이지 제목 축소 */
+    .page-title {
+        font-size: var(--font-size-xl) !important;
     }
 
     .search-form {
@@ -546,6 +576,18 @@
 @media (max-width: 480px) {
     .stats-grid {
         grid-template-columns: 1fr;
+        gap: var(--spacing-2);
+    }
+    .stat-icon {
+        width: 36px;
+        height: 36px;
+    }
+    .stat-icon svg {
+        width: 18px;
+        height: 18px;
+    }
+    .stat-value {
+        font-size: var(--font-size-lg); /* 18px */
     }
 
     .login-card {
