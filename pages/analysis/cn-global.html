@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="전세계 유출곡선번호(CN) 산정 - SoilGrids · ESA WorldCover 기반">
+    <title>CN산정 (전세계) | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../../assets/css/variables.css">
+    <link rel="stylesheet" href="../../assets/css/base.css">
+    <link rel="stylesheet" href="../../assets/css/components.css">
+    <link rel="stylesheet" href="../../assets/css/pages.css">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="../../assets/lib/leaflet/leaflet.css" />
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="../../assets/lib/leaflet-draw/leaflet.draw.css" />
+
+    <style>
+        /* 사용자 메뉴 드롭다운 */
+        .user-menu { position: relative; }
+        .user-menu-button {
+            display: flex; align-items: center; gap: 8px;
+            background: none; border: none; cursor: pointer;
+            padding: 8px 12px; border-radius: 8px; transition: background 0.2s;
+        }
+        .user-menu-button:hover { background: var(--color-neutral-100); }
+        .user-dropdown {
+            position: absolute; top: calc(100% + 8px); right: 0; width: 280px;
+            background: var(--color-neutral-0); border: 1px solid var(--color-neutral-200);
+            border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            opacity: 0; visibility: hidden; transform: translateY(-10px);
+            transition: all 0.2s; z-index: var(--z-dropdown);
+        }
+        .user-dropdown.show { opacity: 1; visibility: visible; transform: translateY(0); }
+        .user-dropdown-header { display: flex; align-items: center; gap: 12px; padding: 16px; }
+        .user-dropdown-avatar {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 18px;
+        }
+        .user-dropdown-info { flex: 1; }
+        .user-dropdown-name { font-weight: 600; font-size: 16px; color: var(--color-neutral-900); }
+        .user-dropdown-divider { height: 1px; background: var(--color-neutral-200); margin: 0 16px; }
+        .user-dropdown-item {
+            display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+            color: var(--color-neutral-700); text-decoration: none; transition: background 0.2s;
+        }
+        .user-dropdown-item:hover { background: var(--color-neutral-100); }
+        .user-dropdown-item:last-child { border-radius: 0 0 12px 12px; }
+
+        /* CN 전세계 페이지 레이아웃 */
+        .cn-layout {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            height: calc(100vh - 200px);
+            min-height: 500px;
+        }
+
+        .map-wrapper {
+            position: relative;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 1px solid var(--color-neutral-200);
+            box-shadow: var(--shadow-sm);
+        }
+
+        #cn-map {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+        }
+
+        /* 분석 진행 오버레이 */
+        .map-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.88);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            gap: 16px;
+        }
+        .map-overlay.active { display: flex; }
+
+        .overlay-spinner {
+            width: 48px; height: 48px;
+            border: 4px solid var(--color-neutral-200);
+            border-top-color: var(--color-primary-600);
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .overlay-title {
+            font-size: 16px; font-weight: 700;
+            color: var(--color-primary-700);
+        }
+        .overlay-message {
+            font-size: 13px; color: var(--color-neutral-600);
+            text-align: center; max-width: 280px;
+        }
+        .overlay-progress-bar {
+            width: 280px; height: 6px;
+            background: var(--color-neutral-200);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+        .overlay-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--color-primary-500), var(--color-primary-400));
+            border-radius: var(--radius-full);
+            transition: width 0.4s ease;
+            animation: progress-pulse 2s ease-in-out infinite;
+        }
+        @keyframes progress-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* 제어 패널 */
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .panel-card {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            border: 1px solid var(--color-neutral-200);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .panel-card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--color-neutral-800);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .data-source-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--color-neutral-100);
+            font-size: 12px;
+            color: var(--color-neutral-700);
+        }
+        .data-source-item:last-child { border-bottom: none; }
+        .data-source-badge {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--color-primary-100);
+            color: var(--color-primary-700);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .data-source-text { line-height: 1.4; }
+
+        .area-display {
+            background: var(--color-neutral-50);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .area-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--color-primary-700);
+        }
+        .area-unit {
+            font-size: 12px;
+            color: var(--color-neutral-600);
+            margin-top: 2px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-group .btn { flex: 1; }
+
+        /* 결과 섹션 */
+        .results-section {
+            display: none;
+        }
+        .results-section.show { display: block; }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            border: 1px solid var(--color-neutral-200);
+            text-align: center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .summary-card-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--color-primary-700);
+            line-height: 1;
+            margin-bottom: 6px;
+        }
+        .summary-card-label {
+            font-size: 13px;
+            color: var(--color-neutral-600);
+            font-weight: 500;
+        }
+
+        .cn-value-high { color: #ef4444; }
+        .cn-value-mid  { color: #f97316; }
+        .cn-value-low  { color: #22c55e; }
+
+        .result-table-wrapper {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-neutral-200);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 24px;
+        }
+
+        .result-table-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-neutral-200);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .result-table-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--color-neutral-800);
+        }
+
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .result-table th {
+            background: var(--color-neutral-50);
+            padding: 10px 14px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--color-neutral-700);
+            border-bottom: 1px solid var(--color-neutral-200);
+            white-space: nowrap;
+        }
+        .result-table td {
+            padding: 10px 14px;
+            text-align: center;
+            border-bottom: 1px solid var(--color-neutral-100);
+            color: var(--color-neutral-800);
+        }
+        .result-table tr:last-child td { border-bottom: none; }
+        .result-table tr:hover td { background: var(--color-neutral-50); }
+
+        .cn-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 13px;
+        }
+        .cn-badge-high { background: #fee2e2; color: #dc2626; }
+        .cn-badge-mid  { background: #ffedd5; color: #ea580c; }
+        .cn-badge-low  { background: #dcfce7; color: #16a34a; }
+        .cn-badge-vlow { background: #d1fae5; color: #059669; }
+        .cn-badge-err  { background: var(--color-neutral-100); color: var(--color-neutral-600); }
+
+        .hsg-dist {
+            display: flex;
+            gap: 4px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .hsg-chip {
+            font-size: 11px;
+            padding: 2px 7px;
+            border-radius: 10px;
+            font-weight: 600;
+            background: var(--color-neutral-100);
+            color: var(--color-neutral-700);
+        }
+
+        /* 다운로드 버튼 */
+        .download-bar {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            border: 1px solid var(--color-neutral-200);
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .download-bar-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--color-neutral-800);
+        }
+
+        .download-btns {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* 오류 표시 */
+        .error-card {
+            background: var(--color-error-50, #fef2f2);
+            border: 1px solid var(--color-error-200, #fecaca);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            display: none;
+        }
+        .error-card.show { display: block; }
+        .error-card-title {
+            font-weight: 700;
+            color: var(--color-error-700, #b91c1c);
+            margin-bottom: 8px;
+        }
+        .error-card-message {
+            font-size: 14px;
+            color: var(--color-error-600, #dc2626);
+        }
+
+        /* 지도 CN 범례 */
+        .cn-legend {
+            background: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+        .cn-legend-title {
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #374151;
+        }
+        .cn-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .cn-legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        /* 도움말 힌트 */
+        .draw-hint {
+            background: var(--color-primary-50, #eff6ff);
+            border: 1px solid var(--color-primary-200, #bfdbfe);
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
+            font-size: 12px;
+            color: var(--color-primary-700, #1d4ed8);
+            line-height: 1.5;
+        }
+        .draw-hint strong { display: block; margin-bottom: 4px; }
+
+        /* 반응형 */
+        @media (max-width: 1024px) {
+            .cn-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            #cn-map { height: 400px; }
+            .summary-cards { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            .summary-cards { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글" aria-expanded="false"
+                aria-controls="sidebar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span
+                        style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+
+        <div class="header-right">
+            <div class="analysis-menu">
+                <button class="analysis-btn" onclick="toggleAnalysisMenu(event)">
+                    📊 해외기술정보 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="analysis-dropdown" id="analysisDropdown">
+                    <a href="cn-global.html">🗺️ CN산정 (전세계)</a>
+                    <a href="/cn/" target="_blank" style="font-size:12px;color:#6b7280;">기존 CN앱 ↗</a>
+                    <a href="/flood/" target="_blank">🌊 침수흔적</a>
+                    <a href="/viewer/">🔍 만능뷰어</a>
+                </div>
+            </div>
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm); color: var(--color-neutral-700);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div id="dropdownEmail" style="font-size: 11px; color: var(--color-neutral-500); margin-top: 2px;"></div>
+                            <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
+                                <span id="dropdownRole" style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--color-primary-100, #e0ecf5); color: var(--color-primary-700, #1A4B7C);">관리자</span>
+                                <span id="dropdownDept" style="font-size: 11px; color: var(--color-neutral-500);">글로벌사업처</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="../admin/users.html" class="user-dropdown-item" id="adminDropdownLink" style="display: none;"><span>👤</span> 사용자 관리</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;">
+                        <span>🚪</span> 로그아웃
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link" aria-expanded="false">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../expansion/company-management.html">기업관리</a></li>
+                                <li><a href="../expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4">
+                                        <li><a href="../expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="../expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="../expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="../expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="../expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="../expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외기술용역 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../projects/overseas-tech.html">사업현황</a></li>
+                                <li><a href="../projects/overseas-tech-bidding.html">TOR/RFP·제안서</a></li>
+                                <li><a href="../projects/overseas-tech-contracts.html">계약서/최종보고서</a></li>
+                                <li><a href="../projects/overseas-tech-performance.html">실적관리</a></li>
+                                <li><a href="../projects/overseas-tech-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="../projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="../projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="../projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="../admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a href="../budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="../gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="../admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../../dashboard.html">홈</a></li>
+                    <li><a href="../utilities.html">편의기능</a></li>
+                    <li aria-current="page">CN산정 (전세계)</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">🗺️ 전세계 유출곡선번호(CN) 산정</h2>
+            <p class="page-description">SoilGrids WCS (토양) + ESA WorldCover 2021 (피복) 무료 공개 API 기반 — 전 세계 어디서나 유역 폴리곤을 그리면 CN을 자동 산정합니다.</p>
+        </div>
+
+        <!-- 지도 + 제어 패널 2컬럼 -->
+        <div class="cn-layout">
+            <!-- 지도 영역 -->
+            <div class="map-wrapper">
+                <div id="cn-map"></div>
+
+                <!-- 분석 진행 오버레이 -->
+                <div class="map-overlay" id="analysisOverlay">
+                    <div class="overlay-spinner"></div>
+                    <div class="overlay-title">CN 분석 중...</div>
+                    <div class="overlay-message" id="overlayMessage">SoilGrids WCS에서 토양 데이터를 수집하고 있습니다. 네트워크 상태에 따라 1~3분이 소요될 수 있습니다.</div>
+                    <div class="overlay-progress-bar">
+                        <div class="overlay-progress-fill" id="overlayProgressFill" style="width: 30%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 제어 패널 -->
+            <div class="control-panel">
+                <!-- 데이터 소스 정보 -->
+                <div class="panel-card">
+                    <div class="panel-card-title">📡 사용 데이터 소스</div>
+                    <div class="data-source-item">
+                        <span class="data-source-badge">토양</span>
+                        <div class="data-source-text">
+                            <strong style="color: var(--color-neutral-800);">SoilGrids WCS</strong><br>
+                            ISRIC · 250m 해상도 · Clay/Sand 0-5cm → USDA 텍스처 → HSG
+                        </div>
+                    </div>
+                    <div class="data-source-item">
+                        <span class="data-source-badge">피복</span>
+                        <div class="data-source-text">
+                            <strong style="color: var(--color-neutral-800);">ESA WorldCover 2021</strong><br>
+                            AWS S3 · 10m 해상도 · 11개 피복 분류 (v2.0)
+                        </div>
+                    </div>
+                    <div class="data-source-item">
+                        <span class="data-source-badge">CN표</span>
+                        <div class="data-source-text">
+                            <strong style="color: var(--color-neutral-800);">TR-55 (SCS, USDA)</strong><br>
+                            AMC-II 기준 CN → AMC-III 변환 적용
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 유역 그리기 -->
+                <div class="panel-card">
+                    <div class="panel-card-title">✏️ 유역 폴리곤 입력</div>
+                    <div class="draw-hint">
+                        <strong>🖱️ 사용 방법</strong>
+                        좌측 지도에서 <b>폴리곤 도구</b>를 선택한 후 유역 경계를 클릭하여 그립니다. 마지막 점에서 첫 점을 클릭하면 완성됩니다.
+                    </div>
+                    <div class="area-display" id="areaDisplay" style="margin-top: 12px;">
+                        <div class="area-value" id="areaValue">—</div>
+                        <div class="area-unit">선택된 유역 면적</div>
+                    </div>
+                    <div id="polygonCount" style="font-size: 12px; color: var(--color-neutral-500); text-align: center; margin-top: 4px;"></div>
+                </div>
+
+                <!-- 분석 실행 -->
+                <div class="panel-card">
+                    <div class="panel-card-title">⚙️ 분석 실행</div>
+                    <div class="btn-group" style="margin-bottom: 10px;">
+                        <button class="btn btn-primary" id="btnAnalyze" disabled onclick="startAnalysis()">
+                            🔢 분석 시작
+                        </button>
+                        <button class="btn btn-secondary" id="btnReset" onclick="resetAll()">
+                            초기화
+                        </button>
+                    </div>
+                    <div style="font-size: 11px; color: var(--color-neutral-500); line-height: 1.5;">
+                        💡 분석 소요 시간: 약 30초~3분 (유역 크기 및 외부 API 응답에 따라 상이)
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 오류 카드 -->
+        <div class="error-card" id="errorCard" style="margin-top: 20px;">
+            <div class="error-card-title">⚠️ 분석 오류</div>
+            <div class="error-card-message" id="errorMessage"></div>
+        </div>
+
+        <!-- 결과 섹션 -->
+        <div class="results-section" id="resultsSection" style="margin-top: 24px;">
+            <!-- 요약 카드 4개 -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="summary-card-value" id="rAvgCN2">—</div>
+                    <div class="summary-card-label">평균 CN (AMC-II)</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-value" id="rAvgCN3">—</div>
+                    <div class="summary-card-label">평균 CN (AMC-III)</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-value" id="rTotalArea">—</div>
+                    <div class="summary-card-label">분석 면적 (ha)</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-value" id="rHsgMain">—</div>
+                    <div class="summary-card-label">주요 HSG</div>
+                </div>
+            </div>
+
+            <!-- 유역별 결과 테이블 -->
+            <div class="result-table-wrapper">
+                <div class="result-table-header">
+                    <div class="result-table-title">📊 유역별 CN 분석 결과</div>
+                    <span id="successBadge" style="font-size: 12px; color: var(--color-success-600, #16a34a); font-weight: 600;"></span>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="result-table" id="resultTable">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>유역면적 (ha)</th>
+                                <th>분석면적 (ha)</th>
+                                <th>CN (AMC-II)</th>
+                                <th>CN (AMC-III)</th>
+                                <th>HSG 분포</th>
+                                <th>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 다운로드 버튼 -->
+            <div class="download-bar">
+                <div>
+                    <div class="download-bar-title">📥 보고서 다운로드</div>
+                    <div style="font-size: 12px; color: var(--color-neutral-500); margin-top: 2px;">분석 ID: <span id="analysisIdDisplay" style="font-weight: 600;"></span></div>
+                </div>
+                <div class="download-btns">
+                    <button class="btn btn-secondary" onclick="downloadReport('html')">
+                        🌐 HTML 보고서
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadReport('pdf')">
+                        📄 PDF 다운로드
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadReport('hwpx')">
+                        📝 한글(HWPX)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="../../assets/lib/leaflet/leaflet.js"></script>
+    <!-- Leaflet Draw JS -->
+    <script src="../../assets/lib/leaflet-draw/leaflet.draw.js"></script>
+
+    <!-- 공통 JS -->
+    <script src="../../assets/js/common.js"></script>
+    <script src="../../assets/js/api.js"></script>
+    <script src="../../assets/js/components/toast.js"></script>
+
+    <script>
+    // ─── 인증 확인 ───────────────────────────────────────────
+    (function() {
+        const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+        if (!token) {
+            window.location.replace('../../index.html');
+        }
+    })();
+
+    // ─── 전역 상태 ───────────────────────────────────────────
+    let map, drawnItems, drawControl;
+    let currentAnalysisId = null;
+
+    // ─── CN 색상 설정 ────────────────────────────────────────
+    const CN_COLORS = [
+        { max: 50,  fill: '#22c55e', border: '#16a34a' },
+        { max: 65,  fill: '#84cc16', border: '#65a30d' },
+        { max: 75,  fill: '#eab308', border: '#ca8a04' },
+        { max: 85,  fill: '#f97316', border: '#ea580c' },
+        { max: 999, fill: '#ef4444', border: '#dc2626' },
+    ];
+
+    function getCNColor(cn) {
+        for (const c of CN_COLORS) {
+            if (cn < c.max) return c;
+        }
+        return CN_COLORS[CN_COLORS.length - 1];
+    }
+
+    function getCNBadgeClass(cn) {
+        if (cn === null || cn === undefined) return 'cn-badge-err';
+        if (cn >= 85) return 'cn-badge-high';
+        if (cn >= 75) return 'cn-badge-mid';
+        if (cn >= 65) return 'cn-badge-low';
+        return 'cn-badge-vlow';
+    }
+
+    // ─── 지도 초기화 ─────────────────────────────────────────
+    function initMap() {
+        map = L.map('cn-map', { zoomControl: true }).setView([20, 0], 3);
+
+        // Google Maps 타일
+        L.tileLayer(
+            'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+            {
+                subdomains: ['0','1','2','3'],
+                attribution: '© Google',
+                maxZoom: 20
+            }
+        ).addTo(map);
+
+        drawnItems = new L.FeatureGroup().addTo(map);
+
+        drawControl = new L.Control.Draw({
+            position: 'topleft',
+            draw: {
+                polygon: {
+                    allowIntersection: false,
+                    showArea: true,
+                    shapeOptions: {
+                        color: '#1A4B7C',
+                        fillColor: '#1A4B7C',
+                        fillOpacity: 0.25,
+                        weight: 2
+                    }
+                },
+                rectangle: false,
+                circle: false,
+                marker: false,
+                polyline: false,
+                circlemarker: false
+            },
+            edit: {
+                featureGroup: drawnItems,
+                remove: true
+            }
+        });
+        map.addControl(drawControl);
+
+        // CN 범례
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function() {
+            const div = L.DomUtil.create('div', 'cn-legend');
+            div.innerHTML = `
+                <div class="cn-legend-title">CN (AMC-II) 범위</div>
+                <div class="cn-legend-item"><div class="cn-legend-color" style="background:#22c55e"></div> &lt; 50 (유출 낮음)</div>
+                <div class="cn-legend-item"><div class="cn-legend-color" style="background:#84cc16"></div> 50 ~ 65</div>
+                <div class="cn-legend-item"><div class="cn-legend-color" style="background:#eab308"></div> 65 ~ 75</div>
+                <div class="cn-legend-item"><div class="cn-legend-color" style="background:#f97316"></div> 75 ~ 85</div>
+                <div class="cn-legend-item"><div class="cn-legend-color" style="background:#ef4444"></div> ≥ 85 (유출 높음)</div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+
+        // ─── 이벤트: 폴리곤 그리기 완료 ───────────────────────
+        map.on(L.Draw.Event.CREATED, function(e) {
+            drawnItems.addLayer(e.layer);
+            updateAreaDisplay();
+        });
+
+        map.on(L.Draw.Event.DELETED, function() {
+            updateAreaDisplay();
+        });
+
+        map.on(L.Draw.Event.EDITED, function() {
+            updateAreaDisplay();
+        });
+    }
+
+    // ─── 면적 표시 업데이트 ──────────────────────────────────
+    function updateAreaDisplay() {
+        const layers = drawnItems.getLayers();
+        const count = layers.length;
+
+        if (count === 0) {
+            document.getElementById('areaValue').textContent = '—';
+            document.getElementById('polygonCount').textContent = '';
+            document.getElementById('btnAnalyze').disabled = true;
+            return;
+        }
+
+        let totalAreaM2 = 0;
+        layers.forEach(layer => {
+            if (layer.getLatLngs) {
+                const latlngs = layer.getLatLngs()[0];
+                // Shoelace 공식으로 근사 면적 계산 (WGS84 → 미터 환산)
+                totalAreaM2 += approximateAreaM2(latlngs);
+            }
+        });
+
+        const areaHa = (totalAreaM2 / 10000).toFixed(1);
+        const areaKm2 = (totalAreaM2 / 1e6).toFixed(2);
+        document.getElementById('areaValue').textContent =
+            areaHa > 1000 ? `${areaKm2} km²` : `${areaHa} ha`;
+        document.getElementById('polygonCount').textContent =
+            count > 1 ? `유역 ${count}개` : '유역 1개';
+        document.getElementById('btnAnalyze').disabled = false;
+    }
+
+    // WGS84 위도경도 폴리곤 근사 면적 (m²)
+    function approximateAreaM2(latlngs) {
+        const R = 6371000;
+        let area = 0;
+        const n = latlngs.length;
+        for (let i = 0; i < n; i++) {
+            const j = (i + 1) % n;
+            const xi = latlngs[i].lng * Math.PI / 180 * R * Math.cos(latlngs[i].lat * Math.PI / 180);
+            const yi = latlngs[i].lat * Math.PI / 180 * R;
+            const xj = latlngs[j].lng * Math.PI / 180 * R * Math.cos(latlngs[j].lat * Math.PI / 180);
+            const yj = latlngs[j].lat * Math.PI / 180 * R;
+            area += xi * yj - xj * yi;
+        }
+        return Math.abs(area / 2);
+    }
+
+    // ─── 분석 실행 ───────────────────────────────────────────
+    async function startAnalysis() {
+        const layers = drawnItems.getLayers();
+        if (layers.length === 0) {
+            Toast.warning('유역 폴리곤을 먼저 그려주세요.');
+            return;
+        }
+
+        // 결과 섹션 숨기기, 오류 카드 숨기기
+        document.getElementById('resultsSection').classList.remove('show');
+        document.getElementById('errorCard').classList.remove('show');
+
+        // 오버레이 표시
+        showOverlay('SoilGrids WCS에서 토양 데이터를 수집 중입니다...\n네트워크 상태에 따라 1~3분이 소요될 수 있습니다.');
+
+        // GeoJSON 생성 (모든 폴리곤을 FeatureCollection으로)
+        const features = [];
+        layers.forEach((layer, idx) => {
+            features.push({
+                type: 'Feature',
+                properties: { id: idx + 1 },
+                geometry: layer.toGeoJSON().geometry
+            });
+        });
+        const geojson = {
+            type: 'FeatureCollection',
+            features: features
+        };
+
+        try {
+            const fd = new FormData();
+            fd.append('geojson', JSON.stringify(geojson));
+            fd.append('crs', 'EPSG:4326');
+            fd.append('force_global', 'true');
+
+            const res = await fetch('/cn/api/analyze', {
+                method: 'POST',
+                body: fd
+            });
+
+            const data = await res.json();
+
+            if (data.status === 'error' || !res.ok) {
+                throw new Error(data.message || '분석 중 오류가 발생했습니다.');
+            }
+
+            hideOverlay();
+            currentAnalysisId = data.analysis_id;
+            showResults(data);
+
+        } catch (err) {
+            hideOverlay();
+            document.getElementById('errorCard').classList.add('show');
+            document.getElementById('errorMessage').textContent = err.message;
+            Toast.error('분석 실패: ' + err.message);
+        }
+    }
+
+    // ─── 결과 표시 ───────────────────────────────────────────
+    function showResults(data) {
+        const results = data.results || [];
+        const geojson = data.geojson;
+
+        // 요약 통계 계산
+        const validResults = results.filter(r => r.CN != null);
+        const avgCN2 = validResults.length > 0
+            ? (validResults.reduce((s, r) => s + r.CN, 0) / validResults.length).toFixed(1)
+            : '—';
+        const avgCN3 = validResults.length > 0
+            ? (validResults.reduce((s, r) => s + (r.CN_AMC3 || 0), 0) / validResults.length).toFixed(1)
+            : '—';
+        const totalArea = results.reduce((s, r) => s + (r.analysis_area_ha || r.total_area_ha || 0), 0).toFixed(1);
+
+        // 주요 HSG 집계
+        const hsgCounts = {};
+        results.forEach(r => {
+            const dist = r.hsg_distribution || {};
+            Object.entries(dist).forEach(([h, p]) => {
+                hsgCounts[h] = (hsgCounts[h] || 0) + parseFloat(p);
+            });
+        });
+        const mainHSG = Object.entries(hsgCounts).sort((a, b) => b[1] - a[1])[0];
+        const mainHsgStr = mainHSG ? `HSG ${mainHSG[0]}` : '—';
+
+        // 요약 카드 업데이트
+        const cn2El = document.getElementById('rAvgCN2');
+        cn2El.textContent = avgCN2;
+        cn2El.className = 'summary-card-value ' + (avgCN2 !== '—' ? getCNValueClass(parseFloat(avgCN2)) : '');
+
+        document.getElementById('rAvgCN3').textContent = avgCN3;
+        document.getElementById('rTotalArea').textContent = totalArea;
+        document.getElementById('rHsgMain').textContent = mainHsgStr;
+
+        // 유역별 테이블
+        const tbody = document.getElementById('resultTableBody');
+        tbody.innerHTML = '';
+        results.forEach((r, i) => {
+            const cn2 = r.CN != null ? r.CN.toFixed(1) : null;
+            const cn3 = r.CN_AMC3 != null ? r.CN_AMC3.toFixed(1) : null;
+            const wsArea = (r.total_area_ha || 0).toFixed(1);
+            const anaArea = (r.analysis_area_ha || r.total_area_ha || 0).toFixed(1);
+            const hsgDist = r.hsg_distribution || {};
+            const hsgHtml = Object.entries(hsgDist)
+                .sort((a, b) => b[1] - a[1])
+                .map(([h, p]) => `<span class="hsg-chip">${h}: ${(parseFloat(p)*100).toFixed(0)}%</span>`)
+                .join('');
+
+            const statusHtml = r.error
+                ? `<span style="color: #dc2626; font-size: 12px;">⚠️ 오류</span>`
+                : `<span style="color: #16a34a; font-size: 12px;">✅ 완료</span>`;
+
+            const badgeClass = cn2 != null ? getCNBadgeClass(parseFloat(cn2)) : 'cn-badge-err';
+
+            tbody.innerHTML += `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${wsArea}</td>
+                    <td>${anaArea}</td>
+                    <td><span class="cn-badge ${badgeClass}">${cn2 ?? '—'}</span></td>
+                    <td>${cn3 ?? '—'}</td>
+                    <td><div class="hsg-dist">${hsgHtml || '—'}</div></td>
+                    <td>${statusHtml}</td>
+                </tr>
+            `;
+        });
+
+        // 분석 ID
+        document.getElementById('analysisIdDisplay').textContent = currentAnalysisId;
+        document.getElementById('successBadge').textContent = `${validResults.length}/${results.length}개 성공`;
+
+        // GeoJSON 결과 지도에 표시
+        if (geojson && geojson.features && geojson.features.length > 0) {
+            // 기존 입력 폴리곤 제거 후 결과로 교체
+            drawnItems.clearLayers();
+
+            L.geoJSON(geojson, {
+                style: function(feature) {
+                    const cn = feature.properties.CN;
+                    if (cn == null) {
+                        return { color: '#9ca3af', fillColor: '#d1d5db', fillOpacity: 0.5, weight: 2 };
+                    }
+                    const c = getCNColor(cn);
+                    return { color: c.border, fillColor: c.fill, fillOpacity: 0.55, weight: 2 };
+                },
+                onEachFeature: function(feature, layer) {
+                    const p = feature.properties;
+                    const cn2 = p.CN != null ? p.CN.toFixed(1) : '—';
+                    const cn3 = p.CN_AMC3 != null ? p.CN_AMC3.toFixed(1) : '—';
+                    const area = (p.total_area_ha || p.analysis_area_ha || 0).toFixed(1);
+                    layer.bindPopup(`
+                        <div style="font-size:13px; min-width:160px;">
+                            <strong>유역 ${(p.id || (results.indexOf(p) + 1))}</strong><br>
+                            CN (AMC-II): <b>${cn2}</b><br>
+                            CN (AMC-III): <b>${cn3}</b><br>
+                            면적: ${area} ha
+                        </div>
+                    `);
+                    drawnItems.addLayer(layer);
+                }
+            });
+
+            // 지도 범위를 결과에 맞춤
+            try {
+                map.fitBounds(drawnItems.getBounds(), { padding: [40, 40] });
+            } catch(e) {}
+        }
+
+        // 결과 섹션 표시
+        document.getElementById('resultsSection').classList.add('show');
+        document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        Toast.success('CN 분석이 완료되었습니다.');
+    }
+
+    function getCNValueClass(cn) {
+        if (cn >= 85) return 'cn-value-high';
+        if (cn >= 65) return 'cn-value-mid';
+        return 'cn-value-low';
+    }
+
+    // ─── 초기화 ──────────────────────────────────────────────
+    function resetAll() {
+        drawnItems.clearLayers();
+        document.getElementById('areaValue').textContent = '—';
+        document.getElementById('polygonCount').textContent = '';
+        document.getElementById('btnAnalyze').disabled = true;
+        document.getElementById('resultsSection').classList.remove('show');
+        document.getElementById('errorCard').classList.remove('show');
+        currentAnalysisId = null;
+    }
+
+    // ─── 오버레이 제어 ───────────────────────────────────────
+    function showOverlay(message) {
+        document.getElementById('analysisOverlay').classList.add('active');
+        document.getElementById('overlayMessage').textContent = message;
+        document.getElementById('btnAnalyze').disabled = true;
+    }
+
+    function hideOverlay() {
+        document.getElementById('analysisOverlay').classList.remove('active');
+        updateAreaDisplay(); // 버튼 상태 재설정
+    }
+
+    // ─── 다운로드 ─────────────────────────────────────────────
+    function downloadReport(type) {
+        if (!currentAnalysisId) {
+            Toast.warning('먼저 분석을 실행해주세요.');
+            return;
+        }
+        const id = currentAnalysisId;
+        if (type === 'html') {
+            window.open(`/cn/report/${id}`, '_blank');
+        } else if (type === 'pdf') {
+            window.open(`/cn/download/${id}/pdf`, '_blank');
+        } else if (type === 'hwpx') {
+            window.open(`/cn/download/${id}/hwpx`, '_blank');
+        }
+    }
+
+    // ─── 초기 실행 ───────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+        initCommonUI();
+        initMap();
+    });
+    </script>
+</body>
+</html>
