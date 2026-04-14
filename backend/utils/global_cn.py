@@ -27,17 +27,18 @@ from collections import Counter
 from datetime import datetime
 
 import numpy as np
-import geopandas as gpd
-from shapely.geometry import mapping
-from shapely.ops import transform as shapely_transform
-from pyproj import Geod, Transformer
 
 try:
+    import geopandas as gpd
+    from shapely.geometry import mapping
+    from shapely.ops import transform as shapely_transform
+    from pyproj import Geod, Transformer
     import rasterio
     from rasterio.mask import mask as rio_mask
     import requests
     API_DEPS_AVAILABLE = True
 except ImportError as _e:
+    gpd = None
     API_DEPS_AVAILABLE = False
     _API_IMPORT_ERROR = str(_e)
 
