@@ -276,6 +276,12 @@
         text-decoration: none;
     }
 
+    /* 사업명 내 뱃지 — 어두운 헤더 배경 위에서도 가독성 유지 */
+    .table-container:not(.no-mobile-card) .data-table td.col-title .badge {
+        opacity: 0.92;
+        font-size: 10px;
+    }
+
     /* 사업명 내 부제목(영문 등) */
     .table-container:not(.no-mobile-card) .data-table td.col-title div {
         color: rgba(255, 255, 255, 0.75);
