@@ -387,6 +387,23 @@
             height: 3px;
         }
 
+        /* ===== 프로젝트 상세 모달 - 모바일 최적화 ===== */
+        @media (max-width: 640px) {
+            .pd-label {
+                font-size: 11px !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .pd-val {
+                font-size: 12px !important;
+                padding: 6px 8px !important;
+            }
+            .pd-g3 { grid-template-columns: 1fr 1fr 1fr !important; gap: 8px !important; }
+            .pd-g4 { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+            .pd-g2 { gap: 8px !important; }
+        }
+
         /* ===== 사업형태 체크박스 스타일 ===== */
         .type-checkbox-label {
             display: flex;
@@ -1906,31 +1923,31 @@
                     const modal = new Modal();
                     modal.open(
                         `<div style="display: grid; gap: 16px;">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                            <div class="pd-g3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">수주년도</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.contractYear || '-'}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">수주년도</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.contractYear || '-'}</div>
                                 </div>
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">상태</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.status || '-'}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">상태</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.status || '-'}</div>
                                 </div>
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">사업형태</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${createTypeBadgesHTML(project)}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">사업형태</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${createTypeBadgesHTML(project)}</div>
                                 </div>
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국가</label>
-                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.country || '-'}</div>
+                                <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국가</label>
+                                <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.country || '-'}</div>
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국문사업명</label>
-                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.titleKr || '-'}</div>
+                                <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국문사업명</label>
+                                <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.titleKr || '-'}</div>
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">영문사업명</label>
-                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.titleEn || '-'}</div>
+                                <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">영문사업명</label>
+                                <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.titleEn || '-'}</div>
                             </div>
                             <div style="border:1px solid var(--color-neutral-200); border-radius:8px; padding:14px 18px; background:#fafafa;">
                                 <div style="font-size:12px; font-weight:600; color:var(--color-neutral-500); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">사업기간 진행현황</div>
@@ -1943,59 +1960,59 @@
                                 </div>
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">착수일</label>
-                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.startDate || '-'}</div>
+                                <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">착수일</label>
+                                <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.startDate || '-'}</div>
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
+                            <div class="pd-g4" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">총사업비 (백만USD)</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.totalBudget ? Number(project.totalBudget).toLocaleString() : '-'}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">총사업비 (백만USD)</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.totalBudget ? Number(project.totalBudget).toLocaleString() : '-'}</div>
                                 </div>
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">전체용역비</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.budget ? project.budget.toLocaleString() + ' 백만원' : '-'}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">전체용역비</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.budget ? project.budget.toLocaleString() + ' 백만원' : '-'}</div>
                                 </div>
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">공사지분용역비</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcBudget ? project.krcBudget.toLocaleString() + ' 백만원' : '-'}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">공사지분용역비</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcBudget ? project.krcBudget.toLocaleString() + ' 백만원' : '-'}</div>
                                 </div>
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">공사지분율</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcShareRatio ? (project.krcShareRatio * 100).toFixed(1) + '%' : '-'}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">공사지분율</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcShareRatio ? (project.krcShareRatio * 100).toFixed(1) + '%' : '-'}</div>
                                 </div>
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">상태</label>
-                                <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.status || '-'}</div>
+                                <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">상태</label>
+                                <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.status || '-'}</div>
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="pd-g2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">발주처</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.client || '-'}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">발주처</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.client || '-'}</div>
                                 </div>
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">재원</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.fundingSource || '-'}</div>
-                                </div>
-                            </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                                <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">전체용역비 (US$ 백만)</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.budgetUsd ? Number(project.budgetUsd).toFixed(2) : '-'}</div>
-                                </div>
-                                <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">공사지분 용역비 (US$ 백만)</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcBudgetUsd ? Number(project.krcBudgetUsd).toFixed(2) : '-'}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">재원</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.fundingSource || '-'}</div>
                                 </div>
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="pd-g2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">위도</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.latitude || '-'}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">전체용역비 (US$ 백만)</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.budgetUsd ? Number(project.budgetUsd).toFixed(2) : '-'}</div>
                                 </div>
                                 <div>
-                                    <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">경도</label>
-                                    <div style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.longitude || '-'}</div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">공사지분 용역비 (US$)</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcBudgetUsd ? Number(project.krcBudgetUsd).toFixed(2) : '-'}</div>
+                                </div>
+                            </div>
+                            <div class="pd-g2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">위도</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.latitude || '-'}</div>
+                                </div>
+                                <div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">경도</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.longitude || '-'}</div>
                                 </div>
                             </div>
                             <div style="border-top: 1px solid #e9ecef; padding-top: 12px;">
