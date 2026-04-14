@@ -5,7 +5,6 @@ CN (Curve Number) 분석 라우트
 import io
 import json
 import uuid
-import numpy as np
 from flask import Blueprint, request, jsonify
 
 from routes.auth import token_required
@@ -40,6 +39,7 @@ def _parse_geojson_to_gdf(geojson_str):
 def _results_to_geojson(results, result_crs='EPSG:4326'):
     """results 리스트(geometry 포함) → GeoJSON dict"""
     try:
+        import numpy as np
         import geopandas as gpd
         from shapely.geometry import mapping
 
@@ -87,6 +87,7 @@ def _results_to_geojson(results, result_crs='EPSG:4326'):
 
 def _clean_results_for_json(results):
     """geometry 제거 + numpy 타입 → Python 기본형 변환"""
+    import numpy as np
     cleaned = []
     for r in results:
         item = {}
