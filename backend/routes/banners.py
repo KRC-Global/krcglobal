@@ -2,7 +2,7 @@
 GBMS - Banner Management Routes
 글로벌사업처 해외사업관리시스템 - 배너 관리
 """
-from flask import Blueprint, request, jsonify, send_file, current_app
+from flask import Blueprint, request, jsonify, send_file, redirect, current_app
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
@@ -161,10 +161,21 @@ def get_banner_image(banner_id):
     if not banner:
         return jsonify({'success': False, 'message': '배너를 찾을 수 없습니다.'}), 404
 
-    # backend 디렉토리 기준으로 경로 구성
+    # assets/ 경로는 정적 파일 — 프론트엔드 루트 기준 URL로 리다이렉트
+    if banner.image_path.startswith('assets/'):
+        return redirect(f'/{banner.image_path}')
+
+    # R2 오브젝트 키 (경로에 '/' 포함)
+    if '/' in banner.image_path and not banner.image_path.startswith('uploads/'):
+        from utils.r2_storage import stream_from_r2
+        try:
+            return stream_from_r2(banner.image_path, inline=True)
+        except Exception:
+            return jsonify({'success': False, 'message': '이미지 파일을 찾을 수 없습니다.'}), 404
+
+    # 로컬 uploads/ 폴더 (내부망 로컬 서버용)
     backend_dir = os.path.dirname(os.path.dirname(__file__))
     filepath = os.path.join(backend_dir, banner.image_path)
-
     if not os.path.exists(filepath):
         return jsonify({'success': False, 'message': '이미지 파일을 찾을 수 없습니다.'}), 404
 
