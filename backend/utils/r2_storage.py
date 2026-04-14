@@ -91,22 +91,25 @@ def generate_presigned_url(key, expires_in=3600):
 
 
 def stream_from_r2(key, content_type=None, download_name=None, inline=False):
-    """R2 파일을 Flask Response로 스트리밍 (프록시 방식)
+    """R2 파일을 반환.
+    Vercel serverless 호환: 전체 바이트를 메모리로 읽어 Flask Response로 반환.
     Args:
         key: R2 오브젝트 키
         content_type: 응답 Content-Type (None이면 R2 메타데이터 사용)
         download_name: 다운로드 파일명 (None이면 키 마지막 세그먼트 사용)
         inline: True면 브라우저 미리보기, False면 다운로드
-    Returns:
-        Flask Response (streaming)
     """
-    from flask import Response, stream_with_context
+    from flask import Response
     obj = download_file(key)
+    body = obj['Body'].read()
     actual_content_type = content_type or obj.get('ContentType', 'application/octet-stream')
     filename = download_name or key.split('/')[-1]
     disposition = 'inline' if inline else f'attachment; filename="{filename}"'
     return Response(
-        stream_with_context(obj['Body'].iter_chunks(chunk_size=8192)),
+        body,
         content_type=actual_content_type,
-        headers={'Content-Disposition': disposition}
+        headers={
+            'Content-Disposition': disposition,
+            'Content-Length': str(len(body)),
+        }
     )
