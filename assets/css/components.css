@@ -160,7 +160,8 @@ body.readonly-mode .admin-only {
 }
 
 /* ─── 모바일 카드형 테이블 ─── */
-@media (max-width: 768px) {
+/* 768px 이하 모바일 또는 1024px 이하 태블릿 세로 모드에서 카드형 활성화 */
+@media (max-width: 768px), (max-width: 1024px) and (orientation: portrait) {
     .table-container:not(.no-mobile-card) {
         overflow-x: visible !important;
     }
@@ -1087,7 +1088,7 @@ body.readonly-mode .admin-only {
 
 /* ─── 필터 바 모바일 최적화 ─── */
 /* 각 페이지 <style> 블록보다 나중에 로드되므로 !important 사용 */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-width: 1024px) and (orientation: portrait) {
     .filter-bar {
         flex-wrap: wrap !important;
         gap: 6px !important;
