@@ -189,6 +189,11 @@
     transition: transform var(--transition-base);
 }
 
+/* 닫기 버튼은 모바일에서만 표시 */
+.sidebar-close-btn {
+    display: none;
+}
+
 .sidebar-nav {
     padding: var(--spacing-4);
 }
@@ -553,10 +558,37 @@
         justify-content: center;
     }
 
-    /* 사이드바 너비 축소 (260px → 240px) */
+    /* 사이드바 너비 축소 (260px → 240px), 헤더 위로 표시 */
     .app-sidebar {
         width: 240px;
-        top: 48px;
+        top: 0;
+        z-index: calc(var(--z-toast) + 1);
+    }
+
+    /* 사이드바 닫기 버튼 (모바일 전용) */
+    .sidebar-close-btn {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 8px 12px;
+        height: 48px;
+        border-bottom: 1px solid var(--color-neutral-200);
+    }
+    .sidebar-close-btn button {
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+        font-size: 20px;
+        color: var(--color-neutral-600);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .sidebar-close-btn button:hover {
+        background: var(--color-neutral-100);
     }
 
     /* 사이드바 백드롭 오버레이 */
@@ -565,7 +597,7 @@
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, 0.4);
-        z-index: calc(var(--z-modal) - 1);
+        z-index: calc(var(--z-toast));
     }
 
     .sidebar-backdrop.active {

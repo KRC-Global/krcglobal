@@ -671,6 +671,15 @@ function initSidebarToggle() {
             sidebarToggle.setAttribute('aria-expanded', 'false');
         }
 
+        // 모바일 닫기 버튼 추가 (사이드바 상단)
+        if (!sidebar.querySelector('.sidebar-close-btn')) {
+            const closeDiv = document.createElement('div');
+            closeDiv.className = 'sidebar-close-btn';
+            closeDiv.innerHTML = '<button aria-label="메뉴 닫기">✕</button>';
+            closeDiv.querySelector('button').addEventListener('click', closeSidebar);
+            sidebar.insertBefore(closeDiv, sidebar.firstChild);
+        }
+
         sidebarToggle.addEventListener('click', function () {
             sidebar.classList.toggle('open');
             const isOpen = sidebar.classList.contains('open');
