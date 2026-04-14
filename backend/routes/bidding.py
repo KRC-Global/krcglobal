@@ -2,37 +2,16 @@
 TOR/RFP·제안서 통합 API
 ConsultingProject를 기준으로 TorRfp, Proposal, Eoi를 LEFT JOIN하여 통합 목록 제공
 """
-from flask import Blueprint, jsonify, request, send_file, current_app
+from flask import Blueprint, jsonify, request, current_app
 from models import db, ConsultingProject, TorRfp, Proposal, Eoi
 from routes.auth import token_required
 from utils.file_naming import make_overseas_tech_filename, make_overseas_tech_disk_filename
+from utils.r2_storage import upload_file, delete_file, check_storage_limit, stream_from_r2
 from sqlalchemy import or_
 from werkzeug.utils import secure_filename
 from datetime import datetime
-import os
 
 bidding_bp = Blueprint('bidding', __name__)
-
-
-def resolve_file_path(stored_path, subfolder):
-    """크로스 플랫폼 파일 경로 해석.
-    DB에 Windows 절대 경로가 저장되어 있어도 로컬 uploads/ 하위에서 파일을 찾는다."""
-    if not stored_path:
-        return None
-    # 1) 저장된 경로 그대로 존재하면 그대로 반환
-    if os.path.exists(stored_path):
-        return stored_path
-    # 2) 파일명만 추출하여 로컬 uploads 폴더에서 탐색
-    #    Windows 경로일 수 있으므로 \\ 와 / 모두 처리
-    filename = stored_path.replace('\\', '/').split('/')[-1]
-    upload_folder = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        'uploads', subfolder
-    )
-    local_path = os.path.join(upload_folder, filename)
-    if os.path.exists(local_path):
-        return local_path
-    return None
 
 
 def _row_to_dict(row, source):
@@ -352,23 +331,21 @@ def create_eoi(current_user):
             created_by=current_user.id
         )
 
-        # 파일 저장
+        # R2 파일 업로드
         if eoi_file:
-            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-            eoi_folder = os.path.join(upload_folder, 'eoi')
-            os.makedirs(eoi_folder, exist_ok=True)
-
             original = secure_filename(eoi_file.filename)
             ext = original.rsplit('.', 1)[-1].lower() if '.' in original else 'pdf'
+            eoi_file.seek(0, 2); eoi_size = eoi_file.tell(); eoi_file.seek(0)
+            if not check_storage_limit(eoi_size):
+                return jsonify({'success': False, 'message': '스토리지 용량이 부족합니다.'}), 400
             _eoi_proj = ConsultingProject.query.get(consulting_project_id) if consulting_project_id else None
             _eoi_year = submission_date.year if submission_date else None
             saved_name = make_overseas_tech_disk_filename('EOI', ext, _eoi_proj, title, _eoi_year)
-            filepath = os.path.join(eoi_folder, saved_name)
-            eoi_file.save(filepath)
-
+            r2_key = f'eoi/{saved_name}'
+            upload_file(eoi_file, r2_key, content_type=f'application/{ext}')
             eoi.eoi_file_name = make_overseas_tech_filename('EOI', ext, _eoi_proj, title, _eoi_year)
-            eoi.eoi_file_path = filepath
-            eoi.eoi_file_size = os.path.getsize(filepath)
+            eoi.eoi_file_path = r2_key
+            eoi.eoi_file_size = eoi_size
             eoi.eoi_file_type = ext
 
         db.session.add(eoi)
@@ -438,27 +415,24 @@ def update_eoi(current_user, eoi_id):
         eoi.remarks = request.form.get('remarks')
         eoi.updated_by = current_user.id
 
-        # 새 파일이 있으면 교체
+        # 새 파일이 있으면 R2에 교체
         if eoi_file:
-            # 기존 파일 삭제
-            if eoi.eoi_file_path and os.path.exists(eoi.eoi_file_path):
-                os.remove(eoi.eoi_file_path)
-
-            upload_folder = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-            eoi_folder = os.path.join(upload_folder, 'eoi')
-            os.makedirs(eoi_folder, exist_ok=True)
-
+            if eoi.eoi_file_path:
+                try:
+                    delete_file(eoi.eoi_file_path)
+                except Exception:
+                    pass
             original = secure_filename(eoi_file.filename)
             ext = original.rsplit('.', 1)[-1].lower() if '.' in original else 'pdf'
+            eoi_file.seek(0, 2); eoi_size = eoi_file.tell(); eoi_file.seek(0)
             _upd_proj = ConsultingProject.query.get(eoi.consulting_project_id) if eoi.consulting_project_id else None
             _upd_year = eoi.submission_date.year if eoi.submission_date else None
             saved_name = make_overseas_tech_disk_filename('EOI', ext, _upd_proj, eoi.title, _upd_year)
-            filepath = os.path.join(eoi_folder, saved_name)
-            eoi_file.save(filepath)
-
+            r2_key = f'eoi/{saved_name}'
+            upload_file(eoi_file, r2_key, content_type=f'application/{ext}')
             eoi.eoi_file_name = make_overseas_tech_filename('EOI', ext, _upd_proj, eoi.title, _upd_year)
-            eoi.eoi_file_path = filepath
-            eoi.eoi_file_size = os.path.getsize(filepath)
+            eoi.eoi_file_path = r2_key
+            eoi.eoi_file_size = eoi_size
             eoi.eoi_file_type = ext
 
         db.session.commit()
@@ -485,10 +459,12 @@ def delete_eoi(current_user, eoi_id):
         if not eoi:
             return jsonify({'success': False, 'message': 'EOI를 찾을 수 없습니다.'}), 404
 
-        # 파일 삭제
-        resolved = resolve_file_path(eoi.eoi_file_path, 'eoi')
-        if resolved:
-            os.remove(resolved)
+        # R2 파일 삭제
+        if eoi.eoi_file_path:
+            try:
+                delete_file(eoi.eoi_file_path)
+            except Exception:
+                pass
 
         db.session.delete(eoi)
         db.session.commit()
@@ -512,15 +488,12 @@ def preview_eoi(current_user, eoi_id):
         if not eoi:
             return jsonify({'success': False, 'message': 'EOI를 찾을 수 없습니다.'}), 404
 
-        resolved = resolve_file_path(eoi.eoi_file_path, 'eoi')
-        if not resolved:
+        if not eoi.eoi_file_path:
             return jsonify({'success': False, 'message': '파일이 존재하지 않습니다.'}), 404
-
-        return send_file(
-            resolved,
-            mimetype='application/pdf' if eoi.eoi_file_type == 'pdf' else None,
-            as_attachment=False
-        )
+        try:
+            return stream_from_r2(eoi.eoi_file_path, content_type='application/pdf', inline=True)
+        except Exception:
+            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -535,19 +508,16 @@ def download_eoi(current_user, eoi_id):
         if not eoi:
             return jsonify({'success': False, 'message': 'EOI를 찾을 수 없습니다.'}), 404
 
-        resolved = resolve_file_path(eoi.eoi_file_path, 'eoi')
-        if not resolved:
+        if not eoi.eoi_file_path:
             return jsonify({'success': False, 'message': '파일이 존재하지 않습니다.'}), 404
-
         _dl_proj = ConsultingProject.query.get(eoi.consulting_project_id) if eoi.consulting_project_id else None
         _dl_year = eoi.submission_date.year if eoi.submission_date else None
         ext = '.' + eoi.eoi_file_type if eoi.eoi_file_type else '.pdf'
         download_name = make_overseas_tech_filename('EOI', ext, _dl_proj, eoi.title, _dl_year)
-        return send_file(
-            resolved,
-            as_attachment=True,
-            download_name=download_name
-        )
+        try:
+            return stream_from_r2(eoi.eoi_file_path, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

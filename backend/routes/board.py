@@ -1,17 +1,16 @@
 """
 기타 게시판 API (해외기술용역/국제협력/해외진출지원)
 """
-from flask import Blueprint, jsonify, request, current_app, send_file
+from flask import Blueprint, jsonify, request
 from models import db, BoardPost, ConsultingProject, OdaProject
 from routes.auth import token_required
 from utils.file_naming import make_overseas_tech_filename, make_overseas_tech_disk_filename
+from utils.r2_storage import upload_file, delete_file, check_storage_limit, stream_from_r2
 from datetime import datetime
-import os
 from werkzeug.utils import secure_filename
 
 board_bp = Blueprint('board', __name__)
 
-UPLOAD_FOLDER_NAME = 'board'
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'hwp', 'txt', 'jpg', 'jpeg', 'png', 'gif', 'zip'}
 
 VALID_BOARD_TYPES = ('overseas_tech', 'oda', 'expansion')
@@ -19,12 +18,6 @@ VALID_BOARD_TYPES = ('overseas_tech', 'oda', 'expansion')
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-def get_upload_dir():
-    upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), UPLOAD_FOLDER_NAME)
-    os.makedirs(upload_dir, exist_ok=True)
-    return upload_dir
 
 
 @board_bp.route('', methods=['GET'])
@@ -108,19 +101,25 @@ def create_post(current_user):
         if 'file' in request.files:
             file = request.files['file']
             if file and file.filename and allowed_file(file.filename):
+                file.seek(0, 2)
+                file_size = file.tell()
+                file.seek(0)
+
+                if not check_storage_limit(file_size):
+                    return jsonify({'success': False, 'message': '저장 공간이 부족합니다.'}), 400
+
                 original = secure_filename(file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'bin'
                 _b_proj = ConsultingProject.query.get(consulting_project_id) if consulting_project_id else None
                 _b_year = datetime.now().year
                 unique_filename = make_overseas_tech_disk_filename('첨부', ext, _b_proj, title, _b_year)
 
-                upload_dir = get_upload_dir()
-                file_path = os.path.join(upload_dir, unique_filename)
-                file.save(file_path)
+                r2_key = f'board/{unique_filename}'
+                upload_file(file, r2_key)
 
                 post.file_name = make_overseas_tech_filename('첨부', ext, _b_proj, title, _b_year)
-                post.file_path = unique_filename
-                post.file_size = os.path.getsize(file_path)
+                post.file_path = r2_key
+                post.file_size = file_size
             elif file and file.filename and not allowed_file(file.filename):
                 return jsonify({'success': False, 'message': '허용되지 않는 파일 형식입니다.'}), 400
 
@@ -172,11 +171,19 @@ def update_post(current_user, id):
         if 'file' in request.files:
             file = request.files['file']
             if file and file.filename and allowed_file(file.filename):
-                # 기존 파일 삭제
+                file.seek(0, 2)
+                file_size = file.tell()
+                file.seek(0)
+
+                if not check_storage_limit(file_size):
+                    return jsonify({'success': False, 'message': '저장 공간이 부족합니다.'}), 400
+
+                # 기존 R2 파일 삭제
                 if post.file_path:
-                    old_path = os.path.join(get_upload_dir(), post.file_path)
-                    if os.path.exists(old_path):
-                        os.remove(old_path)
+                    try:
+                        delete_file(post.file_path)
+                    except Exception:
+                        pass
 
                 original = secure_filename(file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'bin'
@@ -185,13 +192,16 @@ def update_post(current_user, id):
                 _upd_title = post.title
                 unique_filename = make_overseas_tech_disk_filename('첨부', ext, _upd_proj, _upd_title, _upd_year)
 
-                upload_dir = get_upload_dir()
-                file_path = os.path.join(upload_dir, unique_filename)
-                file.save(file_path)
+                file.seek(0, 2)
+                file_size = file.tell()
+                file.seek(0)
+
+                r2_key = f'board/{unique_filename}'
+                upload_file(file, r2_key)
 
                 post.file_name = make_overseas_tech_filename('첨부', ext, _upd_proj, _upd_title, _upd_year)
-                post.file_path = unique_filename
-                post.file_size = os.path.getsize(file_path)
+                post.file_path = r2_key
+                post.file_size = file_size
 
         db.session.commit()
 
@@ -216,11 +226,12 @@ def delete_post(current_user, id):
         if post.created_by != current_user.id and current_user.role != 'admin':
             return jsonify({'success': False, 'message': '작성자 본인만 삭제할 수 있습니다.'}), 403
 
-        # 파일 삭제
+        # R2 파일 삭제
         if post.file_path:
-            file_path = os.path.join(get_upload_dir(), post.file_path)
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            try:
+                delete_file(post.file_path)
+            except Exception:
+                pass
 
         db.session.delete(post)
         db.session.commit()
@@ -254,20 +265,11 @@ def download_file(id):
         if not post.file_path:
             return jsonify({'success': False, 'message': '첨부파일이 없습니다.'}), 404
 
-        file_path = os.path.join(get_upload_dir(), post.file_path)
-
-        if not os.path.exists(file_path):
-            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
-
         _dl_proj = ConsultingProject.query.get(post.consulting_project_id) if post.consulting_project_id else None
         _dl_year = post.created_at.year if post.created_at else None
-        file_ext = os.path.splitext(post.file_path)[1] if post.file_path else '.pdf'
+        file_ext = '.' + post.file_path.rsplit('.', 1)[-1] if '.' in post.file_path else '.pdf'
         download_name = make_overseas_tech_filename('첨부', file_ext, _dl_proj, post.title, _dl_year)
-        return send_file(
-            file_path,
-            as_attachment=True,
-            download_name=download_name
-        )
+        return stream_from_r2(post.file_path, download_name=download_name)
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

@@ -2,27 +2,17 @@
 GBMS - ODA Reports Routes
 글로벌사업처 해외사업관리시스템 - ODA 보고서관리 API
 """
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify
 from datetime import datetime
 from werkzeug.utils import secure_filename
-import os
 from models import db, OdaReport, OdaProject, OdaNote, ActivityLog
 from routes.auth import token_required, admin_required, permission_required
 from utils.file_naming import make_oda_report_filename, make_oda_report_disk_filename
+from utils.r2_storage import upload_file, download_file, delete_file, check_storage_limit, stream_from_r2
 
 oda_reports_bp = Blueprint('oda_reports', __name__)
 
-# 업로드 디렉토리 설정
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'oda_reports')
-NOTE_UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'oda_notes')
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'hwp', 'txt', 'jpg', 'jpeg', 'png', 'gif', 'zip'}
-
-# 업로드 폴더 생성 (Vercel 등 읽기 전용 파일시스템에서는 무시)
-try:
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs(NOTE_UPLOAD_FOLDER, exist_ok=True)
-except OSError:
-    pass
 
 def allowed_file(filename):
     """파일 확장자 검증"""
@@ -165,20 +155,25 @@ def upload_report(current_user):
         original_filename = file.filename
         file_ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
 
-        # 표준 파일명 생성
+        # 파일 크기 확인 및 R2 용량 체크
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+        if not check_storage_limit(file_size):
+            return jsonify({'success': False, 'message': '스토리지 용량이 부족합니다. (최대 9GB)'}), 400
+
+        # 표준 파일명 생성 후 R2 업로드
         download_name = make_oda_report_filename(report_type, file_ext, project)
         disk_name = make_oda_report_disk_filename(report_type, file_ext, project)
-        file_path = os.path.join(UPLOAD_FOLDER, disk_name)
-
-        file.save(file_path)
-        file_size = os.path.getsize(file_path)
+        r2_key = f'oda_reports/{disk_name}'
+        upload_file(file, r2_key, content_type=f'application/{file_ext}')
 
         # 항상 새 레코드 생성 (다중 파일 지원)
         report = OdaReport(
             oda_project_id=oda_project_id,
             report_type=report_type,
             file_name=download_name,
-            file_path=disk_name,
+            file_path=r2_key,
             file_size=file_size,
             file_type=file_ext,
             description=description,
@@ -218,14 +213,12 @@ def delete_report(current_user, report_id):
     try:
         report = OdaReport.query.get_or_404(report_id)
 
-        # 파일 삭제
+        # R2 파일 삭제
         if report.file_path:
-            file_path = os.path.join(UPLOAD_FOLDER, report.file_path)
-            if os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                except Exception as e:
-                    print(f"파일 삭제 실패: {str(e)}")
+            try:
+                delete_file(report.file_path)
+            except Exception as e:
+                print(f"R2 파일 삭제 실패: {str(e)}")
 
         # 활동 로그
         log = ActivityLog(
@@ -272,25 +265,15 @@ def download_report(report_id):
         if not report.file_path:
             return jsonify({'success': False, 'message': '파일 경로가 없습니다.'}), 404
 
-        # 파일 경로 생성 (파일명만 저장되어 있으므로 UPLOAD_FOLDER와 결합)
-        file_path = os.path.join(UPLOAD_FOLDER, report.file_path)
-
-        if not os.path.exists(file_path):
-            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
-
-        # 프로젝트 정보 가져오기
-        from models import OdaProject
-        project = OdaProject.query.get(report.oda_project_id)
-
         # 표준 다운로드 파일명 생성
+        project = OdaProject.query.get(report.oda_project_id)
         file_ext = report.file_type if report.file_type else 'pdf'
         download_name = make_oda_report_filename(report.report_type, file_ext, project)
 
-        return send_file(
-            file_path,
-            as_attachment=True,
-            download_name=download_name
-        )
+        try:
+            return stream_from_r2(report.file_path, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'다운로드 실패: {str(e)}'}), 500
@@ -319,14 +302,6 @@ def preview_report(report_id):
         if not report.file_path:
             return '<html><body><h1>오류</h1><p>파일 경로가 없습니다.</p></body></html>', 404
 
-        # 파일 경로 생성 (파일명만 저장되어 있으므로 UPLOAD_FOLDER와 결합)
-        file_path = os.path.join(UPLOAD_FOLDER, report.file_path)
-
-        if not os.path.exists(file_path):
-            return f'<html><body><h1>오류</h1><p>파일을 찾을 수 없습니다: {report.file_path}</p></body></html>', 404
-
-        # PDF 등은 브라우저에서 직접 표시 (다운로드 아님)
-        # 파일 확장자 기반 mimetype 결정 (DB file_type이 비어있을 수 있으므로 파일명에서도 추출)
         ext = report.file_type or ''
         if not ext and report.file_path:
             ext = report.file_path.rsplit('.', 1)[1].lower() if '.' in report.file_path else ''
@@ -339,18 +314,15 @@ def preview_report(report_id):
             'ppt': 'application/vnd.ms-powerpoint',
             'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
             'hwp': 'application/x-hwp',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'gif': 'image/gif',
+            'jpg': 'image/jpeg', 'jpeg': 'image/jpeg',
+            'png': 'image/png', 'gif': 'image/gif',
             'txt': 'text/plain',
         }
         mimetype = mimetype_map.get(ext, 'application/octet-stream')
-        return send_file(
-            file_path,
-            mimetype=mimetype,
-            as_attachment=False  # 미리보기 모드
-        )
+        try:
+            return stream_from_r2(report.file_path, content_type=mimetype, inline=True)
+        except Exception:
+            return '<html><body><h1>오류</h1><p>파일을 찾을 수 없습니다.</p></body></html>', 404
 
     except Exception as e:
         return f'<html><body><h1>오류</h1><p>미리보기 실패: {str(e)}</p></body></html>', 500
@@ -425,24 +397,28 @@ def save_note(current_user):
 
             original_filename = file.filename
             file_ext = original_filename.rsplit('.', 1)[1].lower() if '.' in original_filename else ''
-            new_file_name = secure_filename(original_filename) or f'note.{file_ext}'
             timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
             saved_filename = f"{timestamp}_note_{oda_project_id}.{file_ext}"
-            file_full_path = os.path.join(NOTE_UPLOAD_FOLDER, saved_filename)
+            r2_note_key = f'oda_notes/{saved_filename}'
 
-            # 기존 파일 삭제
+            # 파일 크기 확인 및 R2 용량 체크
+            file.seek(0, 2)
+            note_file_size = file.tell()
+            file.seek(0)
+            if not check_storage_limit(note_file_size):
+                return jsonify({'success': False, 'message': '스토리지 용량이 부족합니다. (최대 9GB)'}), 400
+
+            # 기존 R2 파일 삭제
             if note and note.file_path:
-                old_path = os.path.join(NOTE_UPLOAD_FOLDER, note.file_path)
-                if os.path.exists(old_path):
-                    try:
-                        os.remove(old_path)
-                    except:
-                        pass
+                try:
+                    delete_file(note.file_path)
+                except Exception:
+                    pass
 
-            file.save(file_full_path)
+            upload_file(file, r2_note_key, content_type=f'application/{file_ext}')
             new_file_name = original_filename
-            new_file_path = saved_filename
-            new_file_size = os.path.getsize(file_full_path)
+            new_file_path = r2_note_key
+            new_file_size = note_file_size
             new_file_type = file_ext
 
         if note:
@@ -489,14 +465,12 @@ def delete_note(current_user, note_id):
     try:
         note = OdaNote.query.get_or_404(note_id)
 
-        # 파일 삭제
+        # R2 파일 삭제
         if note.file_path:
-            file_path = os.path.join(NOTE_UPLOAD_FOLDER, note.file_path)
-            if os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                except:
-                    pass
+            try:
+                delete_file(note.file_path)
+            except Exception:
+                pass
 
         db.session.delete(note)
         db.session.commit()
@@ -519,12 +493,10 @@ def delete_note_file(current_user, note_id):
         note = OdaNote.query.get_or_404(note_id)
 
         if note.file_path:
-            file_path = os.path.join(NOTE_UPLOAD_FOLDER, note.file_path)
-            if os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                except:
-                    pass
+            try:
+                delete_file(note.file_path)
+            except Exception:
+                pass
 
         note.file_name = None
         note.file_path = None
@@ -563,17 +535,11 @@ def download_note_file(note_id):
         if not note.file_path:
             return jsonify({'success': False, 'message': '첨부파일이 없습니다.'}), 404
 
-        file_path = os.path.join(NOTE_UPLOAD_FOLDER, note.file_path)
-        if not os.path.exists(file_path):
-            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
-
         download_name = note.file_name or f'note.{note.file_type or "dat"}'
-
-        return send_file(
-            file_path,
-            as_attachment=True,
-            download_name=download_name
-        )
+        try:
+            return stream_from_r2(note.file_path, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'다운로드 실패: {str(e)}'}), 500

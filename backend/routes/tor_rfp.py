@@ -2,33 +2,15 @@
 TOR/RFP 관리 API
 해외기술용역 과업설명서(TOR) 및 제안요청서(RFP) 관리
 """
-from flask import Blueprint, jsonify, request, current_app, send_file
+from flask import Blueprint, jsonify, request, current_app
 from models import db, TorRfp, ConsultingProject
 from routes.auth import token_required
 from utils.file_naming import make_overseas_tech_filename, make_overseas_tech_disk_filename
+from utils.r2_storage import upload_file, delete_file, check_storage_limit, stream_from_r2
 from datetime import datetime
-import os
 from werkzeug.utils import secure_filename
 
 tor_rfp_bp = Blueprint('tor_rfp', __name__)
-
-
-def resolve_file_path(stored_path, subfolder='tor_rfp'):
-    """크로스 플랫폼 파일 경로 해석.
-    DB에 Windows 절대 경로가 저장되어 있어도 로컬 uploads/ 하위에서 파일을 찾는다."""
-    if not stored_path:
-        return None
-    if os.path.exists(stored_path):
-        return stored_path
-    filename = stored_path.replace('\\', '/').split('/')[-1]
-    upload_folder = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        'uploads', subfolder
-    )
-    local_path = os.path.join(upload_folder, filename)
-    if os.path.exists(local_path):
-        return local_path
-    return None
 
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'hwp', 'zip'}
 
@@ -200,46 +182,46 @@ def create_or_update_tor_rfp(current_user):
                 created_by=current_user.id
             )
 
-        # 업로드 디렉토리 생성
-        upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'tor_rfp')
-        os.makedirs(upload_dir, exist_ok=True)
-
         # TOR 파일 처리
         if 'torFile' in request.files:
             tor_file = request.files['torFile']
             if tor_file and tor_file.filename and allowed_file(tor_file.filename):
-                # 기존 파일 삭제
-                if tor_rfp.tor_file_path and os.path.exists(tor_rfp.tor_file_path):
-                    os.remove(tor_rfp.tor_file_path)
-
+                # 기존 R2 파일 삭제
+                if tor_rfp.tor_file_path:
+                    try:
+                        delete_file(tor_rfp.tor_file_path)
+                    except Exception:
+                        pass
                 original = secure_filename(tor_file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'pdf'
+                tor_file.seek(0, 2); tor_size = tor_file.tell(); tor_file.seek(0)
                 unique_filename = make_overseas_tech_disk_filename('TOR', ext, project, direct_title)
-                file_path = os.path.join(upload_dir, unique_filename)
-                tor_file.save(file_path)
-
+                r2_key = f'tor_rfp/{unique_filename}'
+                upload_file(tor_file, r2_key, content_type=f'application/{ext}')
                 tor_rfp.tor_file_name = make_overseas_tech_filename('TOR', ext, project, direct_title)
-                tor_rfp.tor_file_path = file_path
-                tor_rfp.tor_file_size = os.path.getsize(file_path)
+                tor_rfp.tor_file_path = r2_key
+                tor_rfp.tor_file_size = tor_size
                 tor_rfp.tor_file_type = ext
 
         # RFP 파일 처리
         if 'rfpFile' in request.files:
             rfp_file = request.files['rfpFile']
             if rfp_file and rfp_file.filename and allowed_file(rfp_file.filename):
-                # 기존 파일 삭제
-                if tor_rfp.rfp_file_path and os.path.exists(tor_rfp.rfp_file_path):
-                    os.remove(tor_rfp.rfp_file_path)
-
+                # 기존 R2 파일 삭제
+                if tor_rfp.rfp_file_path:
+                    try:
+                        delete_file(tor_rfp.rfp_file_path)
+                    except Exception:
+                        pass
                 original = secure_filename(rfp_file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'pdf'
+                rfp_file.seek(0, 2); rfp_size = rfp_file.tell(); rfp_file.seek(0)
                 unique_filename = make_overseas_tech_disk_filename('RFP', ext, project, direct_title)
-                file_path = os.path.join(upload_dir, unique_filename)
-                rfp_file.save(file_path)
-
+                r2_key = f'tor_rfp/{unique_filename}'
+                upload_file(rfp_file, r2_key, content_type=f'application/{ext}')
                 tor_rfp.rfp_file_name = make_overseas_tech_filename('RFP', ext, project, direct_title)
-                tor_rfp.rfp_file_path = file_path
-                tor_rfp.rfp_file_size = os.path.getsize(file_path)
+                tor_rfp.rfp_file_path = r2_key
+                tor_rfp.rfp_file_size = rfp_size
                 tor_rfp.rfp_file_type = ext
 
         tor_rfp.updated_by = current_user.id
@@ -313,46 +295,44 @@ def update_tor_rfp(current_user, id):
                 project = ConsultingProject.query.get(tor_rfp.consulting_project_id)
             direct_title = tor_rfp.title or ''
 
-        # 업로드 디렉토리 생성
-        upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'tor_rfp')
-        os.makedirs(upload_dir, exist_ok=True)
-
         # TOR 파일 처리
         if 'torFile' in request.files:
             tor_file = request.files['torFile']
             if tor_file and tor_file.filename and allowed_file(tor_file.filename):
-                # 기존 파일 삭제
-                if tor_rfp.tor_file_path and os.path.exists(tor_rfp.tor_file_path):
-                    os.remove(tor_rfp.tor_file_path)
-
+                if tor_rfp.tor_file_path:
+                    try:
+                        delete_file(tor_rfp.tor_file_path)
+                    except Exception:
+                        pass
                 original = secure_filename(tor_file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'pdf'
+                tor_file.seek(0, 2); tor_size = tor_file.tell(); tor_file.seek(0)
                 unique_filename = make_overseas_tech_disk_filename('TOR', ext, project, direct_title)
-                file_path = os.path.join(upload_dir, unique_filename)
-                tor_file.save(file_path)
-
+                r2_key = f'tor_rfp/{unique_filename}'
+                upload_file(tor_file, r2_key, content_type=f'application/{ext}')
                 tor_rfp.tor_file_name = make_overseas_tech_filename('TOR', ext, project, direct_title)
-                tor_rfp.tor_file_path = file_path
-                tor_rfp.tor_file_size = os.path.getsize(file_path)
+                tor_rfp.tor_file_path = r2_key
+                tor_rfp.tor_file_size = tor_size
                 tor_rfp.tor_file_type = ext
 
         # RFP 파일 처리
         if 'rfpFile' in request.files:
             rfp_file = request.files['rfpFile']
             if rfp_file and rfp_file.filename and allowed_file(rfp_file.filename):
-                # 기존 파일 삭제
-                if tor_rfp.rfp_file_path and os.path.exists(tor_rfp.rfp_file_path):
-                    os.remove(tor_rfp.rfp_file_path)
-
+                if tor_rfp.rfp_file_path:
+                    try:
+                        delete_file(tor_rfp.rfp_file_path)
+                    except Exception:
+                        pass
                 original = secure_filename(rfp_file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'pdf'
+                rfp_file.seek(0, 2); rfp_size = rfp_file.tell(); rfp_file.seek(0)
                 unique_filename = make_overseas_tech_disk_filename('RFP', ext, project, direct_title)
-                file_path = os.path.join(upload_dir, unique_filename)
-                rfp_file.save(file_path)
-
+                r2_key = f'tor_rfp/{unique_filename}'
+                upload_file(rfp_file, r2_key, content_type=f'application/{ext}')
                 tor_rfp.rfp_file_name = make_overseas_tech_filename('RFP', ext, project, direct_title)
-                tor_rfp.rfp_file_path = file_path
-                tor_rfp.rfp_file_size = os.path.getsize(file_path)
+                tor_rfp.rfp_file_path = r2_key
+                tor_rfp.rfp_file_size = rfp_size
                 tor_rfp.rfp_file_type = ext
 
         tor_rfp.updated_by = current_user.id
@@ -383,9 +363,11 @@ def delete_tor(current_user, id):
 
         tor_rfp = TorRfp.query.get_or_404(id)
 
-        resolved = resolve_file_path(tor_rfp.tor_file_path)
-        if resolved:
-            os.remove(resolved)
+        if tor_rfp.tor_file_path:
+            try:
+                delete_file(tor_rfp.tor_file_path)
+            except Exception:
+                pass
 
         tor_rfp.tor_file_name = None
         tor_rfp.tor_file_path = None
@@ -421,9 +403,11 @@ def delete_rfp(current_user, id):
 
         tor_rfp = TorRfp.query.get_or_404(id)
 
-        resolved = resolve_file_path(tor_rfp.rfp_file_path)
-        if resolved:
-            os.remove(resolved)
+        if tor_rfp.rfp_file_path:
+            try:
+                delete_file(tor_rfp.rfp_file_path)
+            except Exception:
+                pass
 
         tor_rfp.rfp_file_name = None
         tor_rfp.rfp_file_path = None
@@ -456,18 +440,16 @@ def download_tor(current_user, id):
     try:
         tor_rfp = TorRfp.query.get_or_404(id)
 
-        resolved = resolve_file_path(tor_rfp.tor_file_path)
-        if not resolved:
+        if not tor_rfp.tor_file_path:
             return jsonify({'success': False, 'message': 'TOR 파일을 찾을 수 없습니다.'}), 404
 
         project = ConsultingProject.query.get(tor_rfp.consulting_project_id) if tor_rfp.consulting_project_id else None
         ext = '.' + tor_rfp.tor_file_type if tor_rfp.tor_file_type else '.pdf'
         download_name = make_overseas_tech_filename('TOR', ext, project, tor_rfp.title)
-        return send_file(
-            resolved,
-            as_attachment=True,
-            download_name=download_name
-        )
+        try:
+            return stream_from_r2(tor_rfp.tor_file_path, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': 'TOR 파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         current_app.logger.error(f'TOR 다운로드 오류: {str(e)}')
@@ -481,18 +463,16 @@ def download_rfp(current_user, id):
     try:
         tor_rfp = TorRfp.query.get_or_404(id)
 
-        resolved = resolve_file_path(tor_rfp.rfp_file_path)
-        if not resolved:
+        if not tor_rfp.rfp_file_path:
             return jsonify({'success': False, 'message': 'RFP 파일을 찾을 수 없습니다.'}), 404
 
         project = ConsultingProject.query.get(tor_rfp.consulting_project_id) if tor_rfp.consulting_project_id else None
         ext = '.' + tor_rfp.rfp_file_type if tor_rfp.rfp_file_type else '.pdf'
         download_name = make_overseas_tech_filename('RFP', ext, project, tor_rfp.title)
-        return send_file(
-            resolved,
-            as_attachment=True,
-            download_name=download_name
-        )
+        try:
+            return stream_from_r2(tor_rfp.rfp_file_path, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': 'RFP 파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         current_app.logger.error(f'RFP 다운로드 오류: {str(e)}')
@@ -510,18 +490,16 @@ def preview_tor(id):
 
         tor_rfp = TorRfp.query.get_or_404(id)
 
-        resolved = resolve_file_path(tor_rfp.tor_file_path)
-        if not resolved:
+        if not tor_rfp.tor_file_path:
             return jsonify({'success': False, 'message': 'TOR 파일을 찾을 수 없습니다.'}), 404
 
         project = ConsultingProject.query.get(tor_rfp.consulting_project_id) if tor_rfp.consulting_project_id else None
         ext = '.' + tor_rfp.tor_file_type if tor_rfp.tor_file_type else '.pdf'
         download_name = make_overseas_tech_filename('TOR', ext, project, tor_rfp.title)
-        return send_file(
-            resolved,
-            as_attachment=False,
-            download_name=download_name
-        )
+        try:
+            return stream_from_r2(tor_rfp.tor_file_path, content_type='application/pdf', inline=True, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': 'TOR 파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         current_app.logger.error(f'TOR 미리보기 오류: {str(e)}')
@@ -532,25 +510,22 @@ def preview_tor(id):
 def preview_rfp(id):
     """RFP 파일 미리보기 (새창에서 inline 표시)"""
     try:
-        # URL 파라미터로 토큰 받기 (새창 열기용)
         token = request.args.get('token')
         if not token:
             return jsonify({'success': False, 'message': '인증 토큰이 필요합니다.'}), 401
 
         tor_rfp = TorRfp.query.get_or_404(id)
 
-        resolved = resolve_file_path(tor_rfp.rfp_file_path)
-        if not resolved:
+        if not tor_rfp.rfp_file_path:
             return jsonify({'success': False, 'message': 'RFP 파일을 찾을 수 없습니다.'}), 404
 
         project = ConsultingProject.query.get(tor_rfp.consulting_project_id) if tor_rfp.consulting_project_id else None
         ext = '.' + tor_rfp.rfp_file_type if tor_rfp.rfp_file_type else '.pdf'
         download_name = make_overseas_tech_filename('RFP', ext, project, tor_rfp.title)
-        return send_file(
-            resolved,
-            as_attachment=False,
-            download_name=download_name
-        )
+        try:
+            return stream_from_r2(tor_rfp.rfp_file_path, content_type='application/pdf', inline=True, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': 'RFP 파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         current_app.logger.error(f'RFP 미리보기 오류: {str(e)}')

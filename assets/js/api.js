@@ -65,8 +65,8 @@ async function apiCall(endpoint, options = {}) {
         // Check if unauthorized and redirect to login
         if (response.status === 401) {
             console.error('❌ 401 Unauthorized - 로그인 페이지로 리다이렉트');
+            // 토큰만 제거 (gbms_user는 유지 — 토큰 갱신 후 saveSessionAndRedirect에서 재활용)
             localStorage.removeItem('gbms_token');
-            localStorage.removeItem('gbms_user');
             sessionStorage.removeItem('gbms_token');
             sessionStorage.removeItem('gbms_user');
             // 상대 경로 사용 (페이지 위치에 관계없이 작동)
@@ -114,7 +114,6 @@ async function apiCallFormData(endpoint, method = 'POST', formData) {
 
         if (response.status === 401) {
             localStorage.removeItem('gbms_token');
-            localStorage.removeItem('gbms_user');
             sessionStorage.removeItem('gbms_token');
             sessionStorage.removeItem('gbms_user');
             window.location.href = '../../index.html';

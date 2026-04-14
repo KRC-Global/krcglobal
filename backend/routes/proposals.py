@@ -1,12 +1,12 @@
 """
 제안서 관리 API
 """
-from flask import Blueprint, jsonify, request, current_app, send_file
+from flask import Blueprint, jsonify, request, current_app
 from models import db, Proposal, SystemConfig, ConsultingProject
 from routes.auth import token_required
 from utils.file_naming import make_overseas_tech_filename, make_overseas_tech_disk_filename
+from utils.r2_storage import upload_file, delete_file, check_storage_limit, stream_from_r2
 from datetime import datetime
-import os
 from werkzeug.utils import secure_filename
 
 proposals_bp = Blueprint('proposals', __name__)
@@ -128,17 +128,15 @@ def create_proposal(current_user):
             if file and file.filename and allowed_file(file.filename):
                 original = secure_filename(file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'pdf'
+                file.seek(0, 2); t_size = file.tell(); file.seek(0)
+                if not check_storage_limit(t_size):
+                    return jsonify({'success': False, 'message': '스토리지 용량이 부족합니다.'}), 400
                 unique_filename = make_overseas_tech_disk_filename('기술제안서', ext, _proj, proposal.title, _fallback_year)
-
-                upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'proposals')
-                os.makedirs(upload_dir, exist_ok=True)
-
-                file_path = os.path.join(upload_dir, unique_filename)
-                file.save(file_path)
-
+                r2_key = f'proposals/{unique_filename}'
+                upload_file(file, r2_key, content_type=f'application/{ext}')
                 proposal.technical_file_name = make_overseas_tech_filename('기술제안서', ext, _proj, proposal.title, _fallback_year)
-                proposal.technical_file_path = unique_filename  # 파일명만 저장 (플랫폼 독립적)
-                proposal.technical_file_size = os.path.getsize(file_path)
+                proposal.technical_file_path = r2_key
+                proposal.technical_file_size = t_size
 
         # 가격제안서 파일 처리
         if 'priceFile' in request.files:
@@ -146,17 +144,15 @@ def create_proposal(current_user):
             if file and file.filename and allowed_file(file.filename):
                 original = secure_filename(file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'pdf'
+                file.seek(0, 2); p_size = file.tell(); file.seek(0)
+                if not check_storage_limit(p_size):
+                    return jsonify({'success': False, 'message': '스토리지 용량이 부족합니다.'}), 400
                 unique_filename = make_overseas_tech_disk_filename('가격제안서', ext, _proj, proposal.title, _fallback_year)
-
-                upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'proposals')
-                os.makedirs(upload_dir, exist_ok=True)
-
-                file_path = os.path.join(upload_dir, unique_filename)
-                file.save(file_path)
-
+                r2_key = f'proposals/{unique_filename}'
+                upload_file(file, r2_key, content_type=f'application/{ext}')
                 proposal.price_file_name = make_overseas_tech_filename('가격제안서', ext, _proj, proposal.title, _fallback_year)
-                proposal.price_file_path = unique_filename  # 파일명만 저장 (플랫폼 독립적)
-                proposal.price_file_size = os.path.getsize(file_path)
+                proposal.price_file_path = r2_key
+                proposal.price_file_size = p_size
 
         db.session.add(proposal)
         db.session.commit()
@@ -221,49 +217,41 @@ def update_proposal(current_user, id):
         if 'technicalFile' in request.files:
             file = request.files['technicalFile']
             if file and file.filename and allowed_file(file.filename):
-                upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'proposals')
-
-                # 기존 파일 삭제
+                # 기존 R2 파일 삭제
                 if proposal.technical_file_path:
-                    old_file_path = os.path.join(upload_dir, proposal.technical_file_path)
-                    if os.path.exists(old_file_path):
-                        os.remove(old_file_path)
-
+                    try:
+                        delete_file(proposal.technical_file_path)
+                    except Exception:
+                        pass
                 original = secure_filename(file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'pdf'
+                file.seek(0, 2); t_size = file.tell(); file.seek(0)
                 unique_filename = make_overseas_tech_disk_filename('기술제안서', ext, _upd_proj, proposal.title, _upd_year)
-
-                os.makedirs(upload_dir, exist_ok=True)
-                file_path = os.path.join(upload_dir, unique_filename)
-                file.save(file_path)
-
+                r2_key = f'proposals/{unique_filename}'
+                upload_file(file, r2_key, content_type=f'application/{ext}')
                 proposal.technical_file_name = make_overseas_tech_filename('기술제안서', ext, _upd_proj, proposal.title, _upd_year)
-                proposal.technical_file_path = unique_filename  # 파일명만 저장 (플랫폼 독립적)
-                proposal.technical_file_size = os.path.getsize(file_path)
+                proposal.technical_file_path = r2_key
+                proposal.technical_file_size = t_size
 
         # 가격제안서 파일 업로드
         if 'priceFile' in request.files:
             file = request.files['priceFile']
             if file and file.filename and allowed_file(file.filename):
-                upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'proposals')
-
-                # 기존 파일 삭제
+                # 기존 R2 파일 삭제
                 if proposal.price_file_path:
-                    old_file_path = os.path.join(upload_dir, proposal.price_file_path)
-                    if os.path.exists(old_file_path):
-                        os.remove(old_file_path)
-
+                    try:
+                        delete_file(proposal.price_file_path)
+                    except Exception:
+                        pass
                 original = secure_filename(file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'pdf'
+                file.seek(0, 2); p_size = file.tell(); file.seek(0)
                 unique_filename = make_overseas_tech_disk_filename('가격제안서', ext, _upd_proj, proposal.title, _upd_year)
-
-                os.makedirs(upload_dir, exist_ok=True)
-                file_path = os.path.join(upload_dir, unique_filename)
-                file.save(file_path)
-
+                r2_key = f'proposals/{unique_filename}'
+                upload_file(file, r2_key, content_type=f'application/{ext}')
                 proposal.price_file_name = make_overseas_tech_filename('가격제안서', ext, _upd_proj, proposal.title, _upd_year)
-                proposal.price_file_path = unique_filename  # 파일명만 저장 (플랫폼 독립적)
-                proposal.price_file_size = os.path.getsize(file_path)
+                proposal.price_file_path = r2_key
+                proposal.price_file_size = p_size
 
         db.session.commit()
 
@@ -285,19 +273,17 @@ def delete_proposal(current_user, id):
     try:
         proposal = Proposal.query.get_or_404(id)
 
-        upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'proposals')
-
-        # 기술제안서 파일 삭제
+        # R2 파일 삭제
         if proposal.technical_file_path:
-            tech_file_path = os.path.join(upload_dir, proposal.technical_file_path)
-            if os.path.exists(tech_file_path):
-                os.remove(tech_file_path)
-
-        # 가격제안서 파일 삭제
+            try:
+                delete_file(proposal.technical_file_path)
+            except Exception:
+                pass
         if proposal.price_file_path:
-            price_file_path = os.path.join(upload_dir, proposal.price_file_path)
-            if os.path.exists(price_file_path):
-                os.remove(price_file_path)
+            try:
+                delete_file(proposal.price_file_path)
+            except Exception:
+                pass
 
         db.session.delete(proposal)
         db.session.commit()
@@ -342,42 +328,17 @@ def download_file(current_user, id):
         if not file_relative_path:
             return jsonify({'success': False, 'message': f'{file_prefix} 파일 경로가 없습니다.'}), 404
 
-        # 파일 경로 생성 (파일명만 저장되어 있으므로 upload_dir과 결합)
-        upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'proposals')
-        file_path = os.path.join(upload_dir, file_relative_path)
-
-        # 파일이 없으면 확장자(.pdf)를 추가해서 다시 시도
-        if not os.path.exists(file_path):
-            # 확장자가 없는 경우 .pdf 추가
-            if not os.path.splitext(file_relative_path)[1]:
-                file_path_with_ext = file_path + '.pdf'
-                if os.path.exists(file_path_with_ext):
-                    file_path = file_path_with_ext
-                    file_relative_path = file_relative_path + '.pdf'
-
-        if not os.path.exists(file_path):
-            current_app.logger.error(f'제안서 파일 없음: {file_path}')
-            return jsonify({'success': False, 'message': f'파일을 찾을 수 없습니다: {file_relative_path}'}), 404
-
-        # 파일명 생성: 사업연도_사업명_문서유형.ext
         _dl_proj = ConsultingProject.query.get(proposal.consulting_project_id) if proposal.consulting_project_id else None
         _dl_year = proposal.submission_date.year if proposal.submission_date else None
         doc_label = '가격제안서' if file_type == 'price' else '기술제안서'
-
-        # 실제 파일 확장자 추출
-        file_ext = os.path.splitext(file_relative_path)[1]  # .pdf, .docx 등
-        if not file_ext:
-            file_ext = '.pdf'  # 확장자가 없으면 기본값
-
+        file_ext = file_relative_path.rsplit('.', 1)[1] if '.' in file_relative_path else 'pdf'
         download_name = make_overseas_tech_filename(doc_label, file_ext, _dl_proj, proposal.title, _dl_year)
 
-        # 미리보기 모드 (as_attachment=False로 브라우저에서 표시)
-        return send_file(
-            file_path,
-            mimetype='application/pdf',
-            as_attachment=False,
-            download_name=download_name
-        )
+        try:
+            return stream_from_r2(file_relative_path, content_type='application/pdf', inline=True, download_name=download_name)
+        except Exception as e:
+            current_app.logger.error(f'제안서 R2 스트리밍 오류: {str(e)}')
+            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         import traceback

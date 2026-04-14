@@ -2,25 +2,17 @@
 GBMS - Contracts Routes
 글로벌사업처 해외사업관리시스템 - 해외기술용역 계약서관리 API
 """
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify
 from datetime import datetime
 from werkzeug.utils import secure_filename
-import os
 from models import db, Contract, ConsultingProject, ActivityLog
 from routes.auth import token_required, admin_required, permission_required
 from utils.file_naming import make_overseas_tech_filename, make_overseas_tech_disk_filename
+from utils.r2_storage import upload_file, delete_file, check_storage_limit, stream_from_r2
 
 contracts_bp = Blueprint('contracts', __name__)
 
-# 업로드 디렉토리 설정
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads', 'contracts')
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx', 'zip'}
-
-# 업로드 폴더 생성 (Vercel 등 읽기 전용 파일시스템에서는 무시)
-try:
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-except OSError:
-    pass
 
 
 def allowed_file(filename):
@@ -160,9 +152,15 @@ def upload_contract(current_user):
                 order_number=order_number
             ).first()
 
-        # 파일 저장
+        # 파일 크기 확인 및 R2 용량 체크
         filename = secure_filename(file.filename)
         file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'pdf'
+
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+        if not check_storage_limit(file_size):
+            return jsonify({'success': False, 'message': '스토리지 용량이 부족합니다. (최대 9GB)'}), 400
 
         # 파일명 생성 (문서 유형에 따라 다르게)
         if document_type == 'final_report':
@@ -171,27 +169,22 @@ def upload_contract(current_user):
         else:
             doc_label = f'{order_number}차계약서'
         new_filename = make_overseas_tech_disk_filename(doc_label, file_ext, project)
+        r2_key = f'contracts/{new_filename}'
 
-        file_path = os.path.join(UPLOAD_FOLDER, new_filename)
-
-        # 기존 파일 삭제 (업데이트인 경우)
+        # 기존 R2 파일 삭제 (업데이트인 경우)
         if existing_contract and existing_contract.file_path:
-            old_file_path = os.path.join(UPLOAD_FOLDER, existing_contract.file_path)
-            if os.path.exists(old_file_path):
-                try:
-                    os.remove(old_file_path)
-                except:
-                    pass
+            try:
+                delete_file(existing_contract.file_path)
+            except Exception:
+                pass
 
-        file.save(file_path)
-        file_size = os.path.getsize(file_path)
-
+        upload_file(file, r2_key, content_type=f'application/{file_ext}')
         standard_name = make_overseas_tech_filename(doc_label, file_ext, project)
 
         if existing_contract:
-            # 기존 문서 업데이트 (파일명만 저장 - 플랫폼 독립적)
+            # 기존 문서 업데이트
             existing_contract.file_name = standard_name
-            existing_contract.file_path = new_filename  # 파일명만 저장
+            existing_contract.file_path = r2_key
             existing_contract.file_size = file_size
             existing_contract.file_type = file_ext
             existing_contract.description = description
@@ -211,7 +204,7 @@ def upload_contract(current_user):
                 document_type=document_type,
                 order_number=order_number,
                 file_name=standard_name,
-                file_path=new_filename,  # 파일명만 저장
+                file_path=r2_key,
                 file_size=file_size,
                 file_type=file_ext,
                 description=description,
@@ -262,12 +255,12 @@ def delete_contract(current_user, contract_id):
     try:
         contract = Contract.query.get_or_404(contract_id)
 
-        # 파일 삭제
-        if contract.file_path and os.path.exists(contract.file_path):
+        # R2 파일 삭제
+        if contract.file_path:
             try:
-                os.remove(contract.file_path)
+                delete_file(contract.file_path)
             except Exception as e:
-                print(f"파일 삭제 실패: {str(e)}")
+                print(f"R2 파일 삭제 실패: {str(e)}")
 
         # 활동 로그
         log = ActivityLog(
@@ -303,13 +296,6 @@ def download_contract_file(current_user, id):
         if not contract.file_path:
             return jsonify({'success': False, 'message': '파일이 없습니다.'}), 404
 
-        # 파일명만 저장되어 있으므로 UPLOAD_FOLDER와 결합
-        file_path = os.path.join(UPLOAD_FOLDER, contract.file_path)
-
-        if not os.path.exists(file_path):
-            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
-
-        # 다운로드 파일명 생성
         project = ConsultingProject.query.get(contract.consulting_project_id)
         if contract.document_type == 'final_report':
             lang_text = '국문' if contract.order_number == 1 else '영문'
@@ -320,7 +306,10 @@ def download_contract_file(current_user, id):
         file_ext = contract.file_type if contract.file_type else 'pdf'
         download_name = make_overseas_tech_filename(doc_label, file_ext, project)
 
-        return send_file(file_path, as_attachment=True, download_name=download_name)
+        try:
+            return stream_from_r2(contract.file_path, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'다운로드 실패: {str(e)}'}), 500
@@ -347,16 +336,7 @@ def download_contract(contract_id):
         if not contract.file_path:
             return jsonify({'success': False, 'message': '파일 경로가 없습니다.'}), 404
 
-        # 파일 경로 생성 (파일명만 저장되어 있으므로 UPLOAD_FOLDER와 결합)
-        file_path = os.path.join(UPLOAD_FOLDER, contract.file_path)
-
-        if not os.path.exists(file_path):
-            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
-
-        # 프로젝트 정보 가져오기
         project = ConsultingProject.query.get(contract.consulting_project_id)
-
-        # 다운로드 파일명 생성: 사업연도_사업명_문서유형.ext
         if contract.document_type == 'final_report':
             lang_text = '국문' if contract.order_number == 1 else '영문'
             doc_label = f'최종보고서_{lang_text}'
@@ -366,11 +346,10 @@ def download_contract(contract_id):
         file_ext = contract.file_type if contract.file_type else 'pdf'
         download_name = make_overseas_tech_filename(doc_label, file_ext, project)
 
-        return send_file(
-            file_path,
-            as_attachment=True,
-            download_name=download_name
-        )
+        try:
+            return stream_from_r2(contract.file_path, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'다운로드 실패: {str(e)}'}), 500
@@ -399,19 +378,11 @@ def preview_contract(contract_id):
         if not contract.file_path:
             return '<html><body><h1>오류</h1><p>파일 경로가 없습니다.</p></body></html>', 404
 
-        # 파일 경로 생성 (파일명만 저장되어 있으므로 UPLOAD_FOLDER와 결합)
-        file_path = os.path.join(UPLOAD_FOLDER, contract.file_path)
-
-        if not os.path.exists(file_path):
-            return f'<html><body><h1>오류</h1><p>파일을 찾을 수 없습니다: {contract.file_path}</p></body></html>', 404
-
-        # PDF는 브라우저에서 직접 표시 (다운로드 아님)
         mimetype = 'application/pdf' if contract.file_type == 'pdf' else f'application/{contract.file_type}'
-        return send_file(
-            file_path,
-            mimetype=mimetype,
-            as_attachment=False  # 미리보기 모드 (다운로드 X)
-        )
+        try:
+            return stream_from_r2(contract.file_path, content_type=mimetype, inline=True)
+        except Exception:
+            return '<html><body><h1>오류</h1><p>파일을 찾을 수 없습니다.</p></body></html>', 404
 
     except Exception as e:
         return f'<html><body><h1>오류</h1><p>미리보기 실패: {str(e)}</p></body></html>', 500

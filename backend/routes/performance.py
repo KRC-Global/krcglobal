@@ -1,14 +1,12 @@
 """
 실적관리 (준공증명서) API
 """
-from flask import Blueprint, jsonify, request, current_app, send_file
+from flask import Blueprint, jsonify, request, current_app
 from models import db, PerformanceRecord, ConsultingProject
 from routes.auth import token_required
 from utils.file_naming import make_overseas_tech_filename, make_overseas_tech_disk_filename
+from utils.r2_storage import upload_file, delete_file, check_storage_limit, stream_from_r2
 from datetime import datetime
-import os
-import io
-import tempfile
 from werkzeug.utils import secure_filename
 
 performance_bp = Blueprint('performance', __name__)
@@ -256,24 +254,22 @@ def create_record(current_user):
         if end_date:
             record.end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
-        # 파일 처리 (준공증명서)
+        # 파일 처리 (준공증명서) - R2 업로드
         if 'file' in request.files:
             file = request.files['file']
             if file and file.filename and allowed_file(file.filename):
                 original = secure_filename(file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'pdf'
+                file.seek(0, 2); f_size = file.tell(); file.seek(0)
+                if not check_storage_limit(f_size):
+                    return jsonify({'success': False, 'message': '스토리지 용량이 부족합니다.'}), 400
                 _fallback_year = record.contract_date.year if record.contract_date else None
                 unique_filename = make_overseas_tech_disk_filename('준공증명서', ext, project, record.title, _fallback_year)
-
-                upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'performance')
-                os.makedirs(upload_dir, exist_ok=True)
-
-                file_path = os.path.join(upload_dir, unique_filename)
-                file.save(file_path)
-
+                r2_key = f'performance/{unique_filename}'
+                upload_file(file, r2_key, content_type=f'application/{ext}')
                 record.file_name = make_overseas_tech_filename('준공증명서', ext, project, record.title, _fallback_year)
-                record.file_path = unique_filename  # 파일명만 저장 (플랫폼 독립적)
-                record.file_size = os.path.getsize(file_path)
+                record.file_path = r2_key
+                record.file_size = f_size
 
         db.session.add(record)
         db.session.commit()
@@ -359,29 +355,26 @@ def update_record(current_user, id):
         if end_date:
             record.end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
-        # 새 파일 업로드
+        # 새 파일 업로드 - R2
         if 'file' in request.files:
             file = request.files['file']
             if file and file.filename and allowed_file(file.filename):
-                # 기존 파일 삭제
-                if record.file_path and os.path.exists(record.file_path):
-                    os.remove(record.file_path)
-
+                if record.file_path:
+                    try:
+                        delete_file(record.file_path)
+                    except Exception:
+                        pass
                 original = secure_filename(file.filename)
                 ext = original.rsplit('.', 1)[1].lower() if '.' in original else 'pdf'
+                file.seek(0, 2); f_size = file.tell(); file.seek(0)
                 _upd_proj = ConsultingProject.query.get(record.consulting_project_id) if record.consulting_project_id else None
                 _upd_year = record.contract_date.year if record.contract_date else None
                 unique_filename = make_overseas_tech_disk_filename('준공증명서', ext, _upd_proj, record.title, _upd_year)
-
-                upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'performance')
-                os.makedirs(upload_dir, exist_ok=True)
-
-                file_path = os.path.join(upload_dir, unique_filename)
-                file.save(file_path)
-
+                r2_key = f'performance/{unique_filename}'
+                upload_file(file, r2_key, content_type=f'application/{ext}')
                 record.file_name = make_overseas_tech_filename('준공증명서', ext, _upd_proj, record.title, _upd_year)
-                record.file_path = unique_filename  # 파일명만 저장 (플랫폼 독립적)
-                record.file_size = os.path.getsize(file_path)
+                record.file_path = r2_key
+                record.file_size = f_size
 
         db.session.commit()
 
@@ -403,9 +396,12 @@ def delete_record(current_user, id):
     try:
         record = PerformanceRecord.query.get_or_404(id)
 
-        # 파일 삭제
-        if record.file_path and os.path.exists(record.file_path):
-            os.remove(record.file_path)
+        # R2 파일 삭제
+        if record.file_path:
+            try:
+                delete_file(record.file_path)
+            except Exception:
+                pass
 
         db.session.delete(record)
         db.session.commit()
@@ -430,29 +426,15 @@ def download_file(current_user, id):
         if not record.file_path:
             return jsonify({'success': False, 'message': '파일 경로가 없습니다.'}), 404
 
-        # 파일 경로 생성 (파일명만 저장되어 있으므로 upload_dir과 결합)
-        upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'performance')
-        file_path = os.path.join(upload_dir, record.file_path)
-
-        if not os.path.exists(file_path):
-            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
-
-        # 파일명 생성: 사업연도_사업명_준공증명서.ext
         _dl_proj = ConsultingProject.query.get(record.consulting_project_id) if record.consulting_project_id else None
         _dl_year = record.contract_date.year if record.contract_date else None
-
-        # 실제 파일 확장자 추출
-        file_ext = os.path.splitext(record.file_path)[1]  # .pdf, .zip 등
-        if not file_ext:
-            file_ext = '.pdf'  # 확장자가 없으면 기본값
-
+        file_ext = '.' + record.file_path.rsplit('.', 1)[1] if '.' in record.file_path else '.pdf'
         download_name = make_overseas_tech_filename('준공증명서', file_ext, _dl_proj, record.title, _dl_year)
 
-        return send_file(
-            file_path,
-            as_attachment=True,
-            download_name=download_name
-        )
+        try:
+            return stream_from_r2(record.file_path, download_name=download_name)
+        except Exception:
+            return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
 
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
@@ -479,19 +461,10 @@ def preview_file(id):
         if not record.file_path:
             return jsonify({'success': False, 'message': '파일 경로가 없습니다.'}), 404
 
-        # 파일 경로 생성 (파일명만 저장되어 있으므로 upload_dir과 결합)
-        upload_dir = os.path.join(current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'performance')
-        file_path = os.path.join(upload_dir, record.file_path)
-
-        if not os.path.exists(file_path):
+        try:
+            return stream_from_r2(record.file_path, content_type='application/pdf', inline=True)
+        except Exception:
             return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
-
-        # PDF 파일을 브라우저에서 직접 표시 (미리보기 모드)
-        return send_file(
-            file_path,
-            mimetype='application/pdf',
-            as_attachment=False  # 미리보기 모드
-        )
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'미리보기 실패: {str(e)}'}), 500

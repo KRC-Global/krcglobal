@@ -139,7 +139,16 @@
                 console.error('백엔드 사용자 정보 조회 실패:', e);
             }
 
-            // 백엔드 연결 실패 시 pending으로 대기
+            // 백엔드 연결 실패 시 — 기존에 승인된 세션이 있으면 그대로 대시보드로
+            const existingUser = JSON.parse(localStorage.getItem('gbms_user') || '{}');
+            if (existingUser.permissionScope && existingUser.permissionScope !== 'pending') {
+                // 토큰만 갱신, 권한은 기존 유지 (백엔드 일시 장애 대응)
+                localStorage.setItem('gbms_token', session.access_token);
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            // 신규 사용자이거나 기존에도 pending이었던 경우
             const user = session.user;
             const userInfo = {
                 id: user.id,

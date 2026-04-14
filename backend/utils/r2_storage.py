@@ -88,3 +88,25 @@ def generate_presigned_url(key, expires_in=3600):
         Params={'Bucket': bucket, 'Key': key},
         ExpiresIn=expires_in
     )
+
+
+def stream_from_r2(key, content_type=None, download_name=None, inline=False):
+    """R2 파일을 Flask Response로 스트리밍 (프록시 방식)
+    Args:
+        key: R2 오브젝트 키
+        content_type: 응답 Content-Type (None이면 R2 메타데이터 사용)
+        download_name: 다운로드 파일명 (None이면 키 마지막 세그먼트 사용)
+        inline: True면 브라우저 미리보기, False면 다운로드
+    Returns:
+        Flask Response (streaming)
+    """
+    from flask import Response, stream_with_context
+    obj = download_file(key)
+    actual_content_type = content_type or obj.get('ContentType', 'application/octet-stream')
+    filename = download_name or key.split('/')[-1]
+    disposition = 'inline' if inline else f'attachment; filename="{filename}"'
+    return Response(
+        stream_with_context(obj['Body'].iter_chunks(chunk_size=8192)),
+        content_type=actual_content_type,
+        headers={'Content-Disposition': disposition}
+    )
