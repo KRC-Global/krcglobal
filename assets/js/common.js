@@ -306,7 +306,12 @@ function requireAuth(loginPath) {
 /**
  * 로그아웃
  */
-function logout() {
+async function logout() {
+    // Supabase 세션 완전 삭제 (Google OAuth 세션 포함)
+    if (window.supabaseClient) {
+        try { await window.supabaseClient.auth.signOut(); } catch (e) {}
+    }
+
     localStorage.removeItem('gbms_token');
     localStorage.removeItem('gbms_user');
     sessionStorage.removeItem('gbms_token');
