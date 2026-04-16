@@ -703,10 +703,10 @@
                             <tr>
                                 <th style="width:160px;">실행 시각</th>
                                 <th style="width:80px;">트리거</th>
-                                <th style="width:70px;">수집</th>
-                                <th style="width:70px;">신규</th>
-                                <th style="width:70px;">중복</th>
-                                <th>소스별</th>
+                                <th style="width:70px;">발견</th>
+                                <th style="width:70px;">신규 저장</th>
+                                <th style="width:70px;">기존 중복</th>
+                                <th>소스별 발견 건수</th>
                             </tr>
                         </thead>
                         <tbody id="historyTableBody">
@@ -750,6 +750,10 @@
             <!-- /상단 고정 영역 -->
 
             <!-- 뉴스피드 -->
+            <div class="feed-list-header" id="feedListHeader" style="padding:8px 2px 10px; font-size:13px; color:var(--color-neutral-600); display:flex; justify-content:space-between; align-items:baseline;">
+                <span><b id="feedTotalCount">0</b>건의 공고 <span id="feedPageRange" style="color:var(--color-neutral-500);"></span></span>
+                <span id="feedFilterHint" style="font-size:12px; color:var(--color-neutral-500);"></span>
+            </div>
             <div class="feed-list" id="noticeFeed">
                 <div class="feed-empty">데이터를 불러오는 중...</div>
             </div>
@@ -943,7 +947,7 @@
                 trigEl.className = 'trigger-pill' + (r.trigger === 'manual' ? ' manual' : '');
 
                 document.getElementById('statusTotals').innerHTML =
-                    `수집 <b>${r.totalFound}</b>건 · 신규 <b>${r.totalCreated}</b>건 · 중복 ${r.totalSkipped}건`;
+                    `이번 실행 발견 <b>${r.totalFound}</b>건 · 신규 저장 <b>${r.totalCreated}</b>건 · 기존 중복 ${r.totalSkipped}건`;
 
                 const chips = (r.sources || []).map(renderSourceChip).join('');
                 document.getElementById('statusChips').innerHTML = chips || '<span class="status-meta">소스 없음</span>';
@@ -1025,9 +1029,25 @@
                     return;
                 }
                 // 게시판식 역순 일련번호 — 현재 필터 결과 총건수 기준
-                const startNo = (data.total || 0) - (page - 1) * NOTICES_PER_PAGE;
-                renderFeed(data.data, startNo, data.total || 0);
+                const total = data.total || 0;
+                const startNo = total - (page - 1) * NOTICES_PER_PAGE;
+                renderFeed(data.data, startNo, total);
                 renderPagination(data.currentPage, data.pages);
+
+                // 상단 헤더: 총건수 + 페이지 범위 + 필터 힌트
+                document.getElementById('feedTotalCount').textContent = total;
+                const shown = (data.data || []).length;
+                const rangeEnd = startNo;
+                const rangeStart = startNo - shown + 1;
+                document.getElementById('feedPageRange').textContent =
+                    (shown > 0) ? `(${rangeStart}–${rangeEnd} 표시)` : '';
+                const hints = [];
+                if (source)  hints.push(`기관=${source.toUpperCase()}`);
+                if (country) hints.push(`국가=${country}`);
+                if (status)  hints.push(`상태=${STATUS_LABELS[status] || status}`);
+                if (search)  hints.push(`검색="${search}"`);
+                document.getElementById('feedFilterHint').textContent =
+                    hints.length ? '필터 적용: ' + hints.join(' · ') : '';
             } catch (e) {
                 feed.innerHTML = '<div class="feed-empty" style="color:#dc3545;">오류가 발생했습니다.</div>';
             }
