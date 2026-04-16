@@ -148,6 +148,43 @@ def _is_stale_pub(pub_date_str: str, days: int = 60) -> bool:
         return False
 
 
+# 수집 공통 최근성 컷오프 — 게시 후 이 기간 지나면 "과거 사업"으로 간주하고 제외
+DEFAULT_FRESHNESS_DAYS = 90
+
+
+def _is_stale_date(date_str: str, days: int = DEFAULT_FRESHNESS_DAYS) -> bool:
+    """범용 날짜 문자열(ISO, YYYY-MM-DD, YYYY.MM.DD, 'Month DD, YYYY' 등) 기준
+    N일 이전에 게시됐으면 True. 파싱 실패 시 False(유지 — 과잉 제외 방지).
+    """
+    if not date_str:
+        return False
+    d = _parse_date_any(date_str)
+    if d is None:
+        # 'April 15, 2026' 형식 재시도
+        for fmt in ('%B %d, %Y', '%b %d, %Y', '%d %B %Y', '%d %b %Y'):
+            try:
+                d = datetime.strptime(str(date_str).strip(), fmt).date()
+                break
+            except ValueError:
+                continue
+    if d is None:
+        return False
+    age = (datetime.utcnow().date() - d).days
+    return age > days
+
+
+def _is_current_year_or_recent(url_or_text: str, max_years_back: int = 1) -> bool:
+    """URL 또는 텍스트에서 연도를 추출해 '현재 연도 - max_years_back' 이상이면 True.
+    현재 연도보다 오래된 공고(아카이브)를 걸러내기 위한 빠른 체크."""
+    current_year = datetime.utcnow().year
+    threshold = current_year - max_years_back
+    for ym in re.findall(r'\b(20\d{2})\b', url_or_text or ''):
+        if int(ym) >= threshold:
+            return True
+    # 연도 표기가 없으면 보수적으로 통과(= True)
+    return True
+
+
 def _clean_html(text: str) -> str:
     """RSS description 등에서 HTML 태그 제거."""
     if not text:
@@ -488,6 +525,14 @@ def _collect_worldbank() -> list:
                             or item.get('submission_date')
                             or item.get('noticedate') or '')
             deadline = deadline_raw[:10] if deadline_raw else ''
+
+            # 최근성 필터: 마감일이 과거이거나, 마감일 없으면 공고일이 90일 이전이면 제외
+            if _is_deadline_passed(deadline):
+                continue
+            if not deadline:
+                posted = (item.get('noticedate') or item.get('submission_date') or '')
+                if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
+                    continue
 
             # notice_text 파싱 — 금액 / scope / 낙찰자 등
             wb_details = _wb_extract_details(item.get('notice_text', ''))
@@ -964,6 +1009,11 @@ def _collect_koica() -> list:
                 if _is_deadline_passed(deadline):
                     continue
 
+                # 게시일 최근성: 공고일 90일 이전이면 제외
+                posted = (item.get('bidPblancDt') or item.get('postDt') or '')[:10]
+                if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
+                    continue
+
                 source_url = item.get('bidUrl') or item.get('url') or ''
                 bid_no = item.get('bidNo') or item.get('id') or ''
                 if not source_url and bid_no:
@@ -1048,6 +1098,11 @@ def _collect_koica() -> list:
             if _is_deadline_passed(deadline):
                 continue
 
+            # 공고일(마지막 컬럼) 90일 이상 지났으면 제외
+            posted = cols[-1] if cols else ''
+            if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
+                continue
+
             # 농업·기술용역 키워드 필터 (한글·영문 병행)
             combined = f"{title} {bid_kind} {item_kind}"
             agri_hit = _is_agri(combined) or _is_agri_ko(combined)
@@ -1126,7 +1181,7 @@ def _collect_aiib() -> list:
     field_rx = re.compile(r'(\w+)\s*:\s*"((?:[^"\\]|\\.)*)"')
 
     today = datetime.utcnow().date()
-    stale_cutoff_days = 120  # AIIB는 공고 유지 기간이 긴 편
+    stale_cutoff_days = DEFAULT_FRESHNESS_DAYS  # 90일 — 최근 공고만
 
     for obj_match in obj_rx.finditer(body):
         fields = {k: v for k, v in field_rx.findall(obj_match.group(1))}
@@ -1155,23 +1210,24 @@ def _collect_aiib() -> list:
         if not agri_hit and not cons_hit:
             continue
 
-        # 등록일 기준 오래된 것 제외
-        try:
-            posted_date = datetime.strptime(posted, '%B %d, %Y').date()
-            if (today - posted_date).days > stale_cutoff_days:
-                continue
-        except ValueError:
-            pass
+        # 등록일 기준 오래된 것 제외 ("April 15, 2026" / "Dec 27, 2016" 등 복수 포맷 지원)
+        if _is_stale_date(posted, days=stale_cutoff_days):
+            continue
 
-        # 마감일 파싱 — "April 15, 2026" 형식
+        # 마감일 파싱 — "April 15, 2026" / "Dec 27, 2016" 형식
         deadline_iso = ''
-        try:
-            dd = datetime.strptime(deadline, '%B %d, %Y').date()
-            deadline_iso = dd.isoformat()
-            if dd < today:
-                continue
-        except ValueError:
-            pass
+        if deadline:
+            dd = None
+            for fmt in ('%B %d, %Y', '%b %d, %Y'):
+                try:
+                    dd = datetime.strptime(deadline, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            if dd:
+                deadline_iso = dd.isoformat()
+                if dd < today:
+                    continue
 
         if doc_path:
             source_url = ('https://www.aiib.org' + doc_path
@@ -1258,11 +1314,18 @@ def _collect_isdb() -> list:
                 continue
             seen.add(href)
 
-            # URL 에서 notice type 추출
+            # URL 에서 연도·notice type 추출
+            url_year = None
+            ym = re.search(r'/tenders/(\d{4})/([a-z\-]+)/', href)
             notice_type = default_type
-            tm = re.search(r'/tenders/\d{4}/([a-z\-]+)/', href)
-            if tm:
-                notice_type = type_map.get(tm.group(1).lower(), notice_type)
+            if ym:
+                url_year = int(ym.group(1))
+                notice_type = type_map.get(ym.group(2).lower(), notice_type)
+
+            # 최근성 필터: URL 연도가 (현재 연도 - 1) 미만이면 아카이브로 간주하고 제외
+            current_year = datetime.utcnow().year
+            if url_year and url_year < current_year - 1:
+                continue
 
             if notice_type == 'Contract Award':
                 continue
@@ -1314,29 +1377,41 @@ def _collect_isdb() -> list:
                 'raw_data': {'title': title, 'url': href, 'type': notice_type},
             })
 
-    # 목록에서 금액을 못 구한 항목에 대해 상세 페이지 조회로 보강
-    # (최대 10건 제한 — 요청수 폭증 방지)
-    detail_budget = 10
+    # 목록에서 금액을 못 구한 항목에 대해 상세 페이지 조회로 보강 + 최근성 검증
+    # (최대 15건 제한 — 요청수 폭증 방지)
+    detail_budget = 15
+    filtered = []
     for item in results:
-        if detail_budget <= 0:
-            break
-        if item.get('contract_value'):
+        if detail_budget <= 0 or item.get('contract_value'):
+            # 상세 조회 안 하는 항목은 그대로 통과 (목록 단계 필터만 적용됨)
+            filtered.append(item)
             continue
+        keep = True
         try:
             dr = req.get(item['source_url'],
                          headers=_browser_headers(referer='https://www.isdb.org/project-procurement/tenders'),
                          timeout=15)
-            if dr.status_code != 200:
-                detail_budget -= 1
-                continue
-            dsoup = BeautifulSoup(dr.text, 'html.parser')
-            main_text = dsoup.get_text(' ', strip=True)
-            val = _extract_value_from_text(main_text)
-            if val:
-                item['contract_value'] = val
+            if dr.status_code == 200:
+                dsoup = BeautifulSoup(dr.text, 'html.parser')
+                main_text = dsoup.get_text(' ', strip=True)
+                # 금액
+                val = _extract_value_from_text(main_text)
+                if val:
+                    item['contract_value'] = val
+                # 게시일 탐색 — "Published on YYYY-MM-DD" / "Posted: DD Month YYYY" 등
+                pm = re.search(
+                    r'(?:Published|Posted|Publish Date|Date Posted|Publication Date)\s*(?:on)?\s*[:\-]?\s*'
+                    r'(\d{4}-\d{2}-\d{2}|\d{1,2}\s+\w+\s+\d{4}|\w+\s+\d{1,2},\s*\d{4})',
+                    main_text, re.IGNORECASE,
+                )
+                if pm and _is_stale_date(pm.group(1), days=DEFAULT_FRESHNESS_DAYS):
+                    keep = False
         except Exception:
             pass
         detail_budget -= 1
+        if keep:
+            filtered.append(item)
+    results = filtered
 
     if attempts_errors:
         print(f'[IsDB] attempt errors: {attempts_errors}')
