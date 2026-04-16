@@ -844,7 +844,7 @@
 
             try {
                 const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
-                const res = await fetch(`${API_BASE_URL}/notices/collect`, {
+                const res = await fetch(`${API_BASE_URL}/notices/collect?trigger=manual`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                 });

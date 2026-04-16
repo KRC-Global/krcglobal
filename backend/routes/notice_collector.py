@@ -11,7 +11,7 @@ import threading
 from datetime import datetime
 from xml.etree import ElementTree
 from flask import Blueprint, request, jsonify, current_app
-from models import db, BidNotice
+from models import db, BidNotice, ScrapingRun
 
 collector_bp = Blueprint('collector', __name__)
 
@@ -641,6 +641,14 @@ COLLECTORS = {
     'koica':     _collect_koica,
 }
 
+SOURCE_DISPLAY = {
+    'worldbank': 'World Bank',
+    'ungm':      'UNGM',
+    'adb':       'ADB',
+    'afdb':      'AfDB',
+    'koica':     'KOICA',
+}
+
 
 def _run_all_collectors() -> tuple[list, dict]:
     """모든 수집기를 ThreadPoolExecutor로 병렬 실행"""
@@ -692,11 +700,14 @@ def collect_notices():
 
     created = 0
     skipped = 0
-    source_counts = {}
+    created_by_source = {}
+    fetched_by_source = {}
 
     for item in all_items:
+        src = item['source']
+        fetched_by_source[src] = fetched_by_source.get(src, 0) + 1
         saved = _save_notice(
-            source=item['source'],
+            source=src,
             title=item['title'],
             country=item.get('country', ''),
             client=item.get('client', ''),
@@ -708,9 +719,27 @@ def collect_notices():
         )
         if saved:
             created += 1
-            source_counts[item['source']] = source_counts.get(item['source'], 0) + 1
+            created_by_source[src] = created_by_source.get(src, 0) + 1
         else:
             skipped += 1
+
+    # 실행 이력 기록 — Vercel Cron / 관리자 수동 모두 이 경로
+    trigger = (request.args.get('trigger') or 'scheduled').strip()[:20]
+    sources_summary = [
+        {
+            'name':  SOURCE_DISPLAY.get(key, key),
+            'count': fetched_by_source.get(key, 0),
+            'error': errors.get(key),
+        }
+        for key in COLLECTORS.keys()
+    ]
+    db.session.add(ScrapingRun(
+        trigger=trigger,
+        total_found=len(all_items),
+        total_created=created,
+        total_skipped=skipped,
+        sources=sources_summary,
+    ))
 
     try:
         db.session.commit()
@@ -723,7 +752,7 @@ def collect_notices():
         'created': created,
         'skipped': skipped,
         'total_fetched': len(all_items),
-        'by_source': source_counts,
+        'by_source': created_by_source,
         'errors': errors,
         'collected_at': datetime.utcnow().isoformat() + 'Z',
     })

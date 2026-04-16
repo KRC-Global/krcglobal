@@ -1,107 +1,14 @@
 """
-GBMS - Webhook Routes
-디스코드 봇 → 발주공고 수신 및 조회 API
+GBMS - 발주공고 조회/이력 Routes
+(수집 엔드포인트는 routes/notice_collector.py 참조)
 """
-import hmac
-import hashlib
-import os
-from flask import Blueprint, request, jsonify, current_app
-from datetime import datetime
+from flask import Blueprint, request, jsonify
 from models import db, BidNotice, ScrapingRun
 from routes.auth import token_required, admin_required
 
 webhook_bp = Blueprint('webhook', __name__)
 
 VALID_STATUSES = {'new', 'reviewed', 'applied', 'closed'}
-VALID_SOURCES = {
-    'worldbank', 'adb', 'aiib', 'afdb', 'ifad', 'ida',
-    'koica', 'edcf', 'ungm', 'devex', 'other'
-}
-
-
-def verify_bot_signature(body: bytes, signature: str) -> bool:
-    """HMAC-SHA256 서명 검증"""
-    secret = os.environ.get('WEBHOOK_BOT_SECRET', '')
-    if not secret:
-        # 비밀키 미설정 시 개발 환경에서만 통과 (production에서는 반드시 설정)
-        return current_app.config.get('DEBUG', False)
-    expected = 'sha256=' + hmac.new(
-        secret.encode('utf-8'), body, hashlib.sha256
-    ).hexdigest()
-    return hmac.compare_digest(expected, signature)
-
-
-# ── 봇 → GBMS 공고 전송 ─────────────────────────────────────────────────────
-
-@webhook_bp.route('/notices', methods=['POST'])
-def receive_notices():
-    """
-    디스코드 봇이 수집한 발주공고를 일괄 전송
-
-    Headers:
-        X-Bot-Signature: sha256=<HMAC-SHA256(body, WEBHOOK_BOT_SECRET)>
-    Body (JSON):
-        { "notices": [ { source, title, country, client, sector,
-                          contractValue, deadline, sourceUrl, ...} ] }
-    Response:
-        { "success": true, "created": 3, "skipped": 1 }
-    """
-    body = request.get_data()
-    signature = request.headers.get('X-Bot-Signature', '')
-
-    if not verify_bot_signature(body, signature):
-        return jsonify({'success': False, 'message': '서명 불일치 — 인증 실패'}), 401
-
-    data = request.get_json(silent=True)
-    if not data or 'notices' not in data:
-        return jsonify({'success': False, 'message': "notices 배열이 필요합니다."}), 400
-
-    notices = data['notices']
-    if not isinstance(notices, list):
-        return jsonify({'success': False, 'message': "notices는 배열이어야 합니다."}), 400
-
-    created = 0
-    skipped = 0
-
-    for item in notices:
-        source_url = (item.get('sourceUrl') or item.get('source_url') or '').strip()
-        title = (item.get('title') or '').strip()
-
-        if not source_url or not title:
-            skipped += 1
-            continue
-
-        # 중복 확인 — source_url unique
-        if BidNotice.query.filter_by(source_url=source_url).first():
-            skipped += 1
-            continue
-
-        source = (item.get('source') or 'other').lower().strip()
-        if source not in VALID_SOURCES:
-            source = 'other'
-
-        notice = BidNotice(
-            source=source,
-            title=title,
-            country=(item.get('country') or '').strip() or None,
-            client=(item.get('client') or '').strip() or None,
-            sector=(item.get('sector') or '').strip() or None,
-            contract_value=(item.get('contractValue') or item.get('contract_value') or '').strip() or None,
-            deadline=(item.get('deadline') or '').strip() or None,
-            source_url=source_url,
-            status='new',
-            raw_data=item,
-        )
-        db.session.add(notice)
-        created += 1
-
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': f'저장 실패: {str(e)}'}), 500
-
-    return jsonify({'success': True, 'created': created, 'skipped': skipped})
 
 
 # ── GBMS 사용자 → 공고 조회 ──────────────────────────────────────────────────
@@ -184,47 +91,6 @@ def update_notice_status(current_user, notice_id):
 
 
 # ── 수집 실행 이력 ───────────────────────────────────────────────────────────
-
-@webhook_bp.route('/notices/runs', methods=['POST'])
-def log_scraping_run():
-    """
-    디스코드 봇 → 수집 실행 요약 저장
-
-    Headers:
-        X-Bot-Signature: sha256=<HMAC-SHA256(body, WEBHOOK_BOT_SECRET)>
-    Body (JSON):
-        {
-            "trigger": "scheduled" | "manual",
-            "totalFound": 5, "totalCreated": 3, "totalSkipped": 2,
-            "sendError": null,
-            "sources": [ {"name": "World Bank", "count": 2, "error": null}, ... ]
-        }
-    """
-    body = request.get_data()
-    signature = request.headers.get('X-Bot-Signature', '')
-
-    if not verify_bot_signature(body, signature):
-        return jsonify({'success': False, 'message': '서명 불일치 — 인증 실패'}), 401
-
-    data = request.get_json(silent=True) or {}
-
-    run = ScrapingRun(
-        trigger=(data.get('trigger') or 'scheduled')[:20],
-        total_found=int(data.get('totalFound') or 0),
-        total_created=int(data.get('totalCreated') or 0),
-        total_skipped=int(data.get('totalSkipped') or 0),
-        send_error=(data.get('sendError') or None),
-        sources=data.get('sources') or [],
-    )
-    db.session.add(run)
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': f'저장 실패: {str(e)}'}), 500
-
-    return jsonify({'success': True, 'id': run.id})
-
 
 @webhook_bp.route('/notices/runs', methods=['GET'])
 @token_required
