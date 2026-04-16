@@ -311,6 +311,10 @@ def _collect_worldbank() -> list:
                 continue
 
             notice_type = (item.get('notice_type') or '').strip()
+            # Contract Award 는 이미 낙찰 완료된 건이라 응찰 기회가 아님 → 수집 제외
+            if notice_type.lower() == 'contract award':
+                continue
+
             bid_desc = item.get('bid_description') or ''
             combined = f"{title} {bid_desc}"
             if not _is_agri(combined):
