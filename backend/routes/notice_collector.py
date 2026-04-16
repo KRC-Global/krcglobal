@@ -149,7 +149,7 @@ def _is_stale_pub(pub_date_str: str, days: int = 60) -> bool:
 
 
 # 수집 공통 최근성 컷오프 — 게시 후 이 기간 지나면 "과거 사업"으로 간주하고 제외
-DEFAULT_FRESHNESS_DAYS = 90
+DEFAULT_FRESHNESS_DAYS = 30
 
 
 def _is_stale_date(date_str: str, days: int = DEFAULT_FRESHNESS_DAYS) -> bool:
@@ -526,7 +526,7 @@ def _collect_worldbank() -> list:
                             or item.get('noticedate') or '')
             deadline = deadline_raw[:10] if deadline_raw else ''
 
-            # 최근성 필터: 마감일이 과거이거나, 마감일 없으면 공고일이 90일 이전이면 제외
+            # 최근성 필터: 마감일이 과거이거나, 마감일 없으면 공고일이 DEFAULT_FRESHNESS_DAYS 이전이면 제외
             if _is_deadline_passed(deadline):
                 continue
             if not deadline:
@@ -721,8 +721,8 @@ def _collect_adb() -> list:
                     continue
 
                 pub_date = item.findtext('pubDate') or ''
-                # 60일 이상 경과한 공고 제외
-                if _is_stale_pub(pub_date, days=60):
+                # DEFAULT_FRESHNESS_DAYS 이상 경과한 공고 제외
+                if _is_stale_pub(pub_date, days=DEFAULT_FRESHNESS_DAYS):
                     continue
 
                 # notice type: <category> 또는 description 의 "Consulting Services" 류
@@ -861,7 +861,7 @@ def _collect_afdb() -> list:
                         continue
 
                 pub_date = item.findtext('pubDate') or ''
-                if _is_stale_pub(pub_date, days=60):
+                if _is_stale_pub(pub_date, days=DEFAULT_FRESHNESS_DAYS):
                     continue
 
                 # country: dc:subject 중 지명만 채택 (쉼표/세미콜론 분리 후 첫 값)
@@ -1009,7 +1009,7 @@ def _collect_koica() -> list:
                 if _is_deadline_passed(deadline):
                     continue
 
-                # 게시일 최근성: 공고일 90일 이전이면 제외
+                # 게시일 최근성: 공고일 DEFAULT_FRESHNESS_DAYS 이전이면 제외
                 posted = (item.get('bidPblancDt') or item.get('postDt') or '')[:10]
                 if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
                     continue
@@ -1098,7 +1098,7 @@ def _collect_koica() -> list:
             if _is_deadline_passed(deadline):
                 continue
 
-            # 공고일(마지막 컬럼) 90일 이상 지났으면 제외
+            # 공고일(마지막 컬럼) DEFAULT_FRESHNESS_DAYS 이상 지났으면 제외
             posted = cols[-1] if cols else ''
             if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
                 continue
@@ -1181,7 +1181,7 @@ def _collect_aiib() -> list:
     field_rx = re.compile(r'(\w+)\s*:\s*"((?:[^"\\]|\\.)*)"')
 
     today = datetime.utcnow().date()
-    stale_cutoff_days = DEFAULT_FRESHNESS_DAYS  # 90일 — 최근 공고만
+    stale_cutoff_days = DEFAULT_FRESHNESS_DAYS  # 공통 컷오프 — 최근 공고만
 
     for obj_match in obj_rx.finditer(body):
         fields = {k: v for k, v in field_rx.findall(obj_match.group(1))}
