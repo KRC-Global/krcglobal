@@ -7,7 +7,7 @@ import hashlib
 import os
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
-from models import db, BidNotice
+from models import db, BidNotice, ScrapingRun
 from routes.auth import token_required, admin_required
 
 webhook_bp = Blueprint('webhook', __name__)
@@ -181,6 +181,75 @@ def update_notice_status(current_user, notice_id):
     db.session.commit()
 
     return jsonify({'success': True, 'data': notice.to_dict()})
+
+
+# ── 수집 실행 이력 ───────────────────────────────────────────────────────────
+
+@webhook_bp.route('/notices/runs', methods=['POST'])
+def log_scraping_run():
+    """
+    디스코드 봇 → 수집 실행 요약 저장
+
+    Headers:
+        X-Bot-Signature: sha256=<HMAC-SHA256(body, WEBHOOK_BOT_SECRET)>
+    Body (JSON):
+        {
+            "trigger": "scheduled" | "manual",
+            "totalFound": 5, "totalCreated": 3, "totalSkipped": 2,
+            "sendError": null,
+            "sources": [ {"name": "World Bank", "count": 2, "error": null}, ... ]
+        }
+    """
+    body = request.get_data()
+    signature = request.headers.get('X-Bot-Signature', '')
+
+    if not verify_bot_signature(body, signature):
+        return jsonify({'success': False, 'message': '서명 불일치 — 인증 실패'}), 401
+
+    data = request.get_json(silent=True) or {}
+
+    run = ScrapingRun(
+        trigger=(data.get('trigger') or 'scheduled')[:20],
+        total_found=int(data.get('totalFound') or 0),
+        total_created=int(data.get('totalCreated') or 0),
+        total_skipped=int(data.get('totalSkipped') or 0),
+        send_error=(data.get('sendError') or None),
+        sources=data.get('sources') or [],
+    )
+    db.session.add(run)
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'저장 실패: {str(e)}'}), 500
+
+    return jsonify({'success': True, 'id': run.id})
+
+
+@webhook_bp.route('/notices/runs', methods=['GET'])
+@token_required
+def list_scraping_runs(current_user):
+    """발주공고 수집 실행 이력 (최근순)"""
+    limit = min(request.args.get('limit', 20, type=int), 100)
+    runs = (ScrapingRun.query
+            .order_by(ScrapingRun.run_at.desc())
+            .limit(limit)
+            .all())
+    return jsonify({
+        'success': True,
+        'data': [r.to_dict() for r in runs],
+    })
+
+
+@webhook_bp.route('/notices/runs/latest', methods=['GET'])
+@token_required
+def latest_scraping_run(current_user):
+    """최근 실행 1건 — 상단 카드용"""
+    run = ScrapingRun.query.order_by(ScrapingRun.run_at.desc()).first()
+    return jsonify({
+        'success': True,
+        'data': run.to_dict() if run else None,
+    })
 
 
 # ── 삭제 (관리자 전용) ───────────────────────────────────────────────────────

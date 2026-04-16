@@ -29,3 +29,20 @@ async def send_notices(notices: list) -> dict:
             timeout=aiohttp.ClientTimeout(total=30)
         ) as resp:
             return await resp.json()
+
+
+async def send_run_summary(summary: dict) -> dict:
+    """수집 실행 요약을 GBMS에 기록 (/api/webhook/notices/runs)"""
+    url = GBMS_WEBHOOK_URL.rstrip('/') + '/runs'
+    body = json.dumps(summary, ensure_ascii=False).encode('utf-8')
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Bot-Signature': _sign(body),
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            url, data=body, headers=headers,
+            timeout=aiohttp.ClientTimeout(total=15)
+        ) as resp:
+            return await resp.json()

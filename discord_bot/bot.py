@@ -37,8 +37,14 @@ async def on_ready():
 @bot.tree.command(name='공고수집', description='지금 즉시 발주공고를 수집해 GBMS에 등록합니다')
 async def fetch_now(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
-    await sched.run_all(bot)
-    await interaction.followup.send('✅ 수집 완료! GBMS 발주공고 페이지를 확인하세요.\n🔗 https://krcglobal.vercel.app/pages/notices/bid-notices.html')
+    result = await sched.run_all(bot, notify_channel=False, trigger='manual')
+    msg = sched.format_summary(
+        result['sources'],
+        result['created'],
+        result['skipped'],
+        result.get('send_error'),
+    )
+    await interaction.followup.send(msg)
 
 
 # ── /공고검색 ────────────────────────────────────────────────────────────────

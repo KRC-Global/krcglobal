@@ -20,13 +20,13 @@ def setup(bot):
     return scheduler
 
 
-async def run_all(bot):
+async def run_all(bot, notify_channel=True, trigger='scheduled'):
     from scrapers import worldbank, ungm, adb, koica
-    from gbms_client import send_notices
+    from gbms_client import send_notices, send_run_summary
 
     log.info('공고 수집 시작...')
     all_notices = []
-    summary = []
+    sources = []
 
     for module, name in [
         (worldbank, 'World Bank'),
@@ -37,37 +37,80 @@ async def run_all(bot):
         try:
             items = await module.fetch()
             all_notices.extend(items)
-            summary.append(f'{name}: {len(items)}건')
+            sources.append({'name': name, 'count': len(items), 'items': items, 'error': None})
             log.info(f'{name} {len(items)}건 수집')
         except Exception as e:
-            summary.append(f'{name}: 실패')
+            sources.append({'name': name, 'count': 0, 'items': [], 'error': str(e)})
             log.error(f'{name} 오류: {e}')
 
-    if not all_notices:
+    created, skipped = 0, 0
+    send_error = None
+
+    if all_notices:
+        try:
+            result  = await send_notices(all_notices)
+            created = result.get('created', 0)
+            skipped = result.get('skipped', 0)
+            log.info(f'GBMS 전송 완료 — 신규 {created}건, 중복 {skipped}건')
+        except Exception as e:
+            send_error = str(e)
+            log.error(f'GBMS 전송 실패: {e}')
+    else:
         log.info('수집된 공고 없음')
-        return
 
-    # GBMS 전송
+    # GBMS에 실행 이력 저장
     try:
-        result  = await send_notices(all_notices)
-        created = result.get('created', 0)
-        skipped = result.get('skipped', 0)
-        log.info(f'GBMS 전송 완료 — 신규 {created}건, 중복 {skipped}건')
+        await send_run_summary({
+            'trigger': trigger,
+            'totalFound': len(all_notices),
+            'totalCreated': created,
+            'totalSkipped': skipped,
+            'sendError': send_error,
+            'sources': [
+                {'name': s['name'], 'count': s['count'], 'error': s['error']}
+                for s in sources
+            ],
+        })
     except Exception as e:
-        log.error(f'GBMS 전송 실패: {e}')
-        created, skipped = 0, 0
+        log.error(f'실행 이력 전송 실패: {e}')
 
-    # 디스코드 알림
-    if created > 0:
+    # 스케줄 실행 시 채널 알림 (신규 등록된 경우만)
+    if notify_channel and created > 0:
         channel = bot.get_channel(DISCORD_CHANNEL_ID)
         if channel:
-            lines = [
-                f'📢 **발주공고 업데이트**',
-                f'✅ 신규 등록: **{created}건**  |  ⏭ 중복 건너뜀: {skipped}건',
-                '',
-                '**수집 현황**',
-            ] + [f'  • {s}' for s in summary] + [
-                '',
-                f'🔗 https://krcglobal.vercel.app/pages/notices/bid-notices.html',
-            ]
-            await channel.send('\n'.join(lines))
+            await channel.send(format_summary(sources, created, skipped, send_error))
+
+    return {
+        'sources': sources,
+        'total_found': len(all_notices),
+        'created': created,
+        'skipped': skipped,
+        'send_error': send_error,
+    }
+
+
+def format_summary(sources, created, skipped, send_error=None, show_samples=True):
+    lines = ['📢 **발주공고 수집 결과**']
+    total = sum(s['count'] for s in sources)
+    lines.append(f'📥 수집: **{total}건**  |  ✅ 신규: **{created}건**  |  ⏭ 중복: {skipped}건')
+    if send_error:
+        lines.append(f'⚠️ GBMS 전송 실패: {send_error}')
+    lines.append('')
+    lines.append('**소스별 상세**')
+
+    for s in sources:
+        if s['error']:
+            lines.append(f'  ❌ **{s["name"]}** — 실패 ({s["error"][:60]})')
+            continue
+        lines.append(f'  • **{s["name"]}** — {s["count"]}건')
+        if show_samples and s['items']:
+            for n in s['items'][:3]:
+                title = (n.get('title') or '').strip()[:55]
+                country = n.get('country') or '-'
+                deadline = n.get('deadline') or '-'
+                lines.append(f'      - {title}  _(국가: {country} / 마감: {deadline})_')
+            if s['count'] > 3:
+                lines.append(f'      … 외 {s["count"] - 3}건')
+
+    lines += ['', '🔗 https://krcglobal.vercel.app/pages/notices/bid-notices.html']
+    return '\n'.join(lines)[:1900]

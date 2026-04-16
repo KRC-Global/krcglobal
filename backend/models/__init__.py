@@ -1639,6 +1639,32 @@ class BidNotice(db.Model):
         }
 
 
+class ScrapingRun(db.Model):
+    """발주공고 수집 실행 이력 - 소스별 건수/에러, 트리거 타입을 기록"""
+    __tablename__ = 'scraping_runs'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    run_at        = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    total_found   = db.Column(db.Integer, default=0)
+    total_created = db.Column(db.Integer, default=0)
+    total_skipped = db.Column(db.Integer, default=0)
+    send_error    = db.Column(db.String(500))    # GBMS 전송 실패 메시지
+    sources       = db.Column(db.JSON)           # [{name, count, error}]
+    trigger       = db.Column(db.String(20))     # scheduled / manual
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'runAt': self.run_at.isoformat() if self.run_at else None,
+            'totalFound': self.total_found,
+            'totalCreated': self.total_created,
+            'totalSkipped': self.total_skipped,
+            'sendError': self.send_error,
+            'sources': self.sources or [],
+            'trigger': self.trigger,
+        }
+
+
 # Import expansion models
 from models.expansion import (
     Company, Loan, LoanPerformance, LoanRepayment,
