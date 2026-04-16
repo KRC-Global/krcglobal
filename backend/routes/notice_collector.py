@@ -528,13 +528,16 @@ def _collect_worldbank() -> list:
                             or item.get('noticedate') or '')
             deadline = deadline_raw[:10] if deadline_raw else ''
 
-            # 최근성 필터: 마감일이 과거이거나, 마감일 없으면 공고일이 DEFAULT_FRESHNESS_DAYS 이전이면 제외
+            # 최근성 필터 (두 조건 모두 충족해야 통과):
+            #   ① 마감일이 미래(또는 파싱불가) 여야 함 — 마감된 공고 제외
+            #   ② 공고 게시일(noticedate)이 DEFAULT_FRESHNESS_DAYS 이내 — "60일 내 발주" 의미
+            # 기존엔 deadline 있으면 게시일을 체크 안 해서, '공고 2년 전·마감 미래'
+            # 같은 장기 공고가 통과되는 구멍이 있었음.
             if _is_deadline_passed(deadline):
                 continue
-            if not deadline:
-                posted = (item.get('noticedate') or item.get('submission_date') or '')
-                if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
-                    continue
+            posted = (item.get('noticedate') or item.get('submission_date') or '')
+            if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
+                continue
 
             # notice_text 파싱 — 금액 / scope / 낙찰자 등
             wb_details = _wb_extract_details(item.get('notice_text', ''))
@@ -650,6 +653,12 @@ def _collect_ungm() -> list:
                 deadline_raw = item.get('Deadline') or item.get('deadline') or ''
                 deadline = deadline_raw[:10] if deadline_raw else ''
                 if _is_deadline_passed(deadline):
+                    continue
+
+                # 게시일(Published) 60일 이전이면 제외
+                posted = (item.get('PublishedDate') or item.get('Published')
+                          or item.get('publishedDate') or '')
+                if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
                     continue
 
                 source_url = (item.get('NoticeUrl') or item.get('noticeUrl') or
