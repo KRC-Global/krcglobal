@@ -44,11 +44,44 @@
         .google-login-btn svg {
             flex-shrink: 0;
         }
+        .login-loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.92);
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+        .login-loading-overlay.visible {
+            display: flex;
+        }
+        .login-loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e0e0e0;
+            border-top-color: var(--color-primary-600, #1A4B7C);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .login-loading-text {
+            font-size: 15px;
+            color: #555;
+            font-weight: 500;
+        }
     </style>
 </head>
 
 <body>
     <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <div id="loginLoadingOverlay" class="login-loading-overlay" role="status" aria-live="polite">
+        <div class="login-loading-spinner"></div>
+        <p class="login-loading-text">로그인 중입니다...</p>
+    </div>
 
     <main id="main-content" class="login-container">
         <div class="login-card card">
@@ -98,9 +131,14 @@
     <script>
         let isRedirecting = false;
 
+        function showLoginLoading() {
+            document.getElementById('loginLoadingOverlay').classList.add('visible');
+        }
+
         async function saveSessionAndRedirect(session) {
             if (isRedirecting) return;
             isRedirecting = true;
+            showLoginLoading();
 
             // 1. Supabase 토큰 저장
             localStorage.setItem('gbms_token', session.access_token);
