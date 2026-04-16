@@ -204,18 +204,23 @@
         }
 
         document.addEventListener('DOMContentLoaded', async function () {
+            const isLogout = new URLSearchParams(window.location.search).get('logout') === '1';
+
             // OAuth 콜백 처리 (onAuthStateChange를 먼저 등록)
+            // 로그아웃 직후 페이지 로드 시에는 자동 로그인 이벤트 무시
             window.supabaseClient.auth.onAuthStateChange((event, session) => {
-                if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+                if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session && !isLogout) {
                     saveSessionAndRedirect(session);
                 }
             });
 
-            // 이미 로그인된 경우
-            const { data: { session } } = await window.supabaseClient.auth.getSession();
-            if (session) {
-                saveSessionAndRedirect(session);
-                return;
+            // 이미 로그인된 경우 (로그아웃 직후에는 스킵)
+            if (!isLogout) {
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                if (session) {
+                    saveSessionAndRedirect(session);
+                    return;
+                }
             }
         });
 

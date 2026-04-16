@@ -312,6 +312,12 @@ async function logout() {
         try { await window.supabaseClient.auth.signOut(); } catch (e) {}
     }
 
+    // supabaseClient가 없는 페이지에서도 Supabase 세션 키 직접 삭제
+    // (supabase-config.js가 index.html에만 로드되므로 다른 페이지에서 signOut 불가)
+    const supabaseKey = 'sb-zzypdvwdwgwocczpaaiu-auth-token';
+    localStorage.removeItem(supabaseKey);
+    sessionStorage.removeItem(supabaseKey);
+
     localStorage.removeItem('gbms_token');
     localStorage.removeItem('gbms_user');
     sessionStorage.removeItem('gbms_token');
@@ -319,19 +325,19 @@ async function logout() {
     storage.remove('userInfo');
     sessionStorage.removeItem('userInfo');
 
-    // 현재 페이지 경로에 따라 로그인 페이지 경로 결정
+    // 현재 페이지 경로에 따라 로그인 페이지 경로 결정 (?logout=1 → 자동 로그인 방지)
     const path = window.location.pathname;
 
     // 경로 깊이 계산 (예: /pages/expansion/info/ = 3단계)
     if (path.includes('/pages/expansion/info/')) {
-        window.location.href = '../../../index.html';
+        window.location.href = '../../../index.html?logout=1';
     } else if (path.includes('/pages/admin/') || path.includes('/pages/projects/') ||
         path.includes('/pages/budget/') || path.includes('/pages/expansion/')) {
-        window.location.href = '../../index.html';
+        window.location.href = '../../index.html?logout=1';
     } else if (path.includes('/pages/')) {
-        window.location.href = '../index.html';
+        window.location.href = '../index.html?logout=1';
     } else {
-        window.location.href = 'index.html';
+        window.location.href = 'index.html?logout=1';
     }
 }
 
