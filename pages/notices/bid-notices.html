@@ -999,6 +999,8 @@
         }
 
         // ── 공고 목록 로드 ────────────────────────────────────────────────────────
+        const NOTICES_PER_PAGE = 20;
+
         async function loadNotices(page) {
             currentPage = page;
             const source  = document.getElementById('sourceFilter').value;
@@ -1006,7 +1008,7 @@
             const status  = document.getElementById('statusFilter').value;
             const search  = document.getElementById('searchInput').value.trim();
 
-            const params = new URLSearchParams({ page, perPage: 20 });
+            const params = new URLSearchParams({ page, perPage: NOTICES_PER_PAGE });
             if (source)  params.set('source', source);
             if (country) params.set('country', country);
             if (status)  params.set('status', status);
@@ -1021,20 +1023,24 @@
                     feed.innerHTML = '<div class="feed-empty">데이터를 불러오지 못했습니다.</div>';
                     return;
                 }
-                renderFeed(data.data);
+                // 게시판식 역순 일련번호 — 현재 필터 결과 총건수 기준
+                const startNo = (data.total || 0) - (page - 1) * NOTICES_PER_PAGE;
+                renderFeed(data.data, startNo, data.total || 0);
                 renderPagination(data.currentPage, data.pages);
             } catch (e) {
                 feed.innerHTML = '<div class="feed-empty" style="color:#dc3545;">오류가 발생했습니다.</div>';
             }
         }
 
-        function renderFeed(items) {
+        function renderFeed(items, startNo, total) {
             const feed = document.getElementById('noticeFeed');
             if (!items || items.length === 0) {
                 feed.innerHTML = '<div class="feed-empty">공고가 없습니다.</div>';
                 return;
             }
-            feed.innerHTML = items.map(n => `
+            feed.innerHTML = items.map((n, idx) => {
+                const displayNo = startNo - idx;
+                return `
                 <article class="feed-card" onclick='openDetail(${JSON.stringify(n)})'>
                     <div class="feed-card-head">
                         <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
@@ -1049,11 +1055,11 @@
                     </div>
                     <h3 class="feed-card-title">${escapeHtml(n.title)}</h3>
                     <div class="feed-card-foot">
-                        <span><span class="label">No.</span>${n.id}</span>
+                        <span><span class="label">No.</span>${displayNo} / ${total}</span>
                         ${n.contractValue ? `<span><span class="label">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}
                     </div>
-                </article>
-            `).join('');
+                </article>`;
+            }).join('');
         }
 
         function renderPagination(currentP, totalPages) {
