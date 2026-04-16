@@ -27,10 +27,31 @@ AGRI_KEYWORDS = [
 ]
 
 CONSULTING_KEYWORDS = [
-    'consulting', 'technical assistance', 'advisory', 'supervision',
-    'feasibility', 'project management', 'pmc', 'f/s', 'design',
-    'capacity building', 'study', 'assessment', 'planning',
+    'consulting', 'consultancy', 'consultant', 'technical assistance',
+    'advisory', 'supervision', 'feasibility', 'project management', 'pmc',
+    'f/s', 'design', 'capacity building', 'study', 'assessment', 'planning',
+    'engineering services', 'detailed design',
 ]
+
+# 한국어 키워드 (KOICA nebid 등 국문 공고용)
+AGRI_KEYWORDS_KO = [
+    '농업', '농촌', '관개', '식량', '작물', '수산', '산림', '농지',
+    '용수', '양식', '축산', '수자원', '간척', '개간',
+]
+
+CONSULTING_KEYWORDS_KO = [
+    '용역', '기술용역', '컨설팅', '자문', '기술협력', '타당성',
+    '기술지원', '기술조사', '사업관리', '조사연구', '기본설계', '실시설계',
+    'PMC', 'PMO', 'TA',
+]
+
+
+def _is_agri_ko(text: str) -> bool:
+    return any(kw in (text or '') for kw in AGRI_KEYWORDS_KO)
+
+
+def _is_consulting_ko(text: str) -> bool:
+    return any(kw in (text or '') for kw in CONSULTING_KEYWORDS_KO)
 
 MIN_VALUE_USD = 1_000_000   # $1M
 
@@ -171,6 +192,32 @@ def _decorate_title(title: str, notice_type: str) -> str:
     if tag.lower() in title.lower():
         return title
     return f'{title} {tag}'
+
+
+def _browser_headers(referer: str = '') -> dict:
+    """WAF(Cloudflare 등) 우회 시도용 실제 브라우저 유사 헤더 세트.
+    데이터센터 IP 차단은 피하지 못할 수 있으나 UA-only 차단은 회피 가능."""
+    headers = {
+        'User-Agent': (
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) '
+            'Chrome/125.0.0.0 Safari/537.36'
+        ),
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,ko;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+    }
+    if referer:
+        headers['Referer'] = referer
+        headers['Sec-Fetch-Site'] = 'same-origin'
+    return headers
 
 
 # ── World Bank notice_text 파서 ──────────────────────────────────────────────
@@ -383,16 +430,29 @@ def _collect_worldbank() -> list:
 
 # ── Tier 1: UNGM API ────────────────────────────────────────────────────────
 def _collect_ungm() -> list:
-    """UNGM — API 키 있으면 developer.ungm.org, 없으면 공개 POST AJAX 스크래핑"""
+    """UNGM — developer.ungm.org API 전용.
+
+    과거의 공개 POST 스크래핑(/Public/Notice/Search)은 2025~2026년 사이에
+    서버 측 에러 페이지(/Home/InternalError)로 리다이렉트되도록 변경되어 완전 사용 불가.
+    UNGM 은 이제 Angular SPA 로 전환됐고 서버 HTML에 목록 데이터가 포함되지 않음.
+
+    수집 가능 조건: 환경변수 UNGM_API_KEY 설정 + developer.ungm.org 접근 가능.
+    (IFAD / FAO / WFP 등 다수 UN 기관 발주공고가 이 경로로 수집됨)
+    """
     api_key = os.environ.get('UNGM_API_KEY', '')
+
+    if not api_key:
+        print('[UNGM] UNGM_API_KEY 환경변수 미설정 — 공개 스크래핑 경로가 사라져 수집 불가. '
+              'developer.ungm.org 에서 API 키 발급 후 설정 필요.')
+        return []
 
     try:
         import requests as req
     except ImportError:
         return []
 
-    # ── API 키 있는 경우: developer.ungm.org ──────────────────────────────
-    if api_key:
+    # developer.ungm.org API (유일한 유효 경로)
+    if True:
         url = 'https://developer.ungm.org/api/v1/notices'
         headers = {
             'Authorization': f'Bearer {api_key}',
@@ -470,66 +530,6 @@ def _collect_ungm() -> list:
 
         return results
 
-    # ── API 키 없는 경우: 공개 POST AJAX 스크래핑 (무인증) ─────────────────
-    results = []
-    search_url = 'https://www.ungm.org/Public/Notice/Search'
-    payload = {
-        'Keywords': 'agriculture irrigation rural farming consulting technical',
-        'NoticeTypes': [3, 4],  # RFQ=3, RFP=4
-        'PageIndex': 0,
-        'PageSize': 50,
-    }
-    headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-        'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)',
-    }
-    r = req.post(search_url, json=payload, headers=headers, timeout=20)
-    if r.status_code != 200:
-        raise RuntimeError(f'UNGM Search POST {r.status_code}')
-    try:
-        data = r.json()
-    except ValueError as e:
-        raise RuntimeError(f'UNGM 응답 JSON 파싱 실패: {e}') from e
-
-    for item in data.get('Notices', []):
-        title = (item.get('Title') or '').strip()
-        nid   = item.get('NoticeId', '')
-        if not title or not nid:
-            continue
-        combined = title
-        if not _is_agri(combined) and not _is_consulting(combined):
-            continue
-        deadline = (item.get('DeadlineDate') or '')[:10]
-        if _is_deadline_passed(deadline):
-            continue
-
-        status_code = (item.get('NoticeStatusCode') or item.get('Status') or '').strip().upper()
-        if status_code and status_code not in ('AC', 'ACTIVE', 'PUB', 'PUBLISHED', ''):
-            continue
-
-        notice_type = (item.get('NoticeTypeName') or item.get('TypeName')
-                       or item.get('NoticeType') or '')
-        if isinstance(notice_type, int):
-            notice_type = {3: 'RFQ', 4: 'RFP'}.get(notice_type, '')
-        org = (item.get('AgencyName') or item.get('Beneficiary') or 'UN').strip()
-        sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
-
-        results.append({
-            'source': 'ungm',
-            'title': _decorate_title(title, notice_type),
-            'country': (item.get('Country') or '').strip(),
-            'client': org,
-            'sector': sector,
-            'contract_value': '',
-            'deadline': deadline,
-            'source_url': f'https://www.ungm.org/Public/Notice/{nid}',
-            'raw_data': item,
-        })
-
-    return results
-
 
 # ── Tier 2: ADB RSS ──────────────────────────────────────────────────────────
 def _collect_adb() -> list:
@@ -542,7 +542,8 @@ def _collect_adb() -> list:
     results = []
     attempts_errors = []
 
-    # RSS 시도
+    # RSS 시도 — 2025~2026년 기준 ADB RSS 피드 URL 모두 미검증.
+    # Cloudflare 가 데이터센터 IP를 자주 차단하므로 실 브라우저 헤더로 재시도.
     rss_urls = [
         'https://www.adb.org/rss/projects-tenders.xml',
         'https://www.adb.org/projects/tenders.rss',
@@ -550,7 +551,8 @@ def _collect_adb() -> list:
     rss_ok = False
     for rss_url in rss_urls:
         try:
-            r = req.get(rss_url, timeout=10)
+            r = req.get(rss_url, timeout=10,
+                        headers=_browser_headers(referer='https://www.adb.org/projects/tenders'))
             if r.status_code != 200:
                 attempts_errors.append(f'RSS {rss_url} HTTP {r.status_code}')
                 continue
@@ -616,7 +618,7 @@ def _collect_adb() -> list:
             from bs4 import BeautifulSoup
             html_url = 'https://www.adb.org/projects/tenders?type=Consulting+Services'
             r = req.get(html_url, timeout=12,
-                        headers={'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)'})
+                        headers=_browser_headers(referer='https://www.adb.org/'))
             if r.status_code != 200:
                 attempts_errors.append(f'HTML HTTP {r.status_code}')
             else:
@@ -686,7 +688,7 @@ def _collect_afdb() -> list:
     for rss_url in rss_urls:
         try:
             r = req.get(rss_url, timeout=10,
-                        headers={'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)'})
+                        headers=_browser_headers(referer='https://www.afdb.org/en/projects-and-operations/procurement'))
             if r.status_code != 200 or not r.content:
                 attempts_errors.append(f'RSS {rss_url} HTTP {r.status_code}')
                 continue
@@ -752,7 +754,7 @@ def _collect_afdb() -> list:
             html_url = ('https://www.afdb.org/en/documents/project-related-procurement'
                         '/procurement-notices/specific-procurement-notices')
             r = req.get(html_url, timeout=12,
-                        headers={'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)'})
+                        headers=_browser_headers(referer='https://www.afdb.org/'))
             if r.status_code != 200:
                 attempts_errors.append(f'HTML HTTP {r.status_code}')
             else:
@@ -882,106 +884,332 @@ def _collect_koica() -> list:
             print(f'[KOICA-API] 요청 오류: {e}')
         return results
 
-    # ── API 키 없는 경우: HTML 스크래핑 fallback ──────────────────────────
+    # ── API 키 없는 경우: nebid.koica.go.kr 전자조달 HTML 스크래핑 ─────────
+    # 기존 www.koica.go.kr/koica_kr/bid/selectBidList.do 는 K2WebWizard
+    # 'Alert' 에러 페이지만 반환 — 실제 공고는 nebid(전자조달) 서브도메인에 존재.
     try:
         from bs4 import BeautifulSoup
     except ImportError:
         return []
 
-    list_url = 'https://www.koica.go.kr/koica_kr/bid/selectBidList.do'
-    headers  = {'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)'}
+    list_url = 'https://nebid.koica.go.kr/oep/bepb/beffatPblancList.do'
     results  = []
     seen     = set()
-    errors_per_kw = []
-    success_count = 0
+    attempts_errors = []
 
-    # 키워드별로 수집 대분류를 구분 (농업 키워드 vs 기술용역 키워드)
-    _AGRI_KW = {'농업', '농촌', '관개', '식량', '작물', '수산', '산림', '농지', '용수'}
+    try:
+        r = req.get(list_url,
+                    headers=_browser_headers(referer='https://nebid.koica.go.kr/'),
+                    timeout=20, verify=False)
+        if r.status_code != 200:
+            raise RuntimeError(f'KOICA nebid HTTP {r.status_code}')
+        soup = BeautifulSoup(r.text, 'html.parser')
+        rows = soup.select('tr.row[onclick]') or soup.select('tbody tr[onclick]')
+        print(f'[KOICA-nebid] rows found: {len(rows)}')
 
-    for kw in _KOICA_KEYWORDS:
-        kw_sector = 'agriculture' if kw in _AGRI_KW else 'consulting'
-        for page in range(1, 4):  # 최대 3페이지까지 순회
-            try:
-                r = req.get(list_url,
-                            params={'pageIndex': page, 'searchWrd': kw},
-                            headers=headers, timeout=20)
-                if r.status_code != 200:
-                    errors_per_kw.append(f'{kw}p{page}:HTTP{r.status_code}')
+        for row in rows:
+            # 상세 URL: onclick="beffatPblancInfoDetailInqire('W202600009');"
+            onclick = row.get('onclick', '')
+            m = re.search(r"beffatPblancInfoDetailInqire\('([^']+)'\)", onclick)
+            if not m:
+                continue
+            bid_no = m.group(1)
+            detail_url = (f'https://nebid.koica.go.kr/oep/bepb/'
+                          f'beffatPblancInfoDetailInqire.do?pblancNo={bid_no}')
+            if detail_url in seen:
+                continue
+            seen.add(detail_url)
+
+            cols = [c.get_text(' ', strip=True) for c in row.select('td')]
+            # 컬럼 구조: [순번, 공고번호, 공고구분, 품목구분, 공고명, 공고기간, 조달팀, 공고일]
+            if len(cols) < 6:
+                continue
+
+            bid_kind = cols[2]   # 국내입찰 / 국제입찰
+            item_kind = cols[3]  # 용역 / 물품 / 공사
+            # 제목은 title 속성이 축약되지 않은 원본
+            title_td = row.select_one('td.left_T, td[title]')
+            title = (title_td.get('title') if title_td and title_td.get('title')
+                     else (cols[4] if len(cols) > 4 else ''))
+            if not title:
+                continue
+
+            # 공고기간 "2026-02-19 ~ 2026-02-24" 에서 마감일 추출
+            period = cols[5] if len(cols) > 5 else ''
+            deadline_match = re.findall(r'\d{4}-\d{2}-\d{2}', period)
+            deadline = deadline_match[-1] if deadline_match else ''
+            # 마감된 공고는 제외
+            if _is_deadline_passed(deadline):
+                continue
+
+            # 농업·기술용역 키워드 필터 (한글·영문 병행)
+            combined = f"{title} {bid_kind} {item_kind}"
+            agri_hit = _is_agri(combined) or _is_agri_ko(combined)
+            cons_hit = (_is_consulting(combined) or _is_consulting_ko(combined)
+                        or item_kind == '용역')
+            if not agri_hit and not cons_hit:
+                continue
+
+            sector = 'consulting' if cons_hit and not agri_hit else 'agriculture'
+
+            results.append({
+                'source': 'koica',
+                'title': _decorate_title(title, bid_kind or item_kind),
+                'country': '',
+                'client': 'KOICA',
+                'sector': sector,
+                'contract_value': '',
+                'deadline': deadline,
+                'source_url': detail_url,
+                'raw_data': {
+                    'bid_no': bid_no,
+                    'title': title,
+                    'bid_kind': bid_kind,
+                    'item_kind': item_kind,
+                    'period': period,
+                    'posted': cols[-1] if cols else '',
+                },
+            })
+    except Exception as e:
+        attempts_errors.append(f'nebid: {e}')
+        print(f'[KOICA-nebid] 요청 오류: {e}')
+
+    if not results and attempts_errors:
+        raise RuntimeError('KOICA 수집 실패: ' + ' | '.join(attempts_errors))
+
+    return results
+
+
+# ── Tier 2: AIIB (Asian Infrastructure Investment Bank) ─────────────────────
+def _collect_aiib() -> list:
+    """AIIB — /project-procurement/_common/ppo-data-all.js 의 정적 배열을 파싱.
+
+    해당 JS 파일에 ppoData = [ {id:..., cd:..., mb:...(country), pj:...(project),
+    ds:...(desc), cr:...(contractor), sd:..., pc:...(price), st:...(sector),
+    ct:...(category), tp:...(type), dc:...(document_url)}, ... ] 배열로 전체 공고가 들어있음.
+    Angular SPA 런타임이 이 파일을 로드해서 테이블을 렌더링함.
+    """
+    try:
+        import requests as req
+    except ImportError:
+        return []
+
+    data_url = ('https://www.aiib.org/en/opportunities/business/'
+                'project-procurement/_common/ppo-data-all.js')
+    try:
+        r = req.get(data_url,
+                    headers=_browser_headers(referer='https://www.aiib.org/'),
+                    timeout=15)
+        r.raise_for_status()
+        text = r.text
+    except Exception as e:
+        raise RuntimeError(f'AIIB ppo-data 요청 실패: {e}') from e
+
+    # var ppoData = [ { ... }, { ... } ];  → 배열 부분만 추출
+    m = re.search(r'ppoData\s*=\s*\[(.*)\]\s*;?\s*$', text, re.DOTALL)
+    if not m:
+        m = re.search(r'ppoData\s*=\s*\[(.*?)\];', text, re.DOTALL)
+    if not m:
+        raise RuntimeError('AIIB ppoData 배열을 찾지 못함')
+
+    body = m.group(1)
+    # 항목 하나를 { ... } 단위로 분리 (객체 안에는 중첩 중괄호가 없음 — 평면 구조)
+    # JS 객체 키는 따옴표 없음 → 정규식으로 키:값 쌍 추출
+    results = []
+    obj_rx = re.compile(r'\{([^{}]+)\}')
+    field_rx = re.compile(r'(\w+)\s*:\s*"((?:[^"\\]|\\.)*)"')
+
+    today = datetime.utcnow().date()
+    stale_cutoff_days = 120  # AIIB는 공고 유지 기간이 긴 편
+
+    for obj_match in obj_rx.finditer(body):
+        fields = {k: v for k, v in field_rx.findall(obj_match.group(1))}
+        if not fields:
+            continue
+
+        category = (fields.get('ct') or '').strip()
+        # Contract Awards 는 농업 기술용역 기회가 아니므로 제외
+        if category == 'Contract Awards':
+            continue
+
+        project = (fields.get('pj') or '').strip()
+        desc = (fields.get('ds') or '').strip()
+        country = (fields.get('mb') or '').strip()
+        sector_raw = (fields.get('st') or '').strip()
+        notice_type = (fields.get('tp') or '').strip()
+        posted = (fields.get('id') or '').strip()
+        deadline = (fields.get('cd') or '').strip()
+        price = (fields.get('pc') or '').strip()
+        doc_path = (fields.get('dc') or '').strip()
+
+        combined = f'{project} {desc} {sector_raw} {notice_type}'
+        # AIIB 섹터는 Water/Energy/Transport/Urban 등 다양 — agri 또는 인프라 중 농업 관련만
+        agri_hit = _is_agri(combined) or sector_raw.lower() in ('water', 'rural')
+        cons_hit = _is_consulting(combined)
+        if not agri_hit and not cons_hit:
+            continue
+
+        # 등록일 기준 오래된 것 제외
+        try:
+            posted_date = datetime.strptime(posted, '%B %d, %Y').date()
+            if (today - posted_date).days > stale_cutoff_days:
+                continue
+        except ValueError:
+            pass
+
+        # 마감일 파싱 — "April 15, 2026" 형식
+        deadline_iso = ''
+        try:
+            dd = datetime.strptime(deadline, '%B %d, %Y').date()
+            deadline_iso = dd.isoformat()
+            if dd < today:
+                continue
+        except ValueError:
+            pass
+
+        if doc_path:
+            source_url = ('https://www.aiib.org' + doc_path
+                          if doc_path.startswith('/') else doc_path)
+        else:
+            # 다큐 없으면 project procurement 목록 페이지로
+            source_url = 'https://www.aiib.org/en/opportunities/business/project-procurement/list.html'
+
+        title = project or desc[:200] or notice_type
+        if not title:
+            continue
+
+        sector = 'consulting' if cons_hit and not agri_hit else 'agriculture'
+
+        results.append({
+            'source': 'aiib',
+            'title': _decorate_title(title, notice_type),
+            'country': country,
+            'client': 'AIIB',
+            'sector': sector,
+            'contract_value': price,
+            'deadline': deadline_iso,
+            'source_url': source_url,
+            'raw_data': fields,
+        })
+
+    return results
+
+
+# ── Tier 2: IsDB (Islamic Development Bank) ─────────────────────────────────
+# 실제 현재(Active) 공고가 있는 카테고리 페이지
+_ISDB_PAGES = [
+    ('https://www.isdb.org/project-procurement/taxonomy/term/207', 'GPN'),  # General Procurement Notice
+    ('https://www.isdb.org/project-procurement/taxonomy/term/210', 'SPN'),  # Specific Procurement Notice
+    ('https://www.isdb.org/project-procurement/taxonomy/term/211', 'SPN'),  # Specific Procurement Notice (Civil Works)
+]
+
+
+def _collect_isdb() -> list:
+    """IsDB — 카테고리 페이지(taxonomy term)에서 현재 활성 공고 수집.
+
+    /project-procurement/tenders 기본 페이지는 2025년 마감된 EOI/PQN 위주라 부적합.
+    taxonomy/term/207 (GPN) 과 /210 (SPN) 에 현재 연도 활성 공고 존재.
+    """
+    try:
+        import requests as req
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return []
+
+    results = []
+    seen = set()
+    attempts_errors = []
+
+    type_map = {
+        'eoi': 'EOI', 'gpn': 'GPN', 'spn': 'SPN',
+        'ca': 'Contract Award', 'pq': 'Pre-Qualification',
+        'pqn': 'Pre-Qualification',
+    }
+
+    for list_url, default_type in _ISDB_PAGES:
+        try:
+            r = req.get(list_url,
+                        headers=_browser_headers(referer='https://www.isdb.org/'),
+                        timeout=20)
+            r.raise_for_status()
+        except Exception as e:
+            attempts_errors.append(f'{list_url}: {e}')
+            continue
+
+        soup = BeautifulSoup(r.text, 'html.parser')
+        # taxonomy 페이지는 간단한 링크 리스트 구조 — 모든 공고 링크 수집
+        anchors = soup.select('a[href*="/project-procurement/tenders/"]')
+        print(f'[IsDB-{default_type}] anchors: {len(anchors)}')
+
+        for a in anchors:
+            href = a.get('href', '')
+            title = a.get_text(strip=True)
+            if not title or not href:
+                continue
+            if href.startswith('/'):
+                href = 'https://www.isdb.org' + href
+            if href in seen:
+                continue
+            seen.add(href)
+
+            # URL 에서 notice type 추출
+            notice_type = default_type
+            tm = re.search(r'/tenders/\d{4}/([a-z\-]+)/', href)
+            if tm:
+                notice_type = type_map.get(tm.group(1).lower(), notice_type)
+
+            if notice_type == 'Contract Award':
+                continue
+
+            # 주변 텍스트 수집 — 최근접 상위 블록에서
+            parent = a.find_parent(['article', 'div', 'li']) or a.parent
+            row_text = parent.get_text(' ', strip=True) if parent else title
+
+            if re.search(r'\b(Closed|Fermé|Ferm\u00e9)\b', row_text, re.IGNORECASE):
+                continue
+
+            combined = f'{title} {row_text}'
+            if not _is_agri(combined) and not _is_consulting(combined):
+                continue
+
+            # 마감일
+            deadline = ''
+            dm = re.search(r'(\d{4}-\d{2}-\d{2})', row_text)
+            if dm:
+                deadline = dm.group(1)
+            if _is_deadline_passed(deadline):
+                continue
+
+            country = ''
+            for kw in ('Bangladesh', 'Uganda', 'Togo', 'Benin', 'Mauritania',
+                       'Guinea', 'Morocco', 'Kyrgyzstan', 'Uzbekistan',
+                       'Tajikistan', 'Turkey', 'Türkiye', 'Pakistan',
+                       'Indonesia', 'Jordan', 'Sierra Leone', 'Suriname',
+                       'Azerbaijan', 'Saudi Arabia', 'Kazakhstan', 'Egypt',
+                       'Nigeria', 'Senegal', 'Mali', 'Burkina Faso', 'Niger',
+                       'Cameroon', 'Chad', 'Mozambique', 'Oman', 'Tanzania'):
+                if kw in row_text or kw in title:
+                    country = kw
                     break
-                if page == 1:
-                    success_count += 1
-                soup = BeautifulSoup(r.text, 'html.parser')
 
-                rows = (soup.select('table tbody tr')
-                        or soup.select('.board-list tr, .list-type tr, .bbs-list tr'))
-                if not rows:
-                    break
+            sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
 
-                page_added = 0
-                for row in rows:
-                    title_el = row.select_one('td a, td .title a')
-                    if not title_el:
-                        continue
-                    title = title_el.get_text(strip=True)
-                    if not title:
-                        continue
+            results.append({
+                'source': 'isdb',
+                'title': _decorate_title(title, notice_type),
+                'country': country,
+                'client': 'IsDB',
+                'sector': sector,
+                'contract_value': _extract_value_from_text(row_text),
+                'deadline': deadline,
+                'source_url': href,
+                'raw_data': {'title': title, 'url': href, 'type': notice_type},
+            })
 
-                    href = title_el.get('href', '')
-                    url  = ('https://www.koica.go.kr' + href
-                            if href.startswith('/') else href)
-                    if url in seen:
-                        continue
-                    seen.add(url)
-
-                    cols = row.select('td')
-                    col_texts = [c.get_text(strip=True) for c in cols]
-
-                    # 상태 컬럼 ('공고중' / '마감' / '취소' 등) — 존재하면 필터
-                    status_text = ''
-                    for t in col_texts:
-                        if t in ('공고중', '마감', '취소', '재공고', '일반공고', '긴급공고'):
-                            status_text = t
-                            break
-                    if status_text in ('마감', '취소'):
-                        continue
-
-                    # 마지막 컬럼을 마감일로 가정 — 지난 날짜면 skip
-                    deadline = col_texts[-1] if col_texts else ''
-                    if _is_deadline_passed(deadline):
-                        continue
-
-                    # 유형 태그 (재공고/긴급공고/일반공고)
-                    notice_type = ''
-                    for t in col_texts:
-                        if t in ('재공고', '긴급공고', '일반공고'):
-                            notice_type = t
-                            break
-
-                    page_added += 1
-                    results.append({
-                        'source': 'koica',
-                        'title': _decorate_title(title, notice_type),
-                        'country': '',
-                        'client': 'KOICA',
-                        'sector': kw_sector,
-                        'contract_value': '',
-                        'deadline': deadline,
-                        'source_url': url,
-                        'raw_data': {'title': title, 'keyword': kw, 'page': page},
-                    })
-
-                # 이 페이지에서 유효 행이 하나도 없으면 다음 페이지로 안 넘어감
-                if page_added == 0:
-                    break
-            except Exception as e:
-                errors_per_kw.append(f'{kw}p{page}:{type(e).__name__}')
-                break
-
-    if errors_per_kw:
-        print(f'[KOICA-HTML] 실패 키워드: {errors_per_kw[:10]}')
-    # 모든 키워드 요청이 실패했으면 에러로 표면화
-    if success_count == 0 and errors_per_kw:
-        raise RuntimeError('KOICA 모든 키워드 요청 실패: ' + ', '.join(errors_per_kw[:5]))
+    if attempts_errors:
+        print(f'[IsDB] attempt errors: {attempts_errors}')
+    if not results and attempts_errors and len(attempts_errors) >= len(_ISDB_PAGES):
+        raise RuntimeError('IsDB 전체 페이지 요청 실패: ' + ' | '.join(attempts_errors))
 
     return results
 
@@ -992,6 +1220,8 @@ COLLECTORS = {
     'ungm':      _collect_ungm,
     'adb':       _collect_adb,
     'afdb':      _collect_afdb,
+    'aiib':      _collect_aiib,
+    'isdb':      _collect_isdb,
     'koica':     _collect_koica,
 }
 
@@ -1000,6 +1230,8 @@ SOURCE_DISPLAY = {
     'ungm':      'UNGM',
     'adb':       'ADB',
     'afdb':      'AfDB',
+    'aiib':      'AIIB',
+    'isdb':      'IsDB',
     'koica':     'KOICA',
 }
 
