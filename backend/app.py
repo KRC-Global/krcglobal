@@ -69,6 +69,7 @@ from routes.board import board_bp
 from routes.banners import banners_bp
 from routes.cn_analysis import cn_bp
 from routes.webhook import webhook_bp
+from routes.notice_collector import collector_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(projects_bp, url_prefix='/api/projects')
@@ -94,6 +95,7 @@ app.register_blueprint(board_bp, url_prefix='/api/board')
 app.register_blueprint(banners_bp, url_prefix='/api/banners')
 app.register_blueprint(cn_bp, url_prefix='/api/cn')
 app.register_blueprint(webhook_bp, url_prefix='/api/webhook')
+app.register_blueprint(collector_bp, url_prefix='/api/notices')
 
 
 # Security headers

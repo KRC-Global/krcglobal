@@ -1,5 +1,11 @@
 {
   "version": 2,
+  "crons": [
+    {
+      "path": "/api/notices/collect",
+      "schedule": "0 1 * * *"
+    }
+  ],
   "builds": [
     {
       "src": "api/index.py",

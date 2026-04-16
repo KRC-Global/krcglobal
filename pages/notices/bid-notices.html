@@ -578,6 +578,7 @@
                 <input type="text" id="searchInput" placeholder="제목 검색" style="min-width: 200px;">
                 <button class="btn btn-secondary" onclick="loadNotices(1)">검색</button>
                 <button class="btn btn-secondary" onclick="resetFilter()">초기화</button>
+                <button id="collectBtn" class="btn btn-primary" onclick="triggerCollect()" style="display:none; margin-left:auto;">🔄 지금 수집</button>
             </div>
 
             <!-- 게시판 테이블 -->
@@ -686,6 +687,7 @@
                     document.getElementById('adminMenuUser').style.display = 'block';
                     document.getElementById('adminDropdownLink').style.display = 'flex';
                     document.getElementById('btnDelete').style.display = 'inline-block';
+                    document.getElementById('collectBtn').style.display = 'inline-flex';
                 }
             } catch (e) {
                 console.error('사용자 정보 파싱 오류:', e);
@@ -703,6 +705,40 @@
             document.getElementById('sourceFilter').addEventListener('change', () => loadNotices(1));
             document.getElementById('statusFilter').addEventListener('change', () => loadNotices(1));
         });
+
+        // ── 수동 수집 트리거 (관리자 전용) ───────────────────────────────────────
+        async function triggerCollect() {
+            const btn = document.getElementById('collectBtn');
+            const origText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '수집 중...';
+
+            try {
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const res = await fetch(`${API_BASE_URL}/notices/collect`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+                const ct = res.headers.get('content-type') || '';
+                if (!ct.includes('application/json')) {
+                    throw new Error(`서버 오류 (HTTP ${res.status})`);
+                }
+                const data = await res.json();
+                if (data.success) {
+                    const bySource = Object.entries(data.by_source || {})
+                        .map(([k, v]) => `${k}: ${v}건`).join(', ');
+                    Toast.success(`수집 완료 — 신규 ${data.created}건 저장${bySource ? ` (${bySource})` : ''}`);
+                    await loadNotices(1);
+                } else {
+                    Toast.error(data.message || '수집 실패');
+                }
+            } catch (e) {
+                Toast.error('수집 오류: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = origText;
+            }
+        }
 
         // ── 필터 초기화 ──────────────────────────────────────────────────────────
         function resetFilter() {
