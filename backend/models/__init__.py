@@ -1606,6 +1606,39 @@ class ProjectLifecycle(db.Model):
         }
 
 
+class BidNotice(db.Model):
+    """발주공고 모델 - 디스코드 봇이 수집한 국제기구 발주공고"""
+    __tablename__ = 'bid_notices'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    source         = db.Column(db.String(50),  nullable=False, index=True)   # worldbank, adb, koica 등
+    title          = db.Column(db.String(500), nullable=False)
+    country        = db.Column(db.String(100))
+    client         = db.Column(db.String(200))                               # 발주처
+    sector         = db.Column(db.String(100))                               # agriculture, irrigation 등
+    contract_value = db.Column(db.String(100))                               # "$2.3M" 형태 문자열
+    deadline       = db.Column(db.String(50))                                # "2026-05-30" 문자열
+    source_url     = db.Column(db.String(500), nullable=False, unique=True)  # 중복 방지
+    status         = db.Column(db.String(20),  default='new', index=True)    # new / reviewed / applied / closed
+    raw_data       = db.Column(db.JSON)                                      # 봇이 보낸 원본 전체
+    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'source': self.source,
+            'title': self.title,
+            'country': self.country,
+            'client': self.client,
+            'sector': self.sector,
+            'contractValue': self.contract_value,
+            'deadline': self.deadline,
+            'sourceUrl': self.source_url,
+            'status': self.status,
+            'createdAt': self.created_at.strftime('%Y-%m-%d') if self.created_at else None,
+        }
+
+
 # Import expansion models
 from models.expansion import (
     Company, Loan, LoanPerformance, LoanRepayment,

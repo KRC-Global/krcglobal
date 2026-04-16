@@ -552,6 +552,8 @@ function initMenuForCurrentPage() {
         'profitability': ['예산/정산'],
         // GIS
         'gis': ['글로벌맵'],
+        // 발주공고
+        'bid-notices': ['발주공고'],
         // 편의기능
         'utilities': ['편의기능'],
         // 분석 도구
