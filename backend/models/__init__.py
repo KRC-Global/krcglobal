@@ -1624,6 +1624,9 @@ class BidNotice(db.Model):
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
+        details = None
+        if isinstance(self.raw_data, dict):
+            details = self.raw_data.get('wb_details')
         return {
             'id': self.id,
             'source': self.source,
@@ -1636,6 +1639,7 @@ class BidNotice(db.Model):
             'sourceUrl': self.source_url,
             'status': self.status,
             'createdAt': self.created_at.strftime('%Y-%m-%d') if self.created_at else None,
+            'details': details,
         }
 
 

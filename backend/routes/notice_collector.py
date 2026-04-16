@@ -4,11 +4,13 @@ World Bank API / UNGM API / ADB RSS / AfDB RSS / KOICA data.go.kr
 농업 관련 기술용역 공고($1M 이상)를 병렬 수집 → bid_notices 테이블 저장
 """
 import os
+import re
 import json
 import hmac
 import hashlib
 import threading
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 from xml.etree import ElementTree
 from flask import Blueprint, request, jsonify, current_app
 from models import db, BidNotice, ScrapingRun
@@ -74,6 +76,174 @@ def _fmt_value(raw) -> str:
         return f'${v:,.0f}'
     except Exception:
         return str(raw)
+
+
+# ── 상태/마감일 공통 헬퍼 ────────────────────────────────────────────────────
+_DATE_RX = re.compile(r'(\d{4})[-./\s년]\s*(\d{1,2})[-./\s월]\s*(\d{1,2})')
+
+
+def _parse_date_any(s: str):
+    """YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD / 'YYYY년 MM월 DD일' / ISO datetime → date.
+    파싱 실패 시 None."""
+    if not s:
+        return None
+    raw = str(s).strip()
+    try:
+        iso = raw.replace('Z', '+00:00').split('T')[0]
+        return datetime.fromisoformat(iso).date()
+    except Exception:
+        pass
+    m = _DATE_RX.search(raw)
+    if not m:
+        return None
+    try:
+        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        return datetime(y, mo, d).date()
+    except Exception:
+        return None
+
+
+def _is_deadline_passed(deadline_str: str) -> bool:
+    """마감일이 오늘(UTC)보다 이전이면 True. 파싱 실패 시 False(유지)."""
+    d = _parse_date_any(deadline_str)
+    if not d:
+        return False
+    return d < datetime.utcnow().date()
+
+
+def _is_stale_pub(pub_date_str: str, days: int = 60) -> bool:
+    """RSS pubDate(RFC 822) 기준 N일 이전이면 True. 파싱 실패 시 False."""
+    if not pub_date_str:
+        return False
+    try:
+        dt = parsedate_to_datetime(pub_date_str)
+        if dt is None:
+            return False
+        if dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        age = datetime.utcnow() - dt
+        return age.days > days
+    except Exception:
+        return False
+
+
+def _clean_html(text: str) -> str:
+    """RSS description 등에서 HTML 태그 제거."""
+    if not text:
+        return ''
+    return re.sub(r'<[^>]+>', ' ', str(text))
+
+
+_VALUE_RX = re.compile(
+    r'(?:USD|US\$|\$|UA|EUR|€)\s*([\d,\.]+)\s*(million|billion|M|B|K)?',
+    re.IGNORECASE,
+)
+
+
+def _extract_value_from_text(text: str) -> str:
+    """설명 텍스트에서 'USD 2.5 million' 같은 금액을 추출 → '$2.5M' 형식."""
+    if not text:
+        return ''
+    m = _VALUE_RX.search(_clean_html(text))
+    if not m:
+        return ''
+    try:
+        num = float(m.group(1).replace(',', ''))
+    except (TypeError, ValueError):
+        return ''
+    unit = (m.group(2) or '').lower()
+    if unit in ('billion', 'b'):
+        num *= 1_000_000_000
+    elif unit in ('million', 'm'):
+        num *= 1_000_000
+    elif unit == 'k':
+        num *= 1_000
+    return _fmt_value(num)
+
+
+def _decorate_title(title: str, notice_type: str) -> str:
+    """제목에 [유형] 태그 부착 — 이미 포함되어 있으면 중복 방지."""
+    title = (title or '').strip()
+    notice_type = (notice_type or '').strip()
+    if not notice_type:
+        return title
+    tag = f'[{notice_type}]'
+    if tag.lower() in title.lower():
+        return title
+    return f'{title} {tag}'
+
+
+# ── World Bank notice_text 파서 ──────────────────────────────────────────────
+_WB_STOP_LABELS = [
+    'Scope of Contract', 'Notice Version No', 'Procurement Method',
+    'Loan/Credit/TF Info', 'Awarded Bidder(s)', 'Evaluated Bidder(s)',
+    'Rejected Bidder(s)', 'Duration of Contract', 'Bid/Contract Reference No',
+    'Date Notification', 'Contract Title', 'Grant No', 'Bid Price at Opening',
+    'Contract Award', 'Project:', 'Country:',
+]
+
+_WB_PRICE_RX = re.compile(
+    r'(?:Signed Contract price|Evaluated Bid Price|Awarded Price|Contract Price|Bid Price at Opening)'
+    r'\s*[:\s]\s*([A-Z]{3}|US\$|USD|\$)\s*([\d,]+(?:\.\d+)?)',
+    re.IGNORECASE,
+)
+
+
+def _wb_grab(plain: str, label: str) -> str:
+    """notice_text 평문에서 label 다음 내용을 다음 라벨 전까지 추출."""
+    stops_alt = '|'.join(re.escape(s) for s in _WB_STOP_LABELS if s != label)
+    pat = rf'{re.escape(label)}\s*:?\s*(.+?)(?=\s+(?:{stops_alt})\s*[:\s]|$)'
+    m = re.search(pat, plain, re.IGNORECASE)
+    return m.group(1).strip()[:300] if m else ''
+
+
+def _fmt_currency_amount(currency: str, amount_str: str) -> str:
+    """('LSL', '1418732.00') → 'LSL 1.4M'. USD 계열은 'USD' 접두사."""
+    try:
+        v = float(amount_str.replace(',', ''))
+    except (TypeError, ValueError):
+        return ''
+    cur = (currency or 'USD').upper().replace('US$', 'USD').replace('$', 'USD')
+    if v >= 1_000_000:
+        num = f'{v/1_000_000:.2f}M'
+    elif v >= 1_000:
+        num = f'{v/1_000:.1f}K'
+    else:
+        num = f'{v:,.0f}'
+    return f'{cur} {num}'
+
+
+def _wb_extract_details(raw_html: str) -> dict:
+    """World Bank notice_text HTML에서 구조화된 필드 추출.
+    Contract Award 공고에서 금액 / 낙찰자 / scope 등을 뽑는다."""
+    if not raw_html:
+        return {}
+    plain = re.sub(r'\s+', ' ', _clean_html(raw_html)).strip()
+    details = {}
+
+    for key, label in [
+        ('scope', 'Scope of Contract'),
+        ('procurement_method', 'Procurement Method'),
+        ('duration', 'Duration of Contract'),
+        ('reference_no', 'Bid/Contract Reference No'),
+        ('loan_credit', 'Loan/Credit/TF Info'),
+        ('awarded_bidder', 'Awarded Bidder(s)'),
+        ('contract_title', 'Contract Title'),
+    ]:
+        val = _wb_grab(plain, label)
+        if val:
+            details[key] = val
+
+    m = _WB_PRICE_RX.search(plain)
+    if m:
+        formatted = _fmt_currency_amount(m.group(1), m.group(2))
+        if formatted:
+            details['contract_amount'] = formatted
+
+    if plain:
+        details['text_excerpt'] = plain[:1200]
+
+    return details
 
 
 def _save_notice(source, title, country, client, sector,
@@ -156,10 +326,32 @@ def _collect_worldbank() -> list:
                 continue
             source_url = f'https://projects.worldbank.org/en/projects-operations/procurement-detail/{nid}'
 
-            deadline_raw = item.get('submission_date') or ''
-            deadline = deadline_raw[:10] if deadline_raw else (item.get('noticedate') or '')
+            # 마감일: submission_deadline_date > submission_date > noticedate
+            deadline_raw = (item.get('submission_deadline_date')
+                            or item.get('submission_date')
+                            or item.get('noticedate') or '')
+            deadline = deadline_raw[:10] if deadline_raw else ''
 
-            display_title = f'{title} [{notice_type}]' if notice_type else title
+            # notice_text 파싱 — 금액 / scope / 낙찰자 등
+            wb_details = _wb_extract_details(item.get('notice_text', ''))
+
+            # contract_value: 파싱된 금액 > text에서 USD 추출 > 없음
+            contract_value = (wb_details.get('contract_amount')
+                              or _extract_value_from_text(item.get('notice_text', '')))
+
+            # project_id 추가
+            if item.get('project_id'):
+                wb_details['project_id'] = item['project_id']
+            # 연락처 정보
+            for ck in ('contact_name', 'contact_email', 'contact_phone_no', 'contact_web_url'):
+                if item.get(ck):
+                    wb_details[ck] = item[ck]
+
+            display_title = _decorate_title(title, notice_type)
+
+            # raw_data 는 추출 결과만 저장 (용량 절감 — 원본 notice_text는 text_excerpt만)
+            raw_light = {k: v for k, v in item.items() if k != 'notice_text'}
+            raw_light['wb_details'] = wb_details
 
             results.append({
                 'source': 'worldbank',
@@ -167,10 +359,10 @@ def _collect_worldbank() -> list:
                 'country': (item.get('project_ctry_name') or '').strip(),
                 'client': (item.get('contact_organization') or '').strip() or 'World Bank',
                 'sector': 'agriculture',
-                'contract_value': '',
+                'contract_value': contract_value,
                 'deadline': deadline,
                 'source_url': source_url,
-                'raw_data': item,
+                'raw_data': raw_light,
             })
 
         total_raw = data.get('total')
@@ -218,7 +410,8 @@ def _collect_ungm() -> list:
                 r = req.get(url, headers=headers, params=params, timeout=12)
                 r.raise_for_status()
                 data = r.json()
-            except Exception:
+            except Exception as e:
+                print(f'[UNGM-API] page {page} 요청 오류: {e}')
                 break
 
             items = data.get('Notices') or data.get('notices') or []
@@ -230,11 +423,16 @@ def _collect_ungm() -> list:
                 desc = item.get('Description') or item.get('description') or ''
                 combined = f"{title} {desc}"
 
-                if not _is_agri(combined):
+                if not _is_agri(combined) and not _is_consulting(combined):
                     continue
 
                 value_raw = item.get('EstimatedValue') or item.get('estimatedValue') or 0
                 if value_raw and _parse_value_usd(str(value_raw)) < MIN_VALUE_USD:
+                    continue
+
+                deadline_raw = item.get('Deadline') or item.get('deadline') or ''
+                deadline = deadline_raw[:10] if deadline_raw else ''
+                if _is_deadline_passed(deadline):
                     continue
 
                 source_url = (item.get('NoticeUrl') or item.get('noticeUrl') or
@@ -244,16 +442,18 @@ def _collect_ungm() -> list:
                     source_url = f'https://www.ungm.org/Public/Notice/{notice_id}'
 
                 country = (item.get('Country') or item.get('country') or '').strip()
-                deadline_raw = item.get('Deadline') or item.get('deadline') or ''
-                deadline = deadline_raw[:10] if deadline_raw else ''
-                org = item.get('AgencyName') or item.get('agencyName') or 'UN'
+                org = (item.get('AgencyName') or item.get('agencyName')
+                       or item.get('Beneficiary') or 'UN')
+                notice_type = (item.get('TypeName') or item.get('NoticeType')
+                               or item.get('typeName') or '')
+                sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
 
                 results.append({
                     'source': 'ungm',
-                    'title': title,
+                    'title': _decorate_title(title, notice_type),
                     'country': country,
                     'client': org,
-                    'sector': 'agriculture',
+                    'sector': sector,
                     'contract_value': _fmt_value(value_raw) if value_raw else '',
                     'deadline': deadline,
                     'source_url': source_url,
@@ -298,12 +498,26 @@ def _collect_ungm() -> list:
         if not _is_agri(combined) and not _is_consulting(combined):
             continue
         deadline = (item.get('DeadlineDate') or '')[:10]
+        if _is_deadline_passed(deadline):
+            continue
+
+        status_code = (item.get('NoticeStatusCode') or item.get('Status') or '').strip().upper()
+        if status_code and status_code not in ('AC', 'ACTIVE', 'PUB', 'PUBLISHED', ''):
+            continue
+
+        notice_type = (item.get('NoticeTypeName') or item.get('TypeName')
+                       or item.get('NoticeType') or '')
+        if isinstance(notice_type, int):
+            notice_type = {3: 'RFQ', 4: 'RFP'}.get(notice_type, '')
+        org = (item.get('AgencyName') or item.get('Beneficiary') or 'UN').strip()
+        sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
+
         results.append({
             'source': 'ungm',
-            'title': title,
+            'title': _decorate_title(title, notice_type),
             'country': (item.get('Country') or '').strip(),
-            'client': (item.get('AgencyName') or 'UN').strip(),
-            'sector': 'agriculture',
+            'client': org,
+            'sector': sector,
             'contract_value': '',
             'deadline': deadline,
             'source_url': f'https://www.ungm.org/Public/Notice/{nid}',
@@ -341,24 +555,46 @@ def _collect_adb() -> list:
                 title = item.findtext('title') or ''
                 link = item.findtext('link') or ''
                 desc = item.findtext('description') or ''
-                combined = f"{title} {desc}"
+                desc_text = _clean_html(desc)
+                combined = f"{title} {desc_text}"
 
-                if not _is_agri(combined):
-                    continue
-                if not _is_consulting(combined):
+                if not _is_agri(combined) and not _is_consulting(combined):
                     continue
                 if not link:
                     continue
 
                 pub_date = item.findtext('pubDate') or ''
+                # 60일 이상 경과한 공고 제외
+                if _is_stale_pub(pub_date, days=60):
+                    continue
+
+                # notice type: <category> 또는 description 의 "Consulting Services" 류
+                category = item.findtext('category') or ''
+                notice_type = category.strip() if category else ''
+                if not notice_type and 'consulting' in desc_text.lower():
+                    notice_type = 'Consulting'
+
+                # country: description 에서 'Country: XXX' 패턴 추출
+                country = ''
+                m = re.search(r'Country\s*[:\-]\s*([A-Z][A-Za-z ,\-]+)', desc_text)
+                if m:
+                    country = m.group(1).strip().rstrip('.,')[:100]
+
+                # client: 'Executing Agency: XXX' / 'Borrower: XXX' 패턴
+                client = 'ADB'
+                m = re.search(r'(?:Executing Agency|Borrower)\s*[:\-]\s*([^\n<;]+)', desc_text)
+                if m:
+                    client = m.group(1).strip()[:200]
+
+                sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
 
                 results.append({
                     'source': 'adb',
-                    'title': title,
-                    'country': '',
-                    'client': 'ADB',
-                    'sector': 'agriculture',
-                    'contract_value': '',
+                    'title': _decorate_title(title, notice_type),
+                    'country': country,
+                    'client': client,
+                    'sector': sector,
+                    'contract_value': _extract_value_from_text(desc_text),
                     'deadline': pub_date[:10] if pub_date else '',
                     'source_url': link,
                     'raw_data': {'title': title, 'link': link, 'description': desc},
@@ -382,8 +618,15 @@ def _collect_adb() -> list:
             else:
                 html_ok = True
                 soup = BeautifulSoup(r.text, 'html.parser')
-                for row in soup.select('table.tender-table tbody tr, .views-row'):
-                    title_el = row.select_one('td.views-field-title a, .views-field-title a')
+                # 다중 셀렉터 — 사이트 구조 변경 대비
+                rows = (soup.select('table.tender-table tbody tr')
+                        or soup.select('.views-row')
+                        or soup.select('article.node, .search-result'))
+                print(f'[ADB-HTML] rows found: {len(rows)}')
+                for row in rows:
+                    title_el = (row.select_one('td.views-field-title a')
+                                or row.select_one('.views-field-title a')
+                                or row.select_one('h2 a, h3 a, a.title'))
                     if not title_el:
                         continue
                     title = title_el.get_text(strip=True)
@@ -391,17 +634,19 @@ def _collect_adb() -> list:
                     if href.startswith('/'):
                         href = 'https://www.adb.org' + href
 
-                    combined = title + ' ' + row.get_text()
-                    if not _is_agri(combined):
+                    row_text = row.get_text(' ', strip=True)
+                    combined = title + ' ' + row_text
+                    if not _is_agri(combined) and not _is_consulting(combined):
                         continue
 
+                    sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
                     results.append({
                         'source': 'adb',
                         'title': title,
                         'country': '',
                         'client': 'ADB',
-                        'sector': 'agriculture',
-                        'contract_value': '',
+                        'sector': sector,
+                        'contract_value': _extract_value_from_text(row_text),
                         'deadline': '',
                         'source_url': href,
                         'raw_data': {'title': title, 'url': href},
@@ -409,6 +654,8 @@ def _collect_adb() -> list:
         except Exception as e:
             attempts_errors.append(f'HTML: {e}')
 
+    if attempts_errors:
+        print(f'[ADB] attempt errors: {attempts_errors}')
     if not rss_ok and not html_ok:
         raise RuntimeError('ADB 모든 수집 경로 실패: ' + ' | '.join(attempts_errors))
 
@@ -444,7 +691,8 @@ def _collect_afdb() -> list:
                 title = item.findtext('title') or ''
                 link = item.findtext('link') or ''
                 desc = item.findtext('description') or ''
-                combined = f"{title} {desc}"
+                desc_text = _clean_html(desc)
+                combined = f"{title} {desc_text}"
 
                 if not _is_agri(combined):
                     continue
@@ -456,16 +704,32 @@ def _collect_afdb() -> list:
                         continue
 
                 pub_date = item.findtext('pubDate') or ''
+                if _is_stale_pub(pub_date, days=60):
+                    continue
+
+                # country: dc:subject 중 지명만 채택 (쉼표/세미콜론 분리 후 첫 값)
                 country_el = item.find('{http://purl.org/dc/elements/1.1/}subject')
-                country = country_el.text.strip() if country_el is not None else ''
+                raw_country = country_el.text.strip() if country_el is not None else ''
+                country = ''
+                if raw_country:
+                    parts = re.split(r'[;,/]', raw_country)
+                    country = parts[0].strip()[:100]
+
+                # notice type: dc:type 또는 category
+                type_el = item.find('{http://purl.org/dc/elements/1.1/}type')
+                notice_type = type_el.text.strip() if type_el is not None else ''
+                if not notice_type:
+                    notice_type = (item.findtext('category') or '').strip()
+
+                sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
 
                 results.append({
                     'source': 'afdb',
-                    'title': title,
+                    'title': _decorate_title(title, notice_type),
                     'country': country,
                     'client': 'AfDB',
-                    'sector': 'agriculture',
-                    'contract_value': '',
+                    'sector': sector,
+                    'contract_value': _extract_value_from_text(desc_text),
                     'deadline': pub_date[:10] if pub_date else '',
                     'source_url': link,
                     'raw_data': {'title': title, 'link': link, 'description': desc},
@@ -490,7 +754,11 @@ def _collect_afdb() -> list:
             else:
                 html_ok = True
                 soup = BeautifulSoup(r.text, 'html.parser')
-                for a in soup.select('.field-content a, .views-field-title a'):
+                anchors = (soup.select('.field-content a')
+                           or soup.select('.views-field-title a')
+                           or soup.select('article h2 a, article h3 a, .search-result a'))
+                print(f'[AfDB-HTML] anchors found: {len(anchors)}')
+                for a in anchors:
                     title = a.get_text(strip=True)
                     href = a.get('href', '')
                     if not title or not href:
@@ -498,15 +766,16 @@ def _collect_afdb() -> list:
                     if href.startswith('/'):
                         href = 'https://www.afdb.org' + href
 
-                    if not _is_agri(title):
+                    if not _is_agri(title) and not _is_consulting(title):
                         continue
 
+                    sector = 'consulting' if _is_consulting(title) and not _is_agri(title) else 'agriculture'
                     results.append({
                         'source': 'afdb',
                         'title': title,
                         'country': '',
                         'client': 'AfDB',
-                        'sector': 'agriculture',
+                        'sector': sector,
                         'contract_value': '',
                         'deadline': '',
                         'source_url': href,
@@ -515,6 +784,8 @@ def _collect_afdb() -> list:
         except Exception as e:
             attempts_errors.append(f'HTML: {e}')
 
+    if attempts_errors:
+        print(f'[AfDB] attempt errors: {attempts_errors}')
     if not rss_ok and not html_ok:
         raise RuntimeError('AfDB 모든 수집 경로 실패: ' + ' | '.join(attempts_errors))
 
@@ -569,6 +840,18 @@ def _collect_koica() -> list:
                 if not _is_agri(combined) and not _is_consulting(combined):
                     continue
 
+                # 상태 필터: '공고중' 이외(마감/취소) 제외
+                status = (item.get('bidPblancSttusCode')
+                          or item.get('bidPblancSttusNm')
+                          or item.get('status') or '').strip()
+                if status and not (status in ('01', '공고중', 'OPEN', 'ACTIVE')
+                                   or '공고' in status):
+                    continue
+
+                deadline = (item.get('bidClseDt') or '')[:10]
+                if _is_deadline_passed(deadline):
+                    continue
+
                 source_url = item.get('bidUrl') or item.get('url') or ''
                 bid_no = item.get('bidNo') or item.get('id') or ''
                 if not source_url and bid_no:
@@ -576,19 +859,23 @@ def _collect_koica() -> list:
                 if not source_url:
                     continue
 
+                notice_type = (item.get('bidPblancKndNm')
+                               or item.get('bidKndNm') or '').strip()
+                sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
+
                 results.append({
                     'source': 'koica',
-                    'title': title,
+                    'title': _decorate_title(title, notice_type),
                     'country': (item.get('country') or '').strip(),
                     'client': 'KOICA',
-                    'sector': 'agriculture',
+                    'sector': sector,
                     'contract_value': (item.get('bidAmt') or '').strip(),
-                    'deadline': (item.get('bidClseDt') or '')[:10],
+                    'deadline': deadline,
                     'source_url': source_url,
                     'raw_data': item,
                 })
-        except Exception:
-            pass
+        except Exception as e:
+            print(f'[KOICA-API] 요청 오류: {e}')
         return results
 
     # ── API 키 없는 경우: HTML 스크래핑 fallback ──────────────────────────
@@ -604,55 +891,90 @@ def _collect_koica() -> list:
     errors_per_kw = []
     success_count = 0
 
+    # 키워드별로 수집 대분류를 구분 (농업 키워드 vs 기술용역 키워드)
+    _AGRI_KW = {'농업', '농촌', '관개', '식량', '작물', '수산', '산림', '농지', '용수'}
+
     for kw in _KOICA_KEYWORDS:
-        try:
-            r = req.get(list_url,
-                        params={'pageIndex': 1, 'searchWrd': kw},
-                        headers=headers, timeout=20)
-            if r.status_code != 200:
-                errors_per_kw.append(f'{kw}:HTTP{r.status_code}')
-                continue
-            success_count += 1
-            soup = BeautifulSoup(r.text, 'html.parser')
+        kw_sector = 'agriculture' if kw in _AGRI_KW else 'consulting'
+        for page in range(1, 4):  # 최대 3페이지까지 순회
+            try:
+                r = req.get(list_url,
+                            params={'pageIndex': page, 'searchWrd': kw},
+                            headers=headers, timeout=20)
+                if r.status_code != 200:
+                    errors_per_kw.append(f'{kw}p{page}:HTTP{r.status_code}')
+                    break
+                if page == 1:
+                    success_count += 1
+                soup = BeautifulSoup(r.text, 'html.parser')
 
-            # 1차 셀렉터
-            rows = soup.select('table tbody tr')
-            # fallback 셀렉터
-            if not rows:
-                rows = soup.select('.board-list tr, .list-type tr, .bbs-list tr')
+                rows = (soup.select('table tbody tr')
+                        or soup.select('.board-list tr, .list-type tr, .bbs-list tr'))
+                if not rows:
+                    break
 
-            for row in rows:
-                title_el = row.select_one('td a, td .title a')
-                if not title_el:
-                    continue
-                title = title_el.get_text(strip=True)
-                if not title:
-                    continue
+                page_added = 0
+                for row in rows:
+                    title_el = row.select_one('td a, td .title a')
+                    if not title_el:
+                        continue
+                    title = title_el.get_text(strip=True)
+                    if not title:
+                        continue
 
-                href = title_el.get('href', '')
-                url  = ('https://www.koica.go.kr' + href
-                        if href.startswith('/') else href)
-                if url in seen:
-                    continue
-                seen.add(url)
+                    href = title_el.get('href', '')
+                    url  = ('https://www.koica.go.kr' + href
+                            if href.startswith('/') else href)
+                    if url in seen:
+                        continue
+                    seen.add(url)
 
-                cols     = row.select('td')
-                deadline = cols[-1].get_text(strip=True) if cols else ''
+                    cols = row.select('td')
+                    col_texts = [c.get_text(strip=True) for c in cols]
 
-                results.append({
-                    'source': 'koica',
-                    'title': title,
-                    'country': '',
-                    'client': 'KOICA',
-                    'sector': 'agriculture',
-                    'contract_value': '',
-                    'deadline': deadline,
-                    'source_url': url,
-                    'raw_data': {'title': title, 'keyword': kw},
-                })
-        except Exception as e:
-            errors_per_kw.append(f'{kw}:{type(e).__name__}')
+                    # 상태 컬럼 ('공고중' / '마감' / '취소' 등) — 존재하면 필터
+                    status_text = ''
+                    for t in col_texts:
+                        if t in ('공고중', '마감', '취소', '재공고', '일반공고', '긴급공고'):
+                            status_text = t
+                            break
+                    if status_text in ('마감', '취소'):
+                        continue
 
+                    # 마지막 컬럼을 마감일로 가정 — 지난 날짜면 skip
+                    deadline = col_texts[-1] if col_texts else ''
+                    if _is_deadline_passed(deadline):
+                        continue
+
+                    # 유형 태그 (재공고/긴급공고/일반공고)
+                    notice_type = ''
+                    for t in col_texts:
+                        if t in ('재공고', '긴급공고', '일반공고'):
+                            notice_type = t
+                            break
+
+                    page_added += 1
+                    results.append({
+                        'source': 'koica',
+                        'title': _decorate_title(title, notice_type),
+                        'country': '',
+                        'client': 'KOICA',
+                        'sector': kw_sector,
+                        'contract_value': '',
+                        'deadline': deadline,
+                        'source_url': url,
+                        'raw_data': {'title': title, 'keyword': kw, 'page': page},
+                    })
+
+                # 이 페이지에서 유효 행이 하나도 없으면 다음 페이지로 안 넘어감
+                if page_added == 0:
+                    break
+            except Exception as e:
+                errors_per_kw.append(f'{kw}p{page}:{type(e).__name__}')
+                break
+
+    if errors_per_kw:
+        print(f'[KOICA-HTML] 실패 키워드: {errors_per_kw[:10]}')
     # 모든 키워드 요청이 실패했으면 에러로 표면화
     if success_count == 0 and errors_per_kw:
         raise RuntimeError('KOICA 모든 키워드 요청 실패: ' + ', '.join(errors_per_kw[:5]))
@@ -681,6 +1003,7 @@ SOURCE_DISPLAY = {
 def _run_all_collectors() -> tuple[list, dict]:
     """모든 수집기를 ThreadPoolExecutor로 병렬 실행"""
     from concurrent.futures import ThreadPoolExecutor, as_completed
+    import traceback
 
     all_items = []
     errors = {}
@@ -693,8 +1016,11 @@ def _run_all_collectors() -> tuple[list, dict]:
             try:
                 items = future.result()
                 all_items.extend(items)
+                print(f'[collector] {name}: fetched {len(items)} items')
             except Exception as e:
                 errors[name] = str(e)
+                print(f'[collector] {name}: FAILED — {e}')
+                traceback.print_exc()
 
     return all_items, errors
 

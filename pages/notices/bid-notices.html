@@ -213,59 +213,104 @@
         .status-badge.applied  { background: #D4EDDA; color: #155724; border: 1px solid #C3E6CB; }
         .status-badge.closed   { background: #F5F5F5; color: #666;    border: 1px solid #D9D9D9; }
 
-        /* 게시판 테이블 */
-        .board-table {
-            width: 100%;
-            border-collapse: collapse;
+        /* 상단 고정 영역 */
+        .notice-fixed-top {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: var(--color-secondary-100);
+            padding: var(--spacing-4) var(--spacing-5) 12px;
+            margin: calc(var(--spacing-4) * -1) calc(var(--spacing-5) * -1) 0;
+            border-bottom: 1px solid var(--color-neutral-200);
+            box-shadow: 0 4px 12px -8px rgba(0, 0, 0, 0.18);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* 뉴스피드 카드 리스트 */
+        .feed-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .feed-card {
             background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
             border-radius: var(--radius-lg);
-            overflow: hidden;
+            padding: 14px 18px;
             box-shadow: var(--shadow-sm);
-        }
-
-        .board-table thead {
-            background: var(--color-primary-50);
-        }
-
-        .board-table th {
-            padding: 10px 12px;
-            text-align: center;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--color-neutral-700);
-            border-bottom: 2px solid var(--color-primary-200);
-            white-space: nowrap;
-        }
-
-        .board-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--color-neutral-100);
-            font-size: 13px;
-            text-align: center;
-        }
-
-        .board-table tbody tr:hover {
-            background: var(--color-neutral-50);
-        }
-
-        .board-table .title-cell {
-            text-align: left;
-            max-width: 380px;
-        }
-
-        .board-table .title-cell span {
-            color: var(--color-neutral-900);
             cursor: pointer;
-            font-weight: 500;
-            display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+        }
+        .feed-card:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--color-primary-300);
+        }
+        .feed-card:active {
+            transform: translateY(1px);
         }
 
-        .board-table .title-cell span:hover {
+        .feed-card-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .feed-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-left: auto;
+            color: var(--color-neutral-500);
+            font-size: 12px;
+        }
+
+        .feed-card-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--color-neutral-900);
+            margin: 0 0 8px;
+            line-height: 1.45;
+            word-break: keep-all;
+        }
+        .feed-card:hover .feed-card-title {
             color: var(--color-primary-600);
+        }
+
+        .feed-card-foot {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            font-size: 12px;
+            color: var(--color-neutral-700);
+            flex-wrap: wrap;
+        }
+        .feed-card-foot .label {
+            color: var(--color-neutral-500);
+            margin-right: 4px;
+        }
+
+        .feed-card-link {
+            color: var(--color-primary-600);
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .feed-card-link:hover {
             text-decoration: underline;
+        }
+
+        .feed-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--color-neutral-500);
+            background: var(--color-neutral-0);
+            border: 1px dashed var(--color-neutral-200);
+            border-radius: var(--radius-lg);
         }
 
         /* 페이지네이션 */
@@ -633,6 +678,8 @@
         </div>
 
         <div class="page-content">
+            <!-- 상단 고정 영역 (스크롤해도 항상 보임) -->
+            <div class="notice-fixed-top">
             <!-- 최근 수집 결과 카드 -->
             <section class="scraping-status-card" id="scrapingStatusCard" hidden>
                 <div class="status-head">
@@ -698,29 +745,13 @@
                 <button class="btn btn-secondary" onclick="resetFilter()">초기화</button>
                 <button id="collectBtn" class="btn btn-primary" onclick="triggerCollect()" style="display:none; margin-left:auto;">🔄 지금 수집</button>
             </div>
+            </div>
+            <!-- /상단 고정 영역 -->
 
-            <!-- 게시판 테이블 -->
-            <table class="board-table">
-                <thead>
-                    <tr>
-                        <th style="width: 60px;">No</th>
-                        <th style="width: 80px;">기관</th>
-                        <th>제목</th>
-                        <th style="width: 100px;">국가</th>
-                        <th style="width: 100px;">규모</th>
-                        <th style="width: 90px;">마감일</th>
-                        <th style="width: 90px;">상태</th>
-                        <th style="width: 60px;">원문</th>
-                    </tr>
-                </thead>
-                <tbody id="noticeTableBody">
-                    <tr>
-                        <td colspan="8" style="text-align: center; padding: 40px;">
-                            데이터를 불러오는 중...
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <!-- 뉴스피드 -->
+            <div class="feed-list" id="noticeFeed">
+                <div class="feed-empty">데이터를 불러오는 중...</div>
+            </div>
 
             <!-- 페이지네이션 -->
             <div class="pagination" id="pagination"></div>
@@ -742,6 +773,15 @@
                     <tr><td class="label">분야</td><td id="detailSector"></td></tr>
                     <tr><td class="label">규모</td><td id="detailContractValue"></td></tr>
                     <tr><td class="label">마감일</td><td id="detailDeadline"></td></tr>
+                    <!-- WB 상세 (worldbank 공고에서만 표시) -->
+                    <tr class="wb-detail-row" hidden><td class="label">Scope</td><td id="detailScope"></td></tr>
+                    <tr class="wb-detail-row" hidden><td class="label">조달방식</td><td id="detailProcMethod"></td></tr>
+                    <tr class="wb-detail-row" hidden><td class="label">계약기간</td><td id="detailDuration"></td></tr>
+                    <tr class="wb-detail-row" hidden><td class="label">참조번호</td><td id="detailRef"></td></tr>
+                    <tr class="wb-detail-row" hidden><td class="label">차관/TF</td><td id="detailLoan"></td></tr>
+                    <tr class="wb-detail-row" hidden><td class="label">낙찰자</td><td id="detailAwarded"></td></tr>
+                    <tr class="wb-detail-row" hidden><td class="label">프로젝트ID</td><td id="detailProjectId"></td></tr>
+                    <tr class="wb-detail-row" hidden><td class="label">본문 발췌</td><td id="detailExcerpt" style="white-space:pre-wrap; font-size:12px; color:#555; max-height:220px; overflow-y:auto;"></td></tr>
                     <tr><td class="label">원문 URL</td><td id="detailUrl"></td></tr>
                     <tr><td class="label">수신일</td><td id="detailCreatedAt"></td></tr>
                     <tr>
@@ -972,45 +1012,47 @@
             if (status)  params.set('status', status);
             if (search)  params.set('search', search);
 
-            const tbody = document.getElementById('noticeTableBody');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px;">데이터를 불러오는 중...</td></tr>';
+            const feed = document.getElementById('noticeFeed');
+            feed.innerHTML = '<div class="feed-empty">데이터를 불러오는 중...</div>';
 
             try {
                 const data = await apiCall(`/webhook/notices?${params}`);
                 if (!data.success) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:#999;">데이터를 불러오지 못했습니다.</td></tr>';
+                    feed.innerHTML = '<div class="feed-empty">데이터를 불러오지 못했습니다.</div>';
                     return;
                 }
-                renderTable(data.data);
+                renderFeed(data.data);
                 renderPagination(data.currentPage, data.pages);
             } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:#dc3545;">오류가 발생했습니다.</td></tr>';
+                feed.innerHTML = '<div class="feed-empty" style="color:#dc3545;">오류가 발생했습니다.</div>';
             }
         }
 
-        function renderTable(items) {
-            const tbody = document.getElementById('noticeTableBody');
+        function renderFeed(items) {
+            const feed = document.getElementById('noticeFeed');
             if (!items || items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:#999;">공고가 없습니다.</td></tr>';
+                feed.innerHTML = '<div class="feed-empty">공고가 없습니다.</div>';
                 return;
             }
-            tbody.innerHTML = items.map(n => `
-                <tr>
-                    <td>${n.id}</td>
-                    <td><span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span></td>
-                    <td class="title-cell">
-                        <span onclick='openDetail(${JSON.stringify(n)})'>${escapeHtml(n.title)}</span>
-                    </td>
-                    <td>${escapeHtml(n.country || '-')}</td>
-                    <td>${escapeHtml(n.contractValue || '-')}</td>
-                    <td style="white-space:nowrap;">${escapeHtml(n.deadline || '-')}</td>
-                    <td><span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span></td>
-                    <td>
-                        ${n.sourceUrl
-                            ? `<a href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" title="원문 보기" style="color:var(--color-primary-600); font-weight:600;">↗</a>`
-                            : '-'}
-                    </td>
-                </tr>
+            feed.innerHTML = items.map(n => `
+                <article class="feed-card" onclick='openDetail(${JSON.stringify(n)})'>
+                    <div class="feed-card-head">
+                        <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
+                        <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
+                        <span class="feed-card-meta">
+                            ${n.country ? `<span>🌍 ${escapeHtml(n.country)}</span>` : ''}
+                            ${n.deadline ? `<span>📅 ${escapeHtml(n.deadline)}</span>` : ''}
+                            ${n.sourceUrl
+                                ? `<a class="feed-card-link" href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ 원문</a>`
+                                : ''}
+                        </span>
+                    </div>
+                    <h3 class="feed-card-title">${escapeHtml(n.title)}</h3>
+                    <div class="feed-card-foot">
+                        <span><span class="label">No.</span>${n.id}</span>
+                        ${n.contractValue ? `<span><span class="label">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}
+                    </div>
+                </article>
             `).join('');
         }
 
@@ -1048,6 +1090,30 @@
                 : '-';
             document.getElementById('detailCreatedAt').textContent = notice.createdAt || '-';
             document.getElementById('detailStatusSelect').value = notice.status || 'new';
+
+            // WB 상세 필드 채우기 — notice.details 있을 때만 해당 row 표시
+            const d = notice.details || {};
+            const mapping = {
+                detailScope:       d.scope,
+                detailProcMethod:  d.procurement_method,
+                detailDuration:    d.duration,
+                detailRef:         d.reference_no,
+                detailLoan:        d.loan_credit,
+                detailAwarded:     d.awarded_bidder,
+                detailProjectId:   d.project_id,
+                detailExcerpt:     d.text_excerpt,
+            };
+            for (const [id, val] of Object.entries(mapping)) {
+                const el = document.getElementById(id);
+                const row = el.closest('tr');
+                if (val) {
+                    el.textContent = val;
+                    row.hidden = false;
+                } else {
+                    row.hidden = true;
+                }
+            }
+
             document.getElementById('detailModal').classList.add('show');
         }
 
