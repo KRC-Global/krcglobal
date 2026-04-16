@@ -194,82 +194,127 @@ def _collect_worldbank() -> list:
 
 # ── Tier 1: UNGM API ────────────────────────────────────────────────────────
 def _collect_ungm() -> list:
-    """UNGM API — UNDP, IFAD, FAO, UNOPS 등 22개 UN기관 통합 (API 키 필요)"""
+    """UNGM — API 키 있으면 developer.ungm.org, 없으면 공개 POST AJAX 스크래핑"""
     api_key = os.environ.get('UNGM_API_KEY', '')
-    if not api_key:
-        return []
 
     try:
         import requests as req
     except ImportError:
         return []
 
-    url = 'https://developer.ungm.org/api/v1/notices'
-    headers = {
-        'Authorization': f'Bearer {api_key}',
-        'Accept': 'application/json',
-    }
-    results = []
-    page = 0
-    page_size = 50
-
-    while True:
-        params = {
-            'TenderStatusCode': 'AC',  # Active
-            'DeadlineFrom': datetime.utcnow().strftime('%Y-%m-%d'),
-            'Keywords': 'agriculture irrigation rural food',
-            'PageSize': page_size,
-            'PageIndex': page,
+    # ── API 키 있는 경우: developer.ungm.org ──────────────────────────────
+    if api_key:
+        url = 'https://developer.ungm.org/api/v1/notices'
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Accept': 'application/json',
         }
-        try:
-            r = req.get(url, headers=headers, params=params, timeout=12)
-            r.raise_for_status()
-            data = r.json()
-        except Exception:
-            break
+        results = []
+        page = 0
+        page_size = 50
 
-        items = data.get('Notices') or data.get('notices') or []
-        if not items:
-            break
+        while True:
+            params = {
+                'TenderStatusCode': 'AC',
+                'DeadlineFrom': datetime.utcnow().strftime('%Y-%m-%d'),
+                'Keywords': 'agriculture irrigation rural food consulting technical',
+                'PageSize': page_size,
+                'PageIndex': page,
+            }
+            try:
+                r = req.get(url, headers=headers, params=params, timeout=12)
+                r.raise_for_status()
+                data = r.json()
+            except Exception:
+                break
 
-        for item in items:
-            title = (item.get('Title') or item.get('title') or '').strip()
-            desc = item.get('Description') or item.get('description') or ''
-            combined = f"{title} {desc}"
+            items = data.get('Notices') or data.get('notices') or []
+            if not items:
+                break
 
-            if not _is_agri(combined):
+            for item in items:
+                title = (item.get('Title') or item.get('title') or '').strip()
+                desc = item.get('Description') or item.get('description') or ''
+                combined = f"{title} {desc}"
+
+                if not _is_agri(combined):
+                    continue
+
+                value_raw = item.get('EstimatedValue') or item.get('estimatedValue') or 0
+                if value_raw and _parse_value_usd(str(value_raw)) < MIN_VALUE_USD:
+                    continue
+
+                source_url = (item.get('NoticeUrl') or item.get('noticeUrl') or
+                              item.get('Url') or '').strip()
+                if not source_url:
+                    notice_id = item.get('Id') or item.get('id') or ''
+                    source_url = f'https://www.ungm.org/Public/Notice/{notice_id}'
+
+                country = (item.get('Country') or item.get('country') or '').strip()
+                deadline_raw = item.get('Deadline') or item.get('deadline') or ''
+                deadline = deadline_raw[:10] if deadline_raw else ''
+                org = item.get('AgencyName') or item.get('agencyName') or 'UN'
+
+                results.append({
+                    'source': 'ungm',
+                    'title': title,
+                    'country': country,
+                    'client': org,
+                    'sector': 'agriculture',
+                    'contract_value': _fmt_value(value_raw) if value_raw else '',
+                    'deadline': deadline,
+                    'source_url': source_url,
+                    'raw_data': item,
+                })
+
+            if len(items) < page_size:
+                break
+            page += 1
+
+        return results
+
+    # ── API 키 없는 경우: 공개 POST AJAX 스크래핑 (무인증) ─────────────────
+    results = []
+    search_url = 'https://www.ungm.org/Public/Notice/Search'
+    payload = {
+        'Keywords': 'agriculture irrigation rural farming consulting technical',
+        'NoticeTypes': [3, 4],  # RFQ=3, RFP=4
+        'PageIndex': 0,
+        'PageSize': 50,
+    }
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)',
+    }
+    try:
+        r = req.post(search_url, json=payload, headers=headers, timeout=20)
+        if r.status_code != 200:
+            return []
+        data = r.json()
+        for item in data.get('Notices', []):
+            title = (item.get('Title') or '').strip()
+            nid   = item.get('NoticeId', '')
+            if not title or not nid:
                 continue
-
-            value_raw = item.get('EstimatedValue') or item.get('estimatedValue') or 0
-            if value_raw and _parse_value_usd(str(value_raw)) < MIN_VALUE_USD:
+            combined = title
+            if not _is_agri(combined) and not _is_consulting(combined):
                 continue
-
-            source_url = (item.get('NoticeUrl') or item.get('noticeUrl') or
-                          item.get('Url') or '').strip()
-            if not source_url:
-                notice_id = item.get('Id') or item.get('id') or ''
-                source_url = f'https://www.ungm.org/Public/Notice/{notice_id}'
-
-            country = (item.get('Country') or item.get('country') or '').strip()
-            deadline_raw = item.get('Deadline') or item.get('deadline') or ''
-            deadline = deadline_raw[:10] if deadline_raw else ''
-            org = item.get('AgencyName') or item.get('agencyName') or 'UN'
-
+            deadline = (item.get('DeadlineDate') or '')[:10]
             results.append({
                 'source': 'ungm',
                 'title': title,
-                'country': country,
-                'client': org,
+                'country': (item.get('Country') or '').strip(),
+                'client': (item.get('AgencyName') or 'UN').strip(),
                 'sector': 'agriculture',
-                'contract_value': _fmt_value(value_raw) if value_raw else '',
+                'contract_value': '',
                 'deadline': deadline,
-                'source_url': source_url,
+                'source_url': f'https://www.ungm.org/Public/Notice/{nid}',
                 'raw_data': item,
             })
-
-        if len(items) < page_size:
-            break
-        page += 1
+    except Exception as e:
+        print(f'[UNGM] 스크래핑 오류: {e}')
 
     return results
 
@@ -457,64 +502,132 @@ def _collect_afdb() -> list:
 
 
 # ── Tier 2: KOICA / data.go.kr ──────────────────────────────────────────────
+
+# 농업 + 해외기술용역 통합 키워드
+_KOICA_KEYWORDS = [
+    # 농업
+    '농업', '농촌', '관개', '식량', '작물', '수산', '산림', '농지', '용수',
+    # 해외기술용역
+    '기술용역', '컨설팅', '자문', '기술협력', '용역', '타당성',
+    '기술지원', '기술조사', '사업관리', 'PMC', 'PMO', '조사연구',
+]
+
+
 def _collect_koica() -> list:
-    """KOICA — 공공데이터포털 API (KOICA_API_KEY 환경변수 필요)"""
+    """KOICA — API 키 있으면 data.go.kr, 없으면 HTML 스크래핑 fallback"""
     service_key = os.environ.get('KOICA_API_KEY', '')
-    if not service_key:
-        return []
 
     try:
         import requests as req
     except ImportError:
         return []
 
-    results = []
-    # KOICA ODA 사업 공고 (data.go.kr 제공)
-    # 실제 엔드포인트는 data.go.kr 에서 발급받은 서비스키로 접근
-    url = 'https://apis.data.go.kr/1390802/koica_bid/koicaBidList'
-    params = {
-        'serviceKey': service_key,
-        'pageNo': 1,
-        'numOfRows': 100,
-        'type': 'json',
-    }
+    # ── API 키 있는 경우: data.go.kr ─────────────────────────────────────
+    if service_key:
+        results = []
+        url = 'https://apis.data.go.kr/1390802/koica_bid/koicaBidList'
+        params = {
+            'serviceKey': service_key,
+            'pageNo': 1,
+            'numOfRows': 100,
+            'type': 'json',
+        }
+        try:
+            r = req.get(url, params=params, timeout=12)
+            r.raise_for_status()
+            data = r.json()
+            items = (data.get('response', {})
+                         .get('body', {})
+                         .get('items', {})
+                         .get('item', []))
+            if isinstance(items, dict):
+                items = [items]
+
+            for item in items:
+                title = (item.get('bidNm') or item.get('title') or '').strip()
+                combined = title + ' ' + str(item)
+                if not _is_agri(combined) and not _is_consulting(combined):
+                    continue
+
+                source_url = item.get('bidUrl') or item.get('url') or ''
+                bid_no = item.get('bidNo') or item.get('id') or ''
+                if not source_url and bid_no:
+                    source_url = f'https://www.koica.go.kr/koica_kr/bid/view/{bid_no}'
+                if not source_url:
+                    continue
+
+                results.append({
+                    'source': 'koica',
+                    'title': title,
+                    'country': (item.get('country') or '').strip(),
+                    'client': 'KOICA',
+                    'sector': 'agriculture',
+                    'contract_value': (item.get('bidAmt') or '').strip(),
+                    'deadline': (item.get('bidClseDt') or '')[:10],
+                    'source_url': source_url,
+                    'raw_data': item,
+                })
+        except Exception:
+            pass
+        return results
+
+    # ── API 키 없는 경우: HTML 스크래핑 fallback ──────────────────────────
     try:
-        r = req.get(url, params=params, timeout=12)
-        r.raise_for_status()
-        data = r.json()
-        items = (data.get('response', {})
-                     .get('body', {})
-                     .get('items', {})
-                     .get('item', []))
-        if isinstance(items, dict):
-            items = [items]
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return []
 
-        for item in items:
-            title = (item.get('bidNm') or item.get('title') or '').strip()
-            combined = title + ' ' + str(item)
-            if not _is_agri(combined):
+    list_url = 'https://www.koica.go.kr/koica_kr/bid/selectBidList.do'
+    headers  = {'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)'}
+    results  = []
+    seen     = set()
+
+    for kw in _KOICA_KEYWORDS:
+        try:
+            r = req.get(list_url,
+                        params={'pageIndex': 1, 'searchWrd': kw},
+                        headers=headers, timeout=20)
+            if r.status_code != 200:
                 continue
+            soup = BeautifulSoup(r.text, 'html.parser')
 
-            source_url = item.get('bidUrl') or item.get('url') or ''
-            bid_no = item.get('bidNo') or item.get('id') or ''
-            if not source_url and bid_no:
-                source_url = f'https://www.koica.go.kr/koica_kr/bid/view/{bid_no}'
-            if not source_url:
-                continue
+            # 1차 셀렉터
+            rows = soup.select('table tbody tr')
+            # fallback 셀렉터
+            if not rows:
+                rows = soup.select('.board-list tr, .list-type tr, .bbs-list tr')
 
-            results.append({
-                'source': 'koica',
-                'title': title,
-                'country': (item.get('country') or '').strip(),
-                'client': 'KOICA',
-                'sector': 'agriculture',
-                'contract_value': (item.get('bidAmt') or '').strip(),
-                'deadline': (item.get('bidClseDt') or '')[:10],
-                'source_url': source_url,
-                'raw_data': item,
-            })
-    except Exception:
-        pass
+            for row in rows:
+                title_el = row.select_one('td a, td .title a')
+                if not title_el:
+                    continue
+                title = title_el.get_text(strip=True)
+                if not title:
+                    continue
+
+                href = title_el.get('href', '')
+                url  = ('https://www.koica.go.kr' + href
+                        if href.startswith('/') else href)
+                if url in seen:
+                    continue
+                seen.add(url)
+
+                cols     = row.select('td')
+                deadline = cols[-1].get_text(strip=True) if cols else ''
+
+                results.append({
+                    'source': 'koica',
+                    'title': title,
+                    'country': '',
+                    'client': 'KOICA',
+                    'sector': 'agriculture',
+                    'contract_value': '',
+                    'deadline': deadline,
+                    'source_url': url,
+                    'raw_data': {'title': title, 'keyword': kw},
+                })
+        except Exception as e:
+            print(f'[KOICA] {kw} 스크래핑 오류: {e}')
 
     return results
 
