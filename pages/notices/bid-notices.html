@@ -374,6 +374,7 @@
             max-width: 720px;
             max-height: 90vh;
             overflow-y: auto;
+            overflow-x: hidden;
             box-shadow: var(--shadow-xl);
         }
 
@@ -381,6 +382,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
             padding: 20px 24px;
             border-bottom: 1px solid var(--color-neutral-200);
         }
@@ -389,6 +391,10 @@
             font-size: 18px;
             font-weight: 700;
             color: var(--color-neutral-900);
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            flex: 1;
+            min-width: 0;
         }
 
         .modal-close {
@@ -398,6 +404,7 @@
             cursor: pointer;
             color: var(--color-neutral-500);
             padding: 4px;
+            flex-shrink: 0;
         }
 
         .modal-body {
@@ -408,11 +415,19 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 14px;
+            table-layout: fixed;
         }
 
         .detail-table td {
             padding: 10px 14px;
             border-bottom: 1px solid var(--color-neutral-200);
+            word-break: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        .detail-table td a {
+            word-break: break-all;
+            overflow-wrap: anywhere;
         }
 
         .detail-table .label {
@@ -421,6 +436,51 @@
             width: 110px;
             vertical-align: top;
             white-space: nowrap;
+        }
+
+        /* 모바일: 모달 풀스크린 + 테이블을 라벨/값 2줄 스택 */
+        @media (max-width: 640px) {
+            .modal-content {
+                width: 100%;
+                max-width: 100%;
+                max-height: 100vh;
+                height: 100vh;
+                border-radius: 0;
+            }
+            .modal-header {
+                padding: 14px 16px;
+            }
+            .modal-title {
+                font-size: 16px;
+            }
+            .modal-body {
+                padding: 14px 16px;
+            }
+            .detail-table,
+            .detail-table tbody,
+            .detail-table tr,
+            .detail-table td {
+                display: block;
+                width: 100%;
+            }
+            .detail-table tr {
+                border-bottom: 1px solid var(--color-neutral-200);
+                padding: 10px 0;
+            }
+            .detail-table td {
+                border: none;
+                padding: 2px 0;
+            }
+            .detail-table .label {
+                background: transparent;
+                font-size: 12px;
+                color: var(--color-neutral-500);
+                width: auto;
+                padding: 0;
+            }
+            #detailExcerpt {
+                max-height: 160px !important;
+            }
         }
 
         /* 상태 변경 선택 */
