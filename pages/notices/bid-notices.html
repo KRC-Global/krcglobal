@@ -313,33 +313,39 @@
             border-radius: var(--radius-lg);
         }
 
-        /* 페이지네이션 */
-        .pagination {
-            display: flex;
-            justify-content: center;
-            gap: 4px;
-            margin-top: 20px;
+        /* 무한스크롤 로더/종료 표시 */
+        .feed-sentinel {
+            height: 1px;
         }
-
-        .page-btn {
-            padding: 8px 14px;
-            border: 1px solid var(--color-neutral-300);
-            background: var(--color-neutral-0);
-            border-radius: var(--radius-md);
-            cursor: pointer;
+        .feed-loader {
+            display: none;
+            text-align: center;
+            padding: 18px 12px;
+            color: var(--color-neutral-500);
             font-size: 13px;
         }
-
-        .page-btn.active {
-            background: var(--color-primary-600);
-            color: white;
-            border-color: var(--color-primary-600);
+        .feed-loader.show { display: block; }
+        .feed-loader::before {
+            content: '';
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            margin-right: 8px;
+            border: 2px solid var(--color-neutral-300);
+            border-top-color: var(--color-primary-500);
+            border-radius: 50%;
+            vertical-align: -3px;
+            animation: feedSpin 0.8s linear infinite;
         }
-
-        .page-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        @keyframes feedSpin { to { transform: rotate(360deg); } }
+        .feed-end {
+            display: none;
+            text-align: center;
+            padding: 18px 12px;
+            color: var(--color-neutral-500);
+            font-size: 12px;
         }
+        .feed-end.show { display: block; }
 
         /* 모달 */
         .modal {
@@ -758,8 +764,10 @@
                 <div class="feed-empty">데이터를 불러오는 중...</div>
             </div>
 
-            <!-- 페이지네이션 -->
-            <div class="pagination" id="pagination"></div>
+            <!-- 무한스크롤 로더 / 종료 표시 / 감시 센티널 -->
+            <div class="feed-loader" id="feedLoader">공고를 더 불러오는 중...</div>
+            <div class="feed-end" id="feedEnd">— 마지막 공고까지 불러왔어요 —</div>
+            <div class="feed-sentinel" id="feedSentinel" aria-hidden="true"></div>
         </div>
     </main>
 
@@ -822,7 +830,12 @@
             new: 'New', reviewed: '검토중', applied: '응찰완료', closed: '마감'
         };
 
-        let currentPage = 1;
+        let currentPage = 0;          // 마지막으로 로드한 페이지 (0 = 아직 없음)
+        let totalPages = 1;
+        let totalNotices = 0;
+        let loadedCount = 0;
+        let isLoadingFeed = false;
+        let feedObserver = null;
         let currentNoticeId = null;
 
         // ── 초기화 ──────────────────────────────────────────────────────────────
@@ -860,14 +873,15 @@
                 initCommonUI();
             }
 
-            await loadNotices(1);
+            setupInfiniteScroll();
+            await loadNotices(true);
             loadScrapingStatus();
 
-            // 검색 Enter 키
-            document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadNotices(1); });
-            document.getElementById('countryFilter').addEventListener('keydown', e => { if (e.key === 'Enter') loadNotices(1); });
-            document.getElementById('sourceFilter').addEventListener('change', () => loadNotices(1));
-            document.getElementById('statusFilter').addEventListener('change', () => loadNotices(1));
+            // 검색 Enter 키 / 필터 변경 시 리셋 후 1페이지부터 다시 로드
+            document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadNotices(true); });
+            document.getElementById('countryFilter').addEventListener('keydown', e => { if (e.key === 'Enter') loadNotices(true); });
+            document.getElementById('sourceFilter').addEventListener('change', () => loadNotices(true));
+            document.getElementById('statusFilter').addEventListener('change', () => loadNotices(true));
 
             // 수집 이력 패널 — 펼치면 1회만 로드
             const historyEl = document.getElementById('scrapingHistory');
@@ -902,7 +916,7 @@
                     const bySource = Object.entries(data.by_source || {})
                         .map(([k, v]) => `${k}: ${v}건`).join(', ');
                     Toast.success(`수집 완료 — 신규 ${data.created}건 저장${bySource ? ` (${bySource})` : ''}`);
-                    await loadNotices(1);
+                    await loadNotices(true);
                     await loadScrapingStatus();
                 } else {
                     Toast.error(data.message || '수집 실패');
@@ -1000,47 +1014,83 @@
             document.getElementById('countryFilter').value = '';
             document.getElementById('statusFilter').value = '';
             document.getElementById('searchInput').value = '';
-            loadNotices(1);
+            loadNotices(true);
         }
 
-        // ── 공고 목록 로드 ────────────────────────────────────────────────────────
+        // ── 공고 목록 로드 (무한스크롤) ────────────────────────────────────────────
         const NOTICES_PER_PAGE = 20;
 
-        async function loadNotices(page) {
-            currentPage = page;
+        function setupInfiniteScroll() {
+            const sentinel = document.getElementById('feedSentinel');
+            if (!sentinel || !('IntersectionObserver' in window)) return;
+            feedObserver = new IntersectionObserver(entries => {
+                if (entries[0].isIntersecting) {
+                    loadNotices(false);
+                }
+            }, { rootMargin: '300px 0px' });
+            feedObserver.observe(sentinel);
+        }
+
+        async function loadNotices(reset) {
+            if (isLoadingFeed) return;
+
+            if (reset) {
+                currentPage = 0;
+                totalPages = 1;
+                totalNotices = 0;
+                loadedCount = 0;
+                const feed = document.getElementById('noticeFeed');
+                feed.innerHTML = '<div class="feed-empty">데이터를 불러오는 중...</div>';
+                document.getElementById('feedEnd').classList.remove('show');
+            } else {
+                // 더 이상 로드할 페이지 없음
+                if (currentPage >= totalPages) return;
+            }
+
+            const nextPage = currentPage + 1;
+            isLoadingFeed = true;
+            document.getElementById('feedLoader').classList.toggle('show', !reset);
+
             const source  = document.getElementById('sourceFilter').value;
             const country = document.getElementById('countryFilter').value.trim();
             const status  = document.getElementById('statusFilter').value;
             const search  = document.getElementById('searchInput').value.trim();
 
-            const params = new URLSearchParams({ page, perPage: NOTICES_PER_PAGE });
+            const params = new URLSearchParams({ page: nextPage, perPage: NOTICES_PER_PAGE });
             if (source)  params.set('source', source);
             if (country) params.set('country', country);
             if (status)  params.set('status', status);
             if (search)  params.set('search', search);
 
-            const feed = document.getElementById('noticeFeed');
-            feed.innerHTML = '<div class="feed-empty">데이터를 불러오는 중...</div>';
-
             try {
                 const data = await apiCall(`/webhook/notices?${params}`);
                 if (!data.success) {
-                    feed.innerHTML = '<div class="feed-empty">데이터를 불러오지 못했습니다.</div>';
+                    if (reset) {
+                        document.getElementById('noticeFeed').innerHTML =
+                            '<div class="feed-empty">데이터를 불러오지 못했습니다.</div>';
+                    }
                     return;
                 }
-                // 게시판식 역순 일련번호 — 현재 필터 결과 총건수 기준
-                const total = data.total || 0;
-                const startNo = total - (page - 1) * NOTICES_PER_PAGE;
-                renderFeed(data.data, startNo, total);
-                renderPagination(data.currentPage, data.pages);
 
-                // 상단 헤더: 총건수 + 페이지 범위 + 필터 힌트
-                document.getElementById('feedTotalCount').textContent = total;
-                const shown = (data.data || []).length;
-                const rangeEnd = startNo;
-                const rangeStart = startNo - shown + 1;
+                totalNotices = data.total || 0;
+                totalPages = data.pages || 1;
+                currentPage = data.currentPage || nextPage;
+
+                const items = data.data || [];
+                // 역순 일련번호: 첫 항목 = 전체 총건수에서 앞쪽 페이지들 차감 후 시작
+                const startNo = totalNotices - (currentPage - 1) * NOTICES_PER_PAGE;
+
+                if (reset) {
+                    renderFeedReset(items, startNo, totalNotices);
+                } else {
+                    appendFeed(items, startNo, totalNotices);
+                }
+                loadedCount += items.length;
+
+                // 상단 헤더 갱신
+                document.getElementById('feedTotalCount').textContent = totalNotices;
                 document.getElementById('feedPageRange').textContent =
-                    (shown > 0) ? `(${rangeStart}–${rangeEnd} 표시)` : '';
+                    loadedCount > 0 ? `(1–${loadedCount} 표시)` : '';
                 const hints = [];
                 if (source)  hints.push(`기관=${source.toUpperCase()}`);
                 if (country) hints.push(`국가=${country}`);
@@ -1048,57 +1098,74 @@
                 if (search)  hints.push(`검색="${search}"`);
                 document.getElementById('feedFilterHint').textContent =
                     hints.length ? '필터 적용: ' + hints.join(' · ') : '';
+
+                // 종료 표시
+                const endEl = document.getElementById('feedEnd');
+                if (currentPage >= totalPages && totalNotices > 0) {
+                    endEl.classList.add('show');
+                } else {
+                    endEl.classList.remove('show');
+                }
+
+                // 센티널이 여전히 뷰포트에 있으면 다음 페이지 자동 이어받기
+                if (currentPage < totalPages) {
+                    requestAnimationFrame(() => {
+                        const rect = document.getElementById('feedSentinel').getBoundingClientRect();
+                        if (rect.top < window.innerHeight + 300) {
+                            loadNotices(false);
+                        }
+                    });
+                }
             } catch (e) {
-                feed.innerHTML = '<div class="feed-empty" style="color:#dc3545;">오류가 발생했습니다.</div>';
+                if (reset) {
+                    document.getElementById('noticeFeed').innerHTML =
+                        '<div class="feed-empty" style="color:#dc3545;">오류가 발생했습니다.</div>';
+                }
+            } finally {
+                isLoadingFeed = false;
+                document.getElementById('feedLoader').classList.remove('show');
             }
         }
 
-        function renderFeed(items, startNo, total) {
+        function cardHTML(n, displayNo, total) {
+            return `
+            <article class="feed-card" onclick='openDetail(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
+                <div class="feed-card-head">
+                    <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
+                    <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
+                    <span class="feed-card-meta">
+                        ${n.country ? `<span>🌍 ${escapeHtml(n.country)}</span>` : ''}
+                        ${n.deadline ? `<span>📅 ${escapeHtml(n.deadline)}</span>` : ''}
+                        ${n.sourceUrl
+                            ? `<a class="feed-card-link" href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ 원문</a>`
+                            : ''}
+                    </span>
+                </div>
+                <h3 class="feed-card-title">${escapeHtml(n.title)}</h3>
+                <div class="feed-card-foot">
+                    <span><span class="label">No.</span>${displayNo} / ${total}</span>
+                    ${n.contractValue ? `<span><span class="label">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}
+                </div>
+            </article>`;
+        }
+
+        function renderFeedReset(items, startNo, total) {
             const feed = document.getElementById('noticeFeed');
             if (!items || items.length === 0) {
                 feed.innerHTML = '<div class="feed-empty">공고가 없습니다.</div>';
                 return;
             }
-            feed.innerHTML = items.map((n, idx) => {
-                const displayNo = startNo - idx;
-                return `
-                <article class="feed-card" onclick='openDetail(${JSON.stringify(n)})'>
-                    <div class="feed-card-head">
-                        <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
-                        <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
-                        <span class="feed-card-meta">
-                            ${n.country ? `<span>🌍 ${escapeHtml(n.country)}</span>` : ''}
-                            ${n.deadline ? `<span>📅 ${escapeHtml(n.deadline)}</span>` : ''}
-                            ${n.sourceUrl
-                                ? `<a class="feed-card-link" href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ 원문</a>`
-                                : ''}
-                        </span>
-                    </div>
-                    <h3 class="feed-card-title">${escapeHtml(n.title)}</h3>
-                    <div class="feed-card-foot">
-                        <span><span class="label">No.</span>${displayNo} / ${total}</span>
-                        ${n.contractValue ? `<span><span class="label">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}
-                    </div>
-                </article>`;
-            }).join('');
+            feed.innerHTML = items.map((n, idx) => cardHTML(n, startNo - idx, total)).join('');
         }
 
-        function renderPagination(currentP, totalPages) {
-            const el = document.getElementById('pagination');
-            if (!totalPages || totalPages <= 1) { el.innerHTML = ''; return; }
-
-            const pageGroup = Math.floor((currentP - 1) / 10);
-            const startPage = pageGroup * 10 + 1;
-            const endPage   = Math.min(startPage + 9, totalPages);
-
-            let html = `<button class="page-btn" onclick="loadNotices(1)" ${currentP === 1 ? 'disabled' : ''}>«</button>`;
-            html += `<button class="page-btn" onclick="loadNotices(${Math.max(1, currentP - 1)})" ${currentP === 1 ? 'disabled' : ''}>‹</button>`;
-            for (let p = startPage; p <= endPage; p++) {
-                html += `<button class="page-btn ${p === currentP ? 'active' : ''}" onclick="loadNotices(${p})">${p}</button>`;
-            }
-            html += `<button class="page-btn" onclick="loadNotices(${Math.min(totalPages, currentP + 1)})" ${currentP === totalPages ? 'disabled' : ''}>›</button>`;
-            html += `<button class="page-btn" onclick="loadNotices(${totalPages})" ${currentP === totalPages ? 'disabled' : ''}>»</button>`;
-            el.innerHTML = html;
+        function appendFeed(items, startNo, total) {
+            if (!items || items.length === 0) return;
+            const feed = document.getElementById('noticeFeed');
+            const frag = document.createDocumentFragment();
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = items.map((n, idx) => cardHTML(n, startNo - idx, total)).join('');
+            while (wrapper.firstChild) frag.appendChild(wrapper.firstChild);
+            feed.appendChild(frag);
         }
 
         // ── 상세 모달 ─────────────────────────────────────────────────────────────
@@ -1157,7 +1224,7 @@
                 const res = await apiCall(`/webhook/notices/${currentNoticeId}`, 'PATCH', { status: newStatus });
                 if (res.success) {
                     Toast.success('상태가 변경되었습니다.');
-                    await loadNotices(currentPage);
+                    await loadNotices(true);
                 } else {
                     Toast.error(res.message || '상태 변경 실패');
                 }
@@ -1175,7 +1242,7 @@
                 if (res.success) {
                     Toast.success('삭제되었습니다.');
                     closeDetailModal();
-                    await loadNotices(currentPage);
+                    await loadNotices(true);
                 } else {
                     Toast.error(res.message || '삭제 실패');
                 }

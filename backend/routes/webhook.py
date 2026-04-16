@@ -2,6 +2,7 @@
 GBMS - 발주공고 조회/이력 Routes
 (수집 엔드포인트는 routes/notice_collector.py 참조)
 """
+from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from models import db, BidNotice, ScrapingRun
 from routes.auth import token_required, admin_required
@@ -9,6 +10,9 @@ from routes.auth import token_required, admin_required
 webhook_bp = Blueprint('webhook', __name__)
 
 VALID_STATUSES = {'new', 'reviewed', 'applied', 'closed'}
+
+# 목록 노출 컷오프 — 수집기와 동일 기준(최근 N일 내 수집된 공고만 노출)
+LIST_FRESHNESS_DAYS = 60
 
 
 # ── GBMS 사용자 → 공고 조회 ──────────────────────────────────────────────────
@@ -24,7 +28,8 @@ def list_notices(current_user):
     status = request.args.get('status', '')
     search = request.args.get('search', '')
 
-    query = BidNotice.query
+    cutoff_dt = datetime.utcnow() - timedelta(days=LIST_FRESHNESS_DAYS)
+    query = BidNotice.query.filter(BidNotice.created_at >= cutoff_dt)
 
     if source:
         query = query.filter(BidNotice.source == source)
@@ -54,9 +59,13 @@ def notices_summary(current_user):
     """대시보드용 — new 상태 공고 최신 N건 + 총 new 건수"""
     limit = min(request.args.get('limit', 5, type=int), 20)
 
-    new_count = BidNotice.query.filter_by(status='new').count()
-    recent = (BidNotice.query
-              .filter_by(status='new')
+    cutoff_dt = datetime.utcnow() - timedelta(days=LIST_FRESHNESS_DAYS)
+    base = BidNotice.query.filter(
+        BidNotice.status == 'new',
+        BidNotice.created_at >= cutoff_dt,
+    )
+    new_count = base.count()
+    recent = (base
               .order_by(BidNotice.created_at.desc())
               .limit(limit)
               .all())

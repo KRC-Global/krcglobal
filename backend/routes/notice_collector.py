@@ -100,7 +100,8 @@ _DATE_RX = re.compile(r'(\d{4})[-./\s년]\s*(\d{1,2})[-./\s월]\s*(\d{1,2})')
 
 
 def _parse_date_any(s: str):
-    """YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD / 'YYYY년 MM월 DD일' / ISO datetime → date.
+    """YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD / 'YYYY년 MM월 DD일' / ISO datetime
+    / 'April 15, 2026' / '15 April 2026' / RFC 822 pubDate → date.
     파싱 실패 시 None."""
     if not s:
         return None
@@ -111,13 +112,24 @@ def _parse_date_any(s: str):
     except Exception:
         pass
     m = _DATE_RX.search(raw)
-    if not m:
-        return None
+    if m:
+        try:
+            y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            return datetime(y, mo, d).date()
+        except Exception:
+            pass
+    for fmt in ('%B %d, %Y', '%b %d, %Y', '%d %B %Y', '%d %b %Y'):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
     try:
-        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        return datetime(y, mo, d).date()
-    except Exception:
-        return None
+        dt = parsedate_to_datetime(raw)
+        if dt is not None:
+            return dt.date()
+    except (TypeError, ValueError):
+        pass
+    return None
 
 
 def _is_deadline_passed(deadline_str: str) -> bool:
@@ -1459,39 +1471,79 @@ def _run_all_collectors() -> tuple[list, dict]:
 
 
 # ── 정리(Cleanup) — 오래된/마감 공고 삭제 ───────────────────────────────────
+# raw_data 딕셔너리에서 '게시일'로 해석할 수 있는 키 후보들(수집기마다 포맷 상이)
+_POSTED_KEYS = (
+    'noticedate', 'submission_date',          # World Bank
+    'pubDate', 'pub_date', 'posted', 'published_at',
+    'bidPblancDt', 'postDt',                  # KOICA API
+    'id',                                     # AIIB: 게시일
+    'period',                                 # KOICA nebid: "2026-02-19 ~ 2026-02-24"
+)
+
+
+def _effective_posted_date(notice) -> datetime:
+    """BidNotice 의 '게시일' 추정값을 datetime 으로 반환.
+
+    우선순위: raw_data 내부 게시일 후보 → created_at.
+    raw_data 에서 첫 파싱 성공한 값을 사용한다.
+    """
+    raw = notice.raw_data if isinstance(notice.raw_data, dict) else {}
+    for key in _POSTED_KEYS:
+        val = raw.get(key)
+        if not val:
+            continue
+        d = _parse_date_any(str(val))
+        if d is not None:
+            return datetime(d.year, d.month, d.day)
+    return notice.created_at or datetime.utcnow()
+
+
 def _cleanup_stale_notices(days: int = DEFAULT_FRESHNESS_DAYS) -> dict:
     """DB 에 저장된 BidNotice 중 '과거 사업'에 해당하는 것 삭제.
 
-    기준 (OR 로 둘 중 하나라도 해당하면 삭제):
+    기준 (OR 로 하나라도 해당하면 삭제):
       1) created_at 이 현재로부터 `days` 일 이상 지난 레코드
-      2) deadline 필드가 파싱 가능한 날짜이면서 오늘(UTC) 이전인 레코드
+      2) raw_data 내부 게시일(noticedate/pubDate/posted 등)이 `days` 일 이상 지난 레코드
+      3) deadline 필드가 파싱 가능한 날짜이면서 오늘(UTC) 이전인 레코드
 
     Returns:
-        dict: {deleted_by_age, deleted_by_deadline, total}
+        dict: {deleted_by_age, deleted_by_posted, deleted_by_deadline, total}
     """
     from datetime import timedelta
 
     cutoff_dt = datetime.utcnow() - timedelta(days=days)
 
-    # 1) created_at 기준 오래된 레코드
-    stale_age_ids = [n.id for n in BidNotice.query
-                     .filter(BidNotice.created_at < cutoff_dt).all()]
+    all_notices = BidNotice.query.all()
+    stale_age_ids = set()
+    stale_posted_ids = set()
+    stale_deadline_ids = set()
 
-    # 2) deadline 파싱해 과거인 레코드 (SQL 파싱 어려워 Python 후처리)
-    stale_deadline_ids = []
-    for n in BidNotice.query.filter(BidNotice.deadline.isnot(None)).all():
-        if n.id in stale_age_ids:
+    for n in all_notices:
+        # 1) created_at 기준
+        if n.created_at and n.created_at < cutoff_dt:
+            stale_age_ids.add(n.id)
             continue
-        if _is_deadline_passed(n.deadline or ''):
-            stale_deadline_ids.append(n.id)
+        # 2) raw_data 게시일 기준
+        posted_dt = _effective_posted_date(n)
+        if posted_dt < cutoff_dt:
+            stale_posted_ids.add(n.id)
+            continue
+        # 3) deadline 기준
+        if n.deadline and _is_deadline_passed(n.deadline):
+            stale_deadline_ids.add(n.id)
 
     deleted_age = 0
+    deleted_posted = 0
     deleted_deadline = 0
     try:
         if stale_age_ids:
             deleted_age = (BidNotice.query
                            .filter(BidNotice.id.in_(stale_age_ids))
                            .delete(synchronize_session=False))
+        if stale_posted_ids:
+            deleted_posted = (BidNotice.query
+                              .filter(BidNotice.id.in_(stale_posted_ids))
+                              .delete(synchronize_session=False))
         if stale_deadline_ids:
             deleted_deadline = (BidNotice.query
                                 .filter(BidNotice.id.in_(stale_deadline_ids))
@@ -1500,14 +1552,16 @@ def _cleanup_stale_notices(days: int = DEFAULT_FRESHNESS_DAYS) -> dict:
     except Exception as e:
         db.session.rollback()
         print(f'[cleanup] DB 삭제 실패: {e}')
-        return {'deleted_by_age': 0, 'deleted_by_deadline': 0,
-                'total': 0, 'error': str(e)}
+        return {'deleted_by_age': 0, 'deleted_by_posted': 0,
+                'deleted_by_deadline': 0, 'total': 0, 'error': str(e)}
 
-    total = deleted_age + deleted_deadline
+    total = deleted_age + deleted_posted + deleted_deadline
     if total:
-        print(f'[cleanup] 삭제: {deleted_age} by age + {deleted_deadline} by deadline = {total}')
+        print(f'[cleanup] 삭제: age={deleted_age} + posted={deleted_posted} '
+              f'+ deadline={deleted_deadline} = {total}')
     return {
         'deleted_by_age': deleted_age,
+        'deleted_by_posted': deleted_posted,
         'deleted_by_deadline': deleted_deadline,
         'total': total,
         'cutoff_days': days,
