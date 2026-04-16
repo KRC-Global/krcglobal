@@ -84,19 +84,15 @@ def _parse_value_usd(value_str: str) -> float:
         return 0.0
 
 
-def _fmt_value(raw) -> str:
-    """숫자 → '$2.3M' 표시용 문자열"""
-    if not raw:
+def _fmt_value(raw, currency: str = 'USD') -> str:
+    """숫자 → 'USD 2.3M' 표시용 — 전역 통일 포맷(_format_compact_money 위임).
+
+    과거에는 '$2.3M' 식의 단축 기호를 썼으나, 다수 통화(INR/EUR/LSL 등)가
+    섞이는 수집 환경에서 일관되게 ISO 통화코드 + 숫자로 통일.
+    """
+    if raw is None or raw == '':
         return ''
-    try:
-        v = float(raw)
-        if v >= 1_000_000:
-            return f'${v/1_000_000:.1f}M'
-        if v >= 1_000:
-            return f'${v/1_000:.0f}K'
-        return f'${v:,.0f}'
-    except Exception:
-        return str(raw)
+    return _format_compact_money(currency, str(raw), '')
 
 
 # ── 상태/마감일 공통 헬퍼 ────────────────────────────────────────────────────
@@ -244,6 +240,8 @@ def _format_compact_money(currency: str, raw_amount: str, unit: str = '',
 
     # 임계값 검사 — 단, 통화가 IDR/VND/UZS 같이 단위가 작은 경우는 예외 허용
     cur_raw = (currency or '').upper().replace('US$', 'USD').replace('$', 'USD')
+    # 'USDUSD' / 'USDUSDUSD' 같이 중복 prefix 생길 수 있어 정리
+    cur_raw = re.sub(r'(USD)+', 'USD', cur_raw)
     small_unit_currencies = {'IDR', 'VND', 'UZS', 'KRW', 'JPY', 'PKR', 'NGN',
                              'PHP', 'KGS', 'KZT', 'MVR', 'UGX', 'TZS', 'RWF',
                              'LKR', 'NPR', 'BDT', 'MGA', 'LSL', 'ETB', 'MNT'}
@@ -261,10 +259,11 @@ def _format_compact_money(currency: str, raw_amount: str, unit: str = '',
     elif cur_raw == '¥':
         cur_raw = 'JPY'
 
+    # 소수점 1자리로 통일 — '2.34M' 보다 '2.3M' 이 더 깔끔한 일람 표시
     if num >= 1_000_000_000:
-        amt = f'{num/1_000_000_000:.2f}B'
+        amt = f'{num/1_000_000_000:.1f}B'
     elif num >= 1_000_000:
-        amt = f'{num/1_000_000:.2f}M'
+        amt = f'{num/1_000_000:.1f}M'
     elif num >= 1_000:
         amt = f'{num/1_000:.1f}K'
     else:
@@ -388,19 +387,10 @@ def _wb_grab(plain: str, label: str) -> str:
 
 
 def _fmt_currency_amount(currency: str, amount_str: str) -> str:
-    """('LSL', '1418732.00') → 'LSL 1.4M'. USD 계열은 'USD' 접두사."""
-    try:
-        v = float(amount_str.replace(',', ''))
-    except (TypeError, ValueError):
-        return ''
-    cur = (currency or 'USD').upper().replace('US$', 'USD').replace('$', 'USD')
-    if v >= 1_000_000:
-        num = f'{v/1_000_000:.2f}M'
-    elif v >= 1_000:
-        num = f'{v/1_000:.1f}K'
-    else:
-        num = f'{v:,.0f}'
-    return f'{cur} {num}'
+    """하위호환 래퍼 — 공통 _format_compact_money 로 위임.
+    ('LSL', '1418732.00') → 'LSL 1.4M'.
+    """
+    return _format_compact_money(currency or 'USD', amount_str, '')
 
 
 def _wb_extract_details(raw_html: str) -> dict:
