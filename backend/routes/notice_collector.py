@@ -102,91 +102,84 @@ def _save_notice(source, title, country, client, sector,
 
 # ── Tier 1: World Bank API ───────────────────────────────────────────────────
 def _collect_worldbank() -> list:
-    """World Bank Procurement Notices JSON API (인증 불필요)"""
-    try:
-        import requests as req
-    except ImportError:
-        return []
+    """World Bank Procurement Notices JSON API
+    https://search.worldbank.org/api/procnotices — 인증 불필요
+    응답 키: procnotices[], 최상위 total
+    주요 필드: id, project_name, bid_description, notice_type, notice_status,
+              project_ctry_name, contact_organization, submission_date, noticedate,
+              procurement_method_name
+    """
+    import requests as req
 
     url = 'https://search.worldbank.org/api/procnotices'
     results = []
     offset = 0
     page_size = 100
+    max_total = 500  # 농업 필터링 전 스캔 상한
 
-    while True:
+    while offset < max_total:
         params = {
             'format': 'json',
             'apilang': 'en',
-            'displayconttype_exact': 'Consulting Services',
             'rows': page_size,
             'os': offset,
+            'srt': 'submission_date',
+            'strdesc': 'desc',   # 최신순
         }
-        try:
-            r = req.get(url, params=params, timeout=12)
-            r.raise_for_status()
-            data = r.json()
-        except Exception:
-            break
+        r = req.get(url, params=params, timeout=15)
+        r.raise_for_status()
+        data = r.json()
 
-        notices_raw = data.get('notices', {})
-        # API가 dict(id→obj) 또는 list 형식으로 반환할 수 있음
-        if isinstance(notices_raw, dict):
-            items = list(notices_raw.values())
-        elif isinstance(notices_raw, list):
-            items = notices_raw
-        else:
-            break
-
+        raw = data.get('procnotices') or []
+        items = list(raw.values()) if isinstance(raw, dict) else raw
         if not items:
             break
 
         for item in items:
-            title = (item.get('project_name') or item.get('notice_title') or '').strip()
-            notice_type = item.get('noticeType') or item.get('notice_type') or ''
-            if notice_type:
-                title = f"{title} [{notice_type}]" if title else notice_type
+            title = (item.get('project_name') or item.get('bid_description') or '').strip()
+            if not title:
+                continue
 
-            sector = item.get('sector') or item.get('majorsector') or ''
-            desc = item.get('description') or ''
-            combined = f"{title} {sector} {desc}"
-
+            notice_type = (item.get('notice_type') or '').strip()
+            bid_desc = item.get('bid_description') or ''
+            combined = f"{title} {bid_desc}"
             if not _is_agri(combined):
                 continue
 
-            raw_value = (item.get('totalcontractamount') or
-                         item.get('estimatedamount') or
-                         item.get('noticevalue') or '')
-            value_usd = _parse_value_usd(str(raw_value))
-            if raw_value and value_usd < MIN_VALUE_USD:
+            # notice_status 가 Closed/Cancelled면 스킵 (Published/Revised/Draft은 유효)
+            status = (item.get('notice_status') or '').lower()
+            if status in ('closed', 'cancelled', 'canceled'):
                 continue
 
-            source_url = (item.get('url') or item.get('noticeid') or '').strip()
-            if not source_url:
+            nid = (item.get('id') or '').strip()
+            if not nid:
                 continue
-            # URL이 상대경로인 경우 절대경로로
-            if source_url.startswith('/'):
-                source_url = 'https://projects.worldbank.org' + source_url
+            source_url = f'https://projects.worldbank.org/en/projects-operations/procurement-detail/{nid}'
 
-            country = (item.get('country_name') or item.get('countryname') or '').strip()
-            client = (item.get('contact_agency') or item.get('borrower') or '').strip()
-            deadline = (item.get('deadline') or item.get('submissiondate') or '').strip()
+            deadline_raw = item.get('submission_date') or ''
+            deadline = deadline_raw[:10] if deadline_raw else (item.get('noticedate') or '')
+
+            display_title = f'{title} [{notice_type}]' if notice_type else title
 
             results.append({
                 'source': 'worldbank',
-                'title': title,
-                'country': country,
-                'client': client or 'World Bank',
-                'sector': sector,
-                'contract_value': _fmt_value(raw_value) if raw_value else '',
+                'title': display_title,
+                'country': (item.get('project_ctry_name') or '').strip(),
+                'client': (item.get('contact_organization') or '').strip() or 'World Bank',
+                'sector': 'agriculture',
+                'contract_value': '',
                 'deadline': deadline,
                 'source_url': source_url,
                 'raw_data': item,
             })
 
-        total_raw = data.get('total', {})
-        total = total_raw.get('value', 0) if isinstance(total_raw, dict) else int(total_raw or 0)
+        total_raw = data.get('total')
+        try:
+            total = int(total_raw) if total_raw is not None else 0
+        except (TypeError, ValueError):
+            total = 0
         offset += len(items)
-        if offset >= total or offset >= 500:
+        if total and offset >= total:
             break
 
     return results
@@ -288,33 +281,34 @@ def _collect_ungm() -> list:
         'X-Requested-With': 'XMLHttpRequest',
         'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)',
     }
+    r = req.post(search_url, json=payload, headers=headers, timeout=20)
+    if r.status_code != 200:
+        raise RuntimeError(f'UNGM Search POST {r.status_code}')
     try:
-        r = req.post(search_url, json=payload, headers=headers, timeout=20)
-        if r.status_code != 200:
-            return []
         data = r.json()
-        for item in data.get('Notices', []):
-            title = (item.get('Title') or '').strip()
-            nid   = item.get('NoticeId', '')
-            if not title or not nid:
-                continue
-            combined = title
-            if not _is_agri(combined) and not _is_consulting(combined):
-                continue
-            deadline = (item.get('DeadlineDate') or '')[:10]
-            results.append({
-                'source': 'ungm',
-                'title': title,
-                'country': (item.get('Country') or '').strip(),
-                'client': (item.get('AgencyName') or 'UN').strip(),
-                'sector': 'agriculture',
-                'contract_value': '',
-                'deadline': deadline,
-                'source_url': f'https://www.ungm.org/Public/Notice/{nid}',
-                'raw_data': item,
-            })
-    except Exception as e:
-        print(f'[UNGM] 스크래핑 오류: {e}')
+    except ValueError as e:
+        raise RuntimeError(f'UNGM 응답 JSON 파싱 실패: {e}') from e
+
+    for item in data.get('Notices', []):
+        title = (item.get('Title') or '').strip()
+        nid   = item.get('NoticeId', '')
+        if not title or not nid:
+            continue
+        combined = title
+        if not _is_agri(combined) and not _is_consulting(combined):
+            continue
+        deadline = (item.get('DeadlineDate') or '')[:10]
+        results.append({
+            'source': 'ungm',
+            'title': title,
+            'country': (item.get('Country') or '').strip(),
+            'client': (item.get('AgencyName') or 'UN').strip(),
+            'sector': 'agriculture',
+            'contract_value': '',
+            'deadline': deadline,
+            'source_url': f'https://www.ungm.org/Public/Notice/{nid}',
+            'raw_data': item,
+        })
 
     return results
 
@@ -328,6 +322,7 @@ def _collect_adb() -> list:
         return []
 
     results = []
+    attempts_errors = []
 
     # RSS 시도
     rss_urls = [
@@ -338,47 +333,54 @@ def _collect_adb() -> list:
     for rss_url in rss_urls:
         try:
             r = req.get(rss_url, timeout=10)
-            if r.status_code == 200:
-                root = ElementTree.fromstring(r.content)
-                for item in root.findall('.//item'):
-                    title = item.findtext('title') or ''
-                    link = item.findtext('link') or ''
-                    desc = item.findtext('description') or ''
-                    combined = f"{title} {desc}"
+            if r.status_code != 200:
+                attempts_errors.append(f'RSS {rss_url} HTTP {r.status_code}')
+                continue
+            root = ElementTree.fromstring(r.content)
+            for item in root.findall('.//item'):
+                title = item.findtext('title') or ''
+                link = item.findtext('link') or ''
+                desc = item.findtext('description') or ''
+                combined = f"{title} {desc}"
 
-                    if not _is_agri(combined):
-                        continue
-                    if not _is_consulting(combined):
-                        continue
-                    if not link:
-                        continue
+                if not _is_agri(combined):
+                    continue
+                if not _is_consulting(combined):
+                    continue
+                if not link:
+                    continue
 
-                    pub_date = item.findtext('pubDate') or ''
+                pub_date = item.findtext('pubDate') or ''
 
-                    results.append({
-                        'source': 'adb',
-                        'title': title,
-                        'country': '',
-                        'client': 'ADB',
-                        'sector': 'agriculture',
-                        'contract_value': '',
-                        'deadline': pub_date[:10] if pub_date else '',
-                        'source_url': link,
-                        'raw_data': {'title': title, 'link': link, 'description': desc},
-                    })
-                rss_ok = True
-                break
-        except Exception:
+                results.append({
+                    'source': 'adb',
+                    'title': title,
+                    'country': '',
+                    'client': 'ADB',
+                    'sector': 'agriculture',
+                    'contract_value': '',
+                    'deadline': pub_date[:10] if pub_date else '',
+                    'source_url': link,
+                    'raw_data': {'title': title, 'link': link, 'description': desc},
+                })
+            rss_ok = True
+            break
+        except Exception as e:
+            attempts_errors.append(f'RSS {rss_url}: {e}')
             continue
 
     # RSS 실패 시 HTML 스크래핑 (beautifulsoup4)
+    html_ok = False
     if not rss_ok:
         try:
             from bs4 import BeautifulSoup
             html_url = 'https://www.adb.org/projects/tenders?type=Consulting+Services'
             r = req.get(html_url, timeout=12,
                         headers={'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)'})
-            if r.status_code == 200:
+            if r.status_code != 200:
+                attempts_errors.append(f'HTML HTTP {r.status_code}')
+            else:
+                html_ok = True
                 soup = BeautifulSoup(r.text, 'html.parser')
                 for row in soup.select('table.tender-table tbody tr, .views-row'):
                     title_el = row.select_one('td.views-field-title a, .views-field-title a')
@@ -404,8 +406,11 @@ def _collect_adb() -> list:
                         'source_url': href,
                         'raw_data': {'title': title, 'url': href},
                     })
-        except Exception:
-            pass
+        except Exception as e:
+            attempts_errors.append(f'HTML: {e}')
+
+    if not rss_ok and not html_ok:
+        raise RuntimeError('ADB 모든 수집 경로 실패: ' + ' | '.join(attempts_errors))
 
     return results
 
@@ -419,6 +424,7 @@ def _collect_afdb() -> list:
         return []
 
     results = []
+    attempts_errors = []
 
     # RSS 시도
     rss_urls = [
@@ -430,40 +436,48 @@ def _collect_afdb() -> list:
         try:
             r = req.get(rss_url, timeout=10,
                         headers={'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)'})
-            if r.status_code == 200 and r.content:
-                root = ElementTree.fromstring(r.content)
-                for item in root.findall('.//item'):
-                    title = item.findtext('title') or ''
-                    link = item.findtext('link') or ''
-                    desc = item.findtext('description') or ''
-                    combined = f"{title} {desc}"
+            if r.status_code != 200 or not r.content:
+                attempts_errors.append(f'RSS {rss_url} HTTP {r.status_code}')
+                continue
+            root = ElementTree.fromstring(r.content)
+            for item in root.findall('.//item'):
+                title = item.findtext('title') or ''
+                link = item.findtext('link') or ''
+                desc = item.findtext('description') or ''
+                combined = f"{title} {desc}"
 
-                    if not _is_agri(combined):
+                if not _is_agri(combined):
+                    continue
+                if not link:
+                    continue
+                # tenders 피드가 아닌 news/success-stories 항목 제외
+                if any(p in link for p in ('/success-stories/', '/news-and-events/', '/projects-and-operations/')):
+                    if not _is_consulting(combined):
                         continue
-                    if not link:
-                        continue
 
-                    pub_date = item.findtext('pubDate') or ''
-                    country_el = item.find('{http://purl.org/dc/elements/1.1/}subject')
-                    country = country_el.text.strip() if country_el is not None else ''
+                pub_date = item.findtext('pubDate') or ''
+                country_el = item.find('{http://purl.org/dc/elements/1.1/}subject')
+                country = country_el.text.strip() if country_el is not None else ''
 
-                    results.append({
-                        'source': 'afdb',
-                        'title': title,
-                        'country': country,
-                        'client': 'AfDB',
-                        'sector': 'agriculture',
-                        'contract_value': '',
-                        'deadline': pub_date[:10] if pub_date else '',
-                        'source_url': link,
-                        'raw_data': {'title': title, 'link': link, 'description': desc},
-                    })
-                rss_ok = True
-                break
-        except Exception:
+                results.append({
+                    'source': 'afdb',
+                    'title': title,
+                    'country': country,
+                    'client': 'AfDB',
+                    'sector': 'agriculture',
+                    'contract_value': '',
+                    'deadline': pub_date[:10] if pub_date else '',
+                    'source_url': link,
+                    'raw_data': {'title': title, 'link': link, 'description': desc},
+                })
+            rss_ok = True
+            break
+        except Exception as e:
+            attempts_errors.append(f'RSS {rss_url}: {e}')
             continue
 
     # RSS 실패 시 HTML 스크래핑
+    html_ok = False
     if not rss_ok:
         try:
             from bs4 import BeautifulSoup
@@ -471,7 +485,10 @@ def _collect_afdb() -> list:
                         '/procurement-notices/specific-procurement-notices')
             r = req.get(html_url, timeout=12,
                         headers={'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)'})
-            if r.status_code == 200:
+            if r.status_code != 200:
+                attempts_errors.append(f'HTML HTTP {r.status_code}')
+            else:
+                html_ok = True
                 soup = BeautifulSoup(r.text, 'html.parser')
                 for a in soup.select('.field-content a, .views-field-title a'):
                     title = a.get_text(strip=True)
@@ -495,8 +512,11 @@ def _collect_afdb() -> list:
                         'source_url': href,
                         'raw_data': {'title': title, 'url': href},
                     })
-        except Exception:
-            pass
+        except Exception as e:
+            attempts_errors.append(f'HTML: {e}')
+
+    if not rss_ok and not html_ok:
+        raise RuntimeError('AfDB 모든 수집 경로 실패: ' + ' | '.join(attempts_errors))
 
     return results
 
@@ -581,6 +601,8 @@ def _collect_koica() -> list:
     headers  = {'User-Agent': 'Mozilla/5.0 (compatible; GBMSBot/1.0)'}
     results  = []
     seen     = set()
+    errors_per_kw = []
+    success_count = 0
 
     for kw in _KOICA_KEYWORDS:
         try:
@@ -588,7 +610,9 @@ def _collect_koica() -> list:
                         params={'pageIndex': 1, 'searchWrd': kw},
                         headers=headers, timeout=20)
             if r.status_code != 200:
+                errors_per_kw.append(f'{kw}:HTTP{r.status_code}')
                 continue
+            success_count += 1
             soup = BeautifulSoup(r.text, 'html.parser')
 
             # 1차 셀렉터
@@ -627,7 +651,11 @@ def _collect_koica() -> list:
                     'raw_data': {'title': title, 'keyword': kw},
                 })
         except Exception as e:
-            print(f'[KOICA] {kw} 스크래핑 오류: {e}')
+            errors_per_kw.append(f'{kw}:{type(e).__name__}')
+
+    # 모든 키워드 요청이 실패했으면 에러로 표면화
+    if success_count == 0 and errors_per_kw:
+        raise RuntimeError('KOICA 모든 키워드 요청 실패: ' + ', '.join(errors_per_kw[:5]))
 
     return results
 
