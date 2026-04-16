@@ -155,31 +155,137 @@ def _clean_html(text: str) -> str:
     return re.sub(r'<[^>]+>', ' ', str(text))
 
 
+# 통화 코드 화이트리스트 — ISO 4217 주요 + 개도국 통화
+_CURRENCY_CODES = (
+    'USD|US\\$|EUR|€|GBP|£|JPY|¥|CNY|RMB|KRW'
+    r'|INR|IDR|PHP|THB|VND|MYR|SGD|HKD|TWD|PKR|BDT|LKR|NPR|MVR'
+    r'|NGN|EGP|ZAR|KES|UGX|TZS|ETB|GHS|MAD|DZD|TND|XOF|XAF|MZN'
+    r'|BRL|MXN|ARS|COP|CLP|PEN|USCOL'
+    r'|AUD|NZD|CAD|CHF'
+    r'|RUB|TRY|SAR|AED|QAR|KWD|OMR|BHD|IQD'
+    r'|KZT|KGS|UZS|TJS|AZN|GEL|AMD|LSL|BWP'
+    r'|UA'  # AfDB 계산단위
+)
+
 _VALUE_RX = re.compile(
-    r'(?:USD|US\$|\$|UA|EUR|€)\s*([\d,\.]+)\s*(million|billion|M|B|K)?',
+    rf'({_CURRENCY_CODES})\s*([\d,\.]+)\s*(million|billion|trillion|mln|bn|M|B|K)?',
     re.IGNORECASE,
 )
 
+# 라벨 키워드 뒤 금액 — 통화코드 또는 규모단위(million/billion) 중 하나는 필수
+# (단순 'Financing No. 1028' 같은 ID 번호와 구분하기 위함)
+_VALUE_LABELED_RX = re.compile(
+    rf'(?:Total\s+(?:Project\s+)?Cost|Contract\s+(?:Price|Value|Amount)|'
+    rf'Estimated\s+(?:Cost|Value|Budget|Amount)|Loan\s+Amount|'
+    rf'Project\s+(?:Budget|Cost)|Budget\s+Amount)'
+    rf'[^\d\n]{{0,30}}?({_CURRENCY_CODES})\s*([\d,]+(?:\.\d+)?)\s*'
+    rf'(million|billion|trillion|mln|bn|M|B|K)?',
+    re.IGNORECASE,
+)
 
-def _extract_value_from_text(text: str) -> str:
-    """설명 텍스트에서 'USD 2.5 million' 같은 금액을 추출 → '$2.5M' 형식."""
-    if not text:
-        return ''
-    m = _VALUE_RX.search(_clean_html(text))
-    if not m:
-        return ''
+_MIN_CONTRACT_USD_THRESHOLD = 10_000  # 1만 USD 미만은 noise(참조번호 등)로 간주
+
+
+def _format_compact_money(currency: str, raw_amount: str, unit: str = '',
+                          min_threshold: float = 0) -> str:
+    """('USD', '1,234,567', 'M') → 'USD 1.23M' 형식. 통화 USD 계열은 '$' 사용.
+
+    min_threshold: USD 환산 대략적 최소값. 참조번호(1028 같은 것)를 금액으로
+    잘못 인식하는 것을 막기 위해 사용. 0 이면 비활성.
+    """
     try:
-        num = float(m.group(1).replace(',', ''))
+        num = float(raw_amount.replace(',', ''))
     except (TypeError, ValueError):
         return ''
-    unit = (m.group(2) or '').lower()
-    if unit in ('billion', 'b'):
+    unit_lower = (unit or '').lower()
+    if unit_lower in ('billion', 'bn', 'b'):
         num *= 1_000_000_000
-    elif unit in ('million', 'm'):
+    elif unit_lower in ('million', 'mln', 'm'):
         num *= 1_000_000
-    elif unit == 'k':
+    elif unit_lower in ('k',):
         num *= 1_000
-    return _fmt_value(num)
+
+    # 임계값 검사 — 단, 통화가 IDR/VND/UZS 같이 단위가 작은 경우는 예외 허용
+    cur_raw = (currency or '').upper().replace('US$', 'USD').replace('$', 'USD')
+    small_unit_currencies = {'IDR', 'VND', 'UZS', 'KRW', 'JPY', 'PKR', 'NGN',
+                             'PHP', 'KGS', 'KZT', 'MVR', 'UGX', 'TZS', 'RWF',
+                             'LKR', 'NPR', 'BDT', 'MGA', 'LSL', 'ETB', 'MNT'}
+    threshold = min_threshold
+    if cur_raw in small_unit_currencies and threshold:
+        # 현지 통화는 USD 환산 시 훨씬 큰 값 → 임계값 적용 완화
+        threshold = threshold * 10  # 약식: 100K 로컬통화는 대개 1만 USD 미만
+    if threshold and num < threshold:
+        return ''
+
+    if cur_raw in ('€', 'EURO'):
+        cur_raw = 'EUR'
+    elif cur_raw == '£':
+        cur_raw = 'GBP'
+    elif cur_raw == '¥':
+        cur_raw = 'JPY'
+
+    if num >= 1_000_000_000:
+        amt = f'{num/1_000_000_000:.2f}B'
+    elif num >= 1_000_000:
+        amt = f'{num/1_000_000:.2f}M'
+    elif num >= 1_000:
+        amt = f'{num/1_000:.1f}K'
+    else:
+        amt = f'{num:,.0f}'
+
+    return f'{cur_raw} {amt}'.strip() if cur_raw else amt
+
+
+def _extract_value_from_text(text: str) -> str:
+    """설명·본문 텍스트에서 금액을 추출해 압축 표시.
+    최소 임계값(1만 USD 상당) 이상만 채택해 참조번호·파일크기 등 noise 제거.
+    """
+    if not text:
+        return ''
+    clean = _clean_html(text)
+    # 1) 라벨 있는 금액 우선 — 단위가 명시된 큰 금액일 가능성 높음
+    m = _VALUE_LABELED_RX.search(clean)
+    if m:
+        val = _format_compact_money(m.group(1), m.group(2), m.group(3),
+                                    min_threshold=_MIN_CONTRACT_USD_THRESHOLD)
+        if val:
+            return val
+    # 2) 일반 패턴 — 임계값 적용
+    m = _VALUE_RX.search(clean)
+    if m:
+        return _format_compact_money(m.group(1), m.group(2), m.group(3),
+                                     min_threshold=_MIN_CONTRACT_USD_THRESHOLD)
+    return ''
+
+
+def _compact_currency_phrase(raw: str) -> str:
+    """AIIB 의 pc 필드처럼 이미 통화코드 + 숫자가 들어있는 문자열을 압축.
+    예: 'INR 3,341,462,535.35' → 'INR 3.34B'
+        'Lot 1: USD 1,234 Lot 2: USD 5,678' → 'USD 1.2K (외 1건)'
+    """
+    if not raw:
+        return ''
+    s = raw.strip()
+    # 여러 줄/여러 조각이면 첫 매치만 + '외 N건' 표기
+    parts = re.split(r'[\n;]+', s)
+    first_match = None
+    extra = 0
+    for part in parts:
+        m = _VALUE_RX.search(part)
+        if m:
+            if first_match is None:
+                first_match = m
+            else:
+                extra += 1
+    if not first_match:
+        return s[:60]  # 매칭 실패 시 원문 앞 60자만
+
+    compact = _format_compact_money(first_match.group(1),
+                                    first_match.group(2),
+                                    first_match.group(3))
+    if extra > 0:
+        compact += f' (외 {extra}건)'
+    return compact
 
 
 def _decorate_title(title: str, notice_type: str) -> str:
@@ -1086,7 +1192,7 @@ def _collect_aiib() -> list:
             'country': country,
             'client': 'AIIB',
             'sector': sector,
-            'contract_value': price,
+            'contract_value': _compact_currency_phrase(price),
             'deadline': deadline_iso,
             'source_url': source_url,
             'raw_data': fields,
@@ -1194,17 +1300,43 @@ def _collect_isdb() -> list:
 
             sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
 
+            contract_value = _extract_value_from_text(row_text)
+
             results.append({
                 'source': 'isdb',
                 'title': _decorate_title(title, notice_type),
                 'country': country,
                 'client': 'IsDB',
                 'sector': sector,
-                'contract_value': _extract_value_from_text(row_text),
+                'contract_value': contract_value,
                 'deadline': deadline,
                 'source_url': href,
                 'raw_data': {'title': title, 'url': href, 'type': notice_type},
             })
+
+    # 목록에서 금액을 못 구한 항목에 대해 상세 페이지 조회로 보강
+    # (최대 10건 제한 — 요청수 폭증 방지)
+    detail_budget = 10
+    for item in results:
+        if detail_budget <= 0:
+            break
+        if item.get('contract_value'):
+            continue
+        try:
+            dr = req.get(item['source_url'],
+                         headers=_browser_headers(referer='https://www.isdb.org/project-procurement/tenders'),
+                         timeout=15)
+            if dr.status_code != 200:
+                detail_budget -= 1
+                continue
+            dsoup = BeautifulSoup(dr.text, 'html.parser')
+            main_text = dsoup.get_text(' ', strip=True)
+            val = _extract_value_from_text(main_text)
+            if val:
+                item['contract_value'] = val
+        except Exception:
+            pass
+        detail_budget -= 1
 
     if attempts_errors:
         print(f'[IsDB] attempt errors: {attempts_errors}')
