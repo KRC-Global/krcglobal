@@ -149,7 +149,7 @@ def _is_stale_pub(pub_date_str: str, days: int = 60) -> bool:
 
 
 # 수집 공통 최근성 컷오프 — 게시 후 이 기간 지나면 "과거 사업"으로 간주하고 제외
-DEFAULT_FRESHNESS_DAYS = 30
+DEFAULT_FRESHNESS_DAYS = 60
 
 
 def _is_stale_date(date_str: str, days: int = DEFAULT_FRESHNESS_DAYS) -> bool:
@@ -1468,6 +1468,62 @@ def _run_all_collectors() -> tuple[list, dict]:
     return all_items, errors
 
 
+# ── 정리(Cleanup) — 오래된/마감 공고 삭제 ───────────────────────────────────
+def _cleanup_stale_notices(days: int = DEFAULT_FRESHNESS_DAYS) -> dict:
+    """DB 에 저장된 BidNotice 중 '과거 사업'에 해당하는 것 삭제.
+
+    기준 (OR 로 둘 중 하나라도 해당하면 삭제):
+      1) created_at 이 현재로부터 `days` 일 이상 지난 레코드
+      2) deadline 필드가 파싱 가능한 날짜이면서 오늘(UTC) 이전인 레코드
+
+    Returns:
+        dict: {deleted_by_age, deleted_by_deadline, total}
+    """
+    from datetime import timedelta
+
+    cutoff_dt = datetime.utcnow() - timedelta(days=days)
+
+    # 1) created_at 기준 오래된 레코드
+    stale_age_ids = [n.id for n in BidNotice.query
+                     .filter(BidNotice.created_at < cutoff_dt).all()]
+
+    # 2) deadline 파싱해 과거인 레코드 (SQL 파싱 어려워 Python 후처리)
+    stale_deadline_ids = []
+    for n in BidNotice.query.filter(BidNotice.deadline.isnot(None)).all():
+        if n.id in stale_age_ids:
+            continue
+        if _is_deadline_passed(n.deadline or ''):
+            stale_deadline_ids.append(n.id)
+
+    deleted_age = 0
+    deleted_deadline = 0
+    try:
+        if stale_age_ids:
+            deleted_age = (BidNotice.query
+                           .filter(BidNotice.id.in_(stale_age_ids))
+                           .delete(synchronize_session=False))
+        if stale_deadline_ids:
+            deleted_deadline = (BidNotice.query
+                                .filter(BidNotice.id.in_(stale_deadline_ids))
+                                .delete(synchronize_session=False))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f'[cleanup] DB 삭제 실패: {e}')
+        return {'deleted_by_age': 0, 'deleted_by_deadline': 0,
+                'total': 0, 'error': str(e)}
+
+    total = deleted_age + deleted_deadline
+    if total:
+        print(f'[cleanup] 삭제: {deleted_age} by age + {deleted_deadline} by deadline = {total}')
+    return {
+        'deleted_by_age': deleted_age,
+        'deleted_by_deadline': deleted_deadline,
+        'total': total,
+        'cutoff_days': days,
+    }
+
+
 # ── 엔드포인트 ───────────────────────────────────────────────────────────────
 def _check_collect_auth() -> bool:
     """COLLECT_SECRET 환경변수로 인증 확인
@@ -1544,6 +1600,9 @@ def collect_notices():
         db.session.rollback()
         return jsonify({'success': False, 'message': f'DB 저장 실패: {e}'}), 500
 
+    # 수집 완료 후 자동 정리 — 60일 초과 또는 마감된 공고 삭제
+    cleanup_result = _cleanup_stale_notices(days=DEFAULT_FRESHNESS_DAYS)
+
     return jsonify({
         'success': True,
         'created': created,
@@ -1551,8 +1610,28 @@ def collect_notices():
         'total_fetched': len(all_items),
         'by_source': created_by_source,
         'errors': errors,
+        'cleanup': cleanup_result,
         'collected_at': datetime.utcnow().isoformat() + 'Z',
     })
+
+
+@collector_bp.route('/cleanup', methods=['POST'])
+def cleanup_notices():
+    """오래된·마감된 공고 수동 정리 엔드포인트.
+    인증은 collect 와 동일(COLLECT_SECRET) — 관리자 전용.
+    쿼리 파라미터 ?days=N 으로 기준일 조정 가능 (기본 60일).
+    """
+    if not _check_collect_auth():
+        return jsonify({'success': False, 'message': '인증 실패'}), 401
+
+    try:
+        days = int(request.args.get('days', DEFAULT_FRESHNESS_DAYS))
+    except (TypeError, ValueError):
+        days = DEFAULT_FRESHNESS_DAYS
+    days = max(1, min(days, 365))  # 과도한 삭제 방지
+
+    result = _cleanup_stale_notices(days=days)
+    return jsonify({'success': True, **result})
 
 
 @collector_bp.route('/collect/status', methods=['GET'])
