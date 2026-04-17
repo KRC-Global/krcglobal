@@ -22,7 +22,7 @@ except Exception:
     _LANGDETECT_OK = False
 
 HF_API_URL = (
-    'https://api-inference.huggingface.co/models/'
+    'https://router.huggingface.co/hf-inference/models/'
     'facebook/nllb-200-distilled-600M'
 )
 TARGET_LANG = 'kor_Hang'
