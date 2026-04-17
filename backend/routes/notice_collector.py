@@ -1821,6 +1821,59 @@ def _effective_posted_date(notice) -> datetime:
     return notice.created_at or datetime.utcnow()
 
 
+def _sync_db_to_latest(fetched_urls_by_source: dict, errors: dict) -> dict:
+    """최신 수집 결과에 없는 DB 레코드 삭제 — DB 를 수집기 출력과 동기화.
+
+    각 source 별로:
+      - 해당 source 가 이번 run 에서 에러 없이 동작했고 (errors 에 없음)
+      - 1건 이상 fetch 했으면 (0건 = 소스 일시 장애 가능성 → 보호)
+      → DB 의 해당 source 레코드 중 fetched_urls 에 없는 것을 DELETE.
+
+    안전장치:
+      - 에러 소스 보호 (예: ADB WAF 실패 → 기존 ADB 레코드 유지)
+      - 0건 소스 보호 (예: KOICA 현재 공고 0건 → 기존 KOICA 레코드 유지)
+      - 에러+0건 소스는 synced_sources 에 포함 안 됨
+
+    Returns: {deleted, synced_sources, skipped_sources}
+    """
+    deleted = 0
+    synced = []
+    skipped = []
+
+    for src, urls in fetched_urls_by_source.items():
+        if src in errors:
+            skipped.append(f'{src}(error)')
+            continue
+        if not urls:
+            skipped.append(f'{src}(0건)')
+            continue
+
+        # 이 source 의 DB 레코드 중 이번 run 에서 fetch 안 된 것 삭제
+        db_records = BidNotice.query.filter_by(source=src).all()
+        to_delete = [n.id for n in db_records if n.source_url not in urls]
+
+        if to_delete:
+            try:
+                cnt = (BidNotice.query
+                       .filter(BidNotice.id.in_(to_delete))
+                       .delete(synchronize_session=False))
+                db.session.commit()
+                deleted += cnt
+                print(f'[sync] {src}: {cnt}건 삭제 (DB {len(db_records)} → {len(db_records)-cnt})')
+            except Exception as e:
+                db.session.rollback()
+                print(f'[sync] {src} 삭제 실패: {e}')
+                skipped.append(f'{src}(db error)')
+                continue
+        synced.append(src)
+
+    return {
+        'deleted': deleted,
+        'synced_sources': synced,
+        'skipped_sources': skipped,
+    }
+
+
 def _cleanup_stale_notices(days: int = DEFAULT_FRESHNESS_DAYS) -> dict:
     """DB 에 저장된 BidNotice 중 '과거 사업'에 해당하는 것 삭제.
 
@@ -2050,6 +2103,12 @@ def _do_collect():
         db.session.rollback()
         return jsonify({'success': False, 'message': f'DB 저장 실패: {e}'}), 500
 
+    # DB 동기화 — 이번 run 에서 수집되지 않은 기존 레코드 삭제
+    fetched_urls_by_source = {}
+    for item in all_items:
+        fetched_urls_by_source.setdefault(item['source'], set()).add(item['source_url'])
+    sync_result = _sync_db_to_latest(fetched_urls_by_source, errors)
+
     # 수집 완료 후 자동 정리 — 60일 초과 또는 마감된 공고 삭제
     cleanup_result = _cleanup_stale_notices(days=DEFAULT_FRESHNESS_DAYS)
 
@@ -2068,6 +2127,7 @@ def _do_collect():
         'total_fetched': len(all_items),
         'by_source': created_by_source,
         'errors': errors,
+        'sync': sync_result,
         'cleanup': cleanup_result,
         'enrich': enrich_result,
         'translate': translate_result,
