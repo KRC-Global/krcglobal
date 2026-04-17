@@ -777,271 +777,179 @@ def _collect_ungm() -> list:
         return results
 
 
-# ── Tier 2: ADB RSS ──────────────────────────────────────────────────────────
+# ── Tier 2: ADB / AfDB via UNGM Public Search ──────────────────────────────
+#
+# ADB·AfDB 자체 RSS/HTML이 Cloudflare로 완전 차단(404/403)됨.
+# UNGM(UN Global Marketplace)이 두 기관 공고를 게시하며,
+# POST /Public/Notice/Search 엔드포인트가 인증 없이 동작함을 확인(2026-04).
+#
+# UNGM Agency ID: ADB=85, AfDB=84, FAO=49, IFAD=65, UNDP=1
+# 응답: HTML (테이블 행) → BeautifulSoup 파싱.
+#
+# Cell 구조 (0-indexed):
+#   0: buttons (skip)
+#   1: 제목 (.resultTitle a[href=/Public/Notice/{id}])
+#   2: 마감일 (.deadline)  — "06-May-2026 12:00\n(GMT 00.00)..."
+#   3: 게시일              — "13-Apr-2026"
+#   4: 기관 (.resultAgency)
+#   5: 공고 유형           — "Request for proposal"
+#   6: 참조번호            — "ADB/RFP/..."
+#   7: 국가                — "Philippines" / "Multiple destinations"
+
+_UNGM_SEARCH_URL = 'https://www.ungm.org/Public/Notice/Search'
+_UNGM_AGENCY_IDS = {
+    'adb':  '85',
+    'afdb': '84',
+}
+
+
+def _collect_via_ungm(source_key: str) -> list:
+    """UNGM 공개 검색으로 ADB 또는 AfDB 공고 수집.
+
+    - 인증 불필요 (Public 엔드포인트)
+    - 농업/컨설팅 키워드 필터 적용
+    - 마감 지난 건 제외, DEFAULT_FRESHNESS_DAYS 이내만
+    """
+    import requests as req
+    from bs4 import BeautifulSoup
+
+    agency_id = _UNGM_AGENCY_IDS.get(source_key)
+    if not agency_id:
+        return []
+
+    results = []
+    page = 0
+    max_pages = 5  # 15건×5 = 최대 75건
+
+    while page < max_pages:
+        payload = {
+            'PageIndex': page,
+            'PageSize': 15,
+            'Title': '',
+            'Description': '',
+            'Reference': '',
+            'PublishedFrom': '',
+            'PublishedTo': '',
+            'DeadlineFrom': '',
+            'DeadlineTo': '',
+            'Countries': [],
+            'Agencies': [agency_id],
+            'UNSPSCs': [],
+            'NoticeTypes': [],
+            'SortField': 'Deadline',
+            'SortAscending': True,
+            'isPicker': False,
+            'IsSustainable': False,
+            'IsActive': True,
+            'NoticeDisplayType': None,
+            'TypeOfCompetitions': [],
+        }
+        try:
+            r = req.post(_UNGM_SEARCH_URL, json=payload, timeout=15,
+                         headers={
+                             **_browser_headers(referer='https://www.ungm.org/Public/Notice'),
+                             'Content-Type': 'application/json',
+                             'X-Requested-With': 'XMLHttpRequest',
+                             'Accept': '*/*',
+                         })
+            if r.status_code != 200:
+                print(f'[{source_key}-UNGM] HTTP {r.status_code} on page {page}')
+                break
+        except req.RequestException as e:
+            print(f'[{source_key}-UNGM] 요청 실패: {e}')
+            break
+
+        soup = BeautifulSoup(r.text, 'html.parser')
+        rows = soup.select('.dataRow.notice-table')
+        if not rows:
+            break
+
+        for row in rows:
+            cells = row.select('.tableCell')
+            if len(cells) < 8:
+                continue
+
+            notice_id = row.get('data-noticeid', '')
+
+            # 제목: .ungm-title span (실제 공고명) → fallback: anchor text
+            title_span = cells[1].select_one('.ungm-title')
+            if title_span:
+                title = title_span.get_text(strip=True)
+            else:
+                title = cells[1].get_text(strip=True)
+            title = re.sub(r'Open in a new window', '', title).strip()
+            # tooltip 텍스트 제거
+            tooltip = cells[1].select_one('.info-tooltip__text')
+            if tooltip:
+                title = title.replace(tooltip.get_text(strip=True), '').strip()
+            if not title:
+                continue
+
+            link_el = cells[1].select_one('a[href*="/Public/Notice/"]')
+            href = link_el.get('href', '') if link_el else f'/Public/Notice/{notice_id}'
+            source_url = f'https://www.ungm.org{href}' if href.startswith('/') else href
+
+            # 마감일: "06-May-2026 12:00\n(GMT 00.00)..." → "2026-05-06"
+            deadline_raw = cells[2].get_text(strip=True).split('\n')[0].strip()
+            deadline = _normalize_date_str(deadline_raw.split(' ')[0] if deadline_raw else '')
+
+            # 마감일 지난 건 제외
+            if _is_deadline_passed(deadline):
+                continue
+
+            # 게시일
+            posted_raw = cells[3].get_text(strip=True)
+            if _is_stale_date(posted_raw, days=DEFAULT_FRESHNESS_DAYS):
+                continue
+
+            agency = cells[4].get_text(strip=True)
+            notice_type = cells[5].get_text(strip=True)
+            reference = cells[6].get_text(strip=True)
+            country = cells[7].get_text(strip=True)
+            if country == 'Multiple destinations':
+                country = ''
+
+            combined = f'{title} {notice_type} {reference}'
+            if not _is_agri(combined) and not _is_consulting(combined):
+                continue
+
+            sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
+
+            results.append({
+                'source': source_key,
+                'title': _decorate_title(title, notice_type),
+                'country': country,
+                'client': agency,
+                'sector': sector,
+                'contract_value': _extract_value_from_text(title),
+                'deadline': deadline,
+                'source_url': source_url,
+                'raw_data': {
+                    'ungm_id': notice_id,
+                    'title': title,
+                    'notice_type': notice_type,
+                    'reference': reference,
+                    'posted': posted_raw,
+                    'agency': agency,
+                },
+            })
+
+        if len(rows) < 15:
+            break
+        page += 1
+
+    print(f'[{source_key}-UNGM] {len(results)} items collected')
+    return results
+
+
 def _collect_adb() -> list:
-    """ADB — RSS 우선, 실패 시 HTML 스크래핑"""
-    try:
-        import requests as req
-    except ImportError:
-        return []
-
-    results = []
-    attempts_errors = []
-
-    # RSS 시도 — 2025~2026년 기준 ADB RSS 피드 URL 모두 미검증.
-    # Cloudflare 가 데이터센터 IP를 자주 차단하므로 실 브라우저 헤더로 재시도.
-    rss_urls = [
-        'https://www.adb.org/rss/projects-tenders.xml',
-        'https://www.adb.org/projects/tenders.rss',
-    ]
-    rss_ok = False
-    for rss_url in rss_urls:
-        try:
-            r = req.get(rss_url, timeout=10,
-                        headers=_browser_headers(referer='https://www.adb.org/projects/tenders'))
-            if r.status_code != 200:
-                attempts_errors.append(f'RSS {rss_url} HTTP {r.status_code}')
-                continue
-            root = ElementTree.fromstring(r.content)
-            for item in root.findall('.//item'):
-                title = item.findtext('title') or ''
-                link = item.findtext('link') or ''
-                desc = item.findtext('description') or ''
-                desc_text = _clean_html(desc)
-                combined = f"{title} {desc_text}"
-
-                if not _is_agri(combined) and not _is_consulting(combined):
-                    continue
-                if not link:
-                    continue
-
-                pub_date = item.findtext('pubDate') or ''
-                # DEFAULT_FRESHNESS_DAYS 이상 경과한 공고 제외
-                if _is_stale_pub(pub_date, days=DEFAULT_FRESHNESS_DAYS):
-                    continue
-
-                # notice type: <category> 또는 description 의 "Consulting Services" 류
-                category = item.findtext('category') or ''
-                notice_type = category.strip() if category else ''
-                if not notice_type and 'consulting' in desc_text.lower():
-                    notice_type = 'Consulting'
-
-                # country: description 에서 'Country: XXX' 패턴 추출
-                country = ''
-                m = re.search(r'Country\s*[:\-]\s*([A-Z][A-Za-z ,\-]+)', desc_text)
-                if m:
-                    country = m.group(1).strip().rstrip('.,')[:100]
-
-                # client: 'Executing Agency: XXX' / 'Borrower: XXX' 패턴
-                client = 'ADB'
-                m = re.search(r'(?:Executing Agency|Borrower)\s*[:\-]\s*([^\n<;]+)', desc_text)
-                if m:
-                    client = m.group(1).strip()[:200]
-
-                sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
-
-                results.append({
-                    'source': 'adb',
-                    'title': _decorate_title(title, notice_type),
-                    'country': country,
-                    'client': client,
-                    'sector': sector,
-                    'contract_value': _extract_value_from_text(desc_text),
-                    'deadline': pub_date[:10] if pub_date else '',
-                    'source_url': link,
-                    'raw_data': {'title': title, 'link': link, 'description': desc},
-                })
-            rss_ok = True
-            break
-        except Exception as e:
-            attempts_errors.append(f'RSS {rss_url}: {e}')
-            continue
-
-    # RSS 실패 시 HTML 스크래핑 (beautifulsoup4)
-    html_ok = False
-    if not rss_ok:
-        try:
-            from bs4 import BeautifulSoup
-            html_url = 'https://www.adb.org/projects/tenders?type=Consulting+Services'
-            r = req.get(html_url, timeout=12,
-                        headers=_browser_headers(referer='https://www.adb.org/'))
-            if r.status_code != 200:
-                attempts_errors.append(f'HTML HTTP {r.status_code}')
-            else:
-                html_ok = True
-                soup = BeautifulSoup(r.text, 'html.parser')
-                # 다중 셀렉터 — 사이트 구조 변경 대비
-                rows = (soup.select('table.tender-table tbody tr')
-                        or soup.select('.views-row')
-                        or soup.select('article.node, .search-result'))
-                print(f'[ADB-HTML] rows found: {len(rows)}')
-                for row in rows:
-                    title_el = (row.select_one('td.views-field-title a')
-                                or row.select_one('.views-field-title a')
-                                or row.select_one('h2 a, h3 a, a.title'))
-                    if not title_el:
-                        continue
-                    title = title_el.get_text(strip=True)
-                    href = title_el.get('href', '')
-                    if href.startswith('/'):
-                        href = 'https://www.adb.org' + href
-
-                    row_text = row.get_text(' ', strip=True)
-                    combined = title + ' ' + row_text
-                    if not _is_agri(combined) and not _is_consulting(combined):
-                        continue
-
-                    sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
-                    results.append({
-                        'source': 'adb',
-                        'title': title,
-                        'country': '',
-                        'client': 'ADB',
-                        'sector': sector,
-                        'contract_value': _extract_value_from_text(row_text),
-                        'deadline': '',
-                        'source_url': href,
-                        'raw_data': {'title': title, 'url': href},
-                    })
-        except Exception as e:
-            attempts_errors.append(f'HTML: {e}')
-
-    if attempts_errors:
-        print(f'[ADB] attempt errors: {attempts_errors}')
-    if not rss_ok and not html_ok:
-        raise RuntimeError('ADB 모든 수집 경로 실패: ' + ' | '.join(attempts_errors))
-
-    return results
+    """ADB — UNGM 공개 검색 경유 (ADB 자체 RSS/HTML Cloudflare 차단됨)"""
+    return _collect_via_ungm('adb')
 
 
-# ── Tier 2: AfDB RSS ────────────────────────────────────────────────────────
 def _collect_afdb() -> list:
-    """AfDB — RSS 우선, 실패 시 HTML 스크래핑"""
-    try:
-        import requests as req
-    except ImportError:
-        return []
-
-    results = []
-    attempts_errors = []
-
-    # RSS 시도
-    rss_urls = [
-        'https://www.afdb.org/en/news-and-events/rss/tenders.xml',
-        'https://www.afdb.org/en/rss/tenders',
-    ]
-    rss_ok = False
-    for rss_url in rss_urls:
-        try:
-            r = req.get(rss_url, timeout=10,
-                        headers=_browser_headers(referer='https://www.afdb.org/en/projects-and-operations/procurement'))
-            if r.status_code != 200 or not r.content:
-                attempts_errors.append(f'RSS {rss_url} HTTP {r.status_code}')
-                continue
-            root = ElementTree.fromstring(r.content)
-            for item in root.findall('.//item'):
-                title = item.findtext('title') or ''
-                link = item.findtext('link') or ''
-                desc = item.findtext('description') or ''
-                desc_text = _clean_html(desc)
-                combined = f"{title} {desc_text}"
-
-                if not _is_agri(combined):
-                    continue
-                if not link:
-                    continue
-                # tenders 피드가 아닌 news/success-stories 항목 제외
-                if any(p in link for p in ('/success-stories/', '/news-and-events/', '/projects-and-operations/')):
-                    if not _is_consulting(combined):
-                        continue
-
-                pub_date = item.findtext('pubDate') or ''
-                if _is_stale_pub(pub_date, days=DEFAULT_FRESHNESS_DAYS):
-                    continue
-
-                # country: dc:subject 중 지명만 채택 (쉼표/세미콜론 분리 후 첫 값)
-                country_el = item.find('{http://purl.org/dc/elements/1.1/}subject')
-                raw_country = country_el.text.strip() if country_el is not None else ''
-                country = ''
-                if raw_country:
-                    parts = re.split(r'[;,/]', raw_country)
-                    country = parts[0].strip()[:100]
-
-                # notice type: dc:type 또는 category
-                type_el = item.find('{http://purl.org/dc/elements/1.1/}type')
-                notice_type = type_el.text.strip() if type_el is not None else ''
-                if not notice_type:
-                    notice_type = (item.findtext('category') or '').strip()
-
-                sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
-
-                results.append({
-                    'source': 'afdb',
-                    'title': _decorate_title(title, notice_type),
-                    'country': country,
-                    'client': 'AfDB',
-                    'sector': sector,
-                    'contract_value': _extract_value_from_text(desc_text),
-                    'deadline': pub_date[:10] if pub_date else '',
-                    'source_url': link,
-                    'raw_data': {'title': title, 'link': link, 'description': desc},
-                })
-            rss_ok = True
-            break
-        except Exception as e:
-            attempts_errors.append(f'RSS {rss_url}: {e}')
-            continue
-
-    # RSS 실패 시 HTML 스크래핑
-    html_ok = False
-    if not rss_ok:
-        try:
-            from bs4 import BeautifulSoup
-            html_url = ('https://www.afdb.org/en/documents/project-related-procurement'
-                        '/procurement-notices/specific-procurement-notices')
-            r = req.get(html_url, timeout=12,
-                        headers=_browser_headers(referer='https://www.afdb.org/'))
-            if r.status_code != 200:
-                attempts_errors.append(f'HTML HTTP {r.status_code}')
-            else:
-                html_ok = True
-                soup = BeautifulSoup(r.text, 'html.parser')
-                anchors = (soup.select('.field-content a')
-                           or soup.select('.views-field-title a')
-                           or soup.select('article h2 a, article h3 a, .search-result a'))
-                print(f'[AfDB-HTML] anchors found: {len(anchors)}')
-                for a in anchors:
-                    title = a.get_text(strip=True)
-                    href = a.get('href', '')
-                    if not title or not href:
-                        continue
-                    if href.startswith('/'):
-                        href = 'https://www.afdb.org' + href
-
-                    if not _is_agri(title) and not _is_consulting(title):
-                        continue
-
-                    sector = 'consulting' if _is_consulting(title) and not _is_agri(title) else 'agriculture'
-                    results.append({
-                        'source': 'afdb',
-                        'title': title,
-                        'country': '',
-                        'client': 'AfDB',
-                        'sector': sector,
-                        'contract_value': '',
-                        'deadline': '',
-                        'source_url': href,
-                        'raw_data': {'title': title, 'url': href},
-                    })
-        except Exception as e:
-            attempts_errors.append(f'HTML: {e}')
-
-    if attempts_errors:
-        print(f'[AfDB] attempt errors: {attempts_errors}')
-    if not rss_ok and not html_ok:
-        raise RuntimeError('AfDB 모든 수집 경로 실패: ' + ' | '.join(attempts_errors))
-
-    return results
+    """AfDB — UNGM 공개 검색 경유 (AfDB 자체 RSS/HTML Cloudflare 차단됨)"""
+    return _collect_via_ungm('afdb')
 
 
 # ── ADB/AfDB 상세 페이지 보강 (WB _wb_extract_details 패턴) ─────────────────
