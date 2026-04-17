@@ -89,9 +89,12 @@ def translate_to_korean(text: str, retries: int = 2) -> Optional[str]:
     HF Inference API 무료 티어는 모델 cold-start 시 503 + estimated_time 응답을
     반환할 수 있어 재시도 로직 필수.
     """
+    global _last_translate_error
+
     token = os.environ.get('HF_TOKEN')
     if not token:
-        print('[translate] HF_TOKEN 환경변수 미설정 — 번역 불가')
+        _last_translate_error = 'HF_TOKEN 환경변수 미설정'
+        print(f'[translate] {_last_translate_error}')
         return None
     if not text:
         return None
