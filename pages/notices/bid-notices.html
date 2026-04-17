@@ -947,18 +947,45 @@
 
         // 국가 영문명 → ISO 2자리 (국기 SVG 파일명)
         const COUNTRY_ISO = {
-            'Afghanistan':'af','Argentina':'ar','Bangladesh':'bd','Bolivia':'bo','Brunei':'bn',
-            'Cambodia':'kh','Cameroon':'cm','China':'cn','Côte d\'Ivoire':'ci',
+            'Afghanistan':'af','Albania':'al','Algeria':'dz','Angola':'ao',
+            'Argentina':'ar','Armenia':'am','Azerbaijan':'az',
+            'Bangladesh':'bd','Benin':'bj','Bhutan':'bt','Bolivia':'bo',
+            'Bosnia and Herzegovina':'ba','Botswana':'bw','Brazil':'br','Brunei':'bn',
+            'Burkina Faso':'bf','Burundi':'bi',
+            'Cambodia':'kh','Cameroon':'cm','Chad':'td','Chile':'cl','China':'cn',
+            'Colombia':'co','Comoros':'km','Congo':'cg',
+            'Costa Rica':'cr','Côte d\'Ivoire':'ci',
             'Democratic Republic of the Congo':'cd','DR Congo':'cd',
-            'Algeria':'dz','Ethiopia':'et','Ghana':'gh','Gambia':'gm','Guinea':'gn',
-            'Guatemala':'gt','India':'in','Indonesia':'id','Iran':'ir','Italy':'it',
-            'Jordan':'jo','Kenya':'ke','Kyrgyzstan':'kg','Kyrgyz Republic':'kg',
-            'Kiribati':'ki','South Korea':'kr','Kazakhstan':'kz',
-            'Laos':'la','Lao PDR':'la','Sri Lanka':'lk','Myanmar':'mm','Mongolia':'mn',
-            'Malawi':'mw','Malaysia':'my','Mozambique':'mz','Nepal':'np',
-            'Peru':'pe','Philippines':'ph','Pakistan':'pk','Paraguay':'py',
-            'Russia':'ru','Senegal':'sn','El Salvador':'sv','Thailand':'th',
-            'Tanzania':'tz','Uganda':'ug','Uzbekistan':'uz','Vietnam':'vn','Viet Nam':'vn',
+            'Djibouti':'dj','Dominican Republic':'do',
+            'Ecuador':'ec','Egypt':'eg','El Salvador':'sv','Eritrea':'er','Ethiopia':'et',
+            'Fiji':'fj',
+            'Gambia':'gm','Georgia':'ge','Ghana':'gh','Guatemala':'gt',
+            'Guinea':'gn','Guinea-Bissau':'gw',
+            'Haiti':'ht','Honduras':'hn',
+            'India':'in','Indonesia':'id','Iran':'ir','Iraq':'iq','Italy':'it',
+            'Jamaica':'jm','Jordan':'jo',
+            'Kazakhstan':'kz','Kenya':'ke','Kiribati':'ki','Kosovo':'xk',
+            'Kyrgyzstan':'kg','Kyrgyz Republic':'kg',
+            'Laos':'la','Lao PDR':'la','Lebanon':'lb','Lesotho':'ls','Liberia':'lr','Libya':'ly',
+            'Madagascar':'mg','Malawi':'mw','Malaysia':'my','Maldives':'mv','Mali':'ml',
+            'Mauritania':'mr','Mauritius':'mu','Mexico':'mx','Moldova':'md',
+            'Mongolia':'mn','Montenegro':'me','Morocco':'ma','Mozambique':'mz','Myanmar':'mm',
+            'Namibia':'na','Nepal':'np','Nicaragua':'ni','Niger':'ne','Nigeria':'ng',
+            'North Macedonia':'mk',
+            'Pakistan':'pk','Palestine':'ps','Palestine, State of':'ps',
+            'Panama':'pa','Papua New Guinea':'pg','Paraguay':'py','Peru':'pe','Philippines':'ph',
+            'Rwanda':'rw','Russia':'ru',
+            'Samoa':'ws','Senegal':'sn','Serbia':'rs','Sierra Leone':'sl',
+            'Solomon Islands':'sb','Somalia':'so','Somalia, Federal Republic of':'so',
+            'South Africa':'za','South Korea':'kr','South Sudan':'ss',
+            'Sri Lanka':'lk','Sudan':'sd','Suriname':'sr',
+            'Syria':'sy','Syrian Arab Republic':'sy',
+            'Tajikistan':'tj','Tanzania':'tz','Thailand':'th',
+            'Timor-Leste':'tl','Togo':'tg','Tonga':'to','Tunisia':'tn',
+            'Turkey':'tr','Turkiye':'tr','Turkmenistan':'tm','Tuvalu':'tv',
+            'Uganda':'ug','Ukraine':'ua','Uruguay':'uy','Uzbekistan':'uz',
+            'Vanuatu':'vu','Vietnam':'vn','Viet Nam':'vn',
+            'Yemen':'ye','Zambia':'zm','Zimbabwe':'zw',
         };
 
         function normalizeCountry(name) {
@@ -1108,7 +1135,7 @@
 
             let flagHtml;
             if (iso) {
-                flagHtml = `<img src="../../assets/images/flags/${iso}.svg"
+                flagHtml = `<img src="/assets/images/flags/${iso}.svg"
                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
                     style="width:100%;height:100%;object-fit:cover;">
                     <div style="display:none;width:100%;height:100%;background:var(--color-primary-500);
@@ -1141,7 +1168,7 @@
             document.getElementById('panelCountryName').textContent = country;
             document.getElementById('panelNoticeCount').textContent = `${notices.length}건`;
             document.getElementById('panelCountryFlag').innerHTML = iso
-                ? `<img src="../../assets/images/flags/${iso}.svg" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;" onerror="this.outerHTML='🌍'">`
+                ? `<img src="/assets/images/flags/${iso}.svg" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;" onerror="this.outerHTML='🌍'">`
                 : '🌍';
 
             document.getElementById('panelNoticeList').innerHTML = notices.map(n => `
