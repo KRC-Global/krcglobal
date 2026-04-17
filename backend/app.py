@@ -42,7 +42,24 @@ def ensure_tables():
     global _tables_created
     if not _tables_created:
         db.create_all()
+        _run_migrations()
         _tables_created = True
+
+
+def _run_migrations():
+    """기존 테이블에 누락된 컬럼을 ALTER TABLE 로 추가.
+    이미 존재하면 에러를 무시 (idempotent)."""
+    migrations = [
+        "ALTER TABLE bid_notices ADD COLUMN title_ko VARCHAR(500)",
+    ]
+    with db.engine.connect() as conn:
+        for sql in migrations:
+            try:
+                conn.execute(db.text(sql))
+                conn.commit()
+                print(f'[migration] OK: {sql[:60]}')
+            except Exception:
+                conn.rollback()
 
 # Register blueprints (API routes)
 from routes.auth import auth_bp
