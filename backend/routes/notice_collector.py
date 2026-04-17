@@ -29,8 +29,9 @@ AGRI_KEYWORDS = [
 CONSULTING_KEYWORDS = [
     'consulting', 'consultancy', 'consultant', 'technical assistance',
     'advisory', 'supervision', 'feasibility', 'project management', 'pmc',
-    'f/s', 'design', 'capacity building', 'study', 'assessment', 'planning',
-    'engineering services', 'detailed design',
+    'f/s', 'capacity building', 'assessment', 'planning',
+    'engineering services', 'detailed design', 'design review',
+    'design and supervision', 'preliminary design',
 ]
 
 # 한국어 키워드 (KOICA nebid 등 국문 공고용)
@@ -1043,6 +1044,296 @@ def _collect_afdb() -> list:
     return results
 
 
+# ── ADB/AfDB 상세 페이지 보강 (WB _wb_extract_details 패턴) ─────────────────
+
+# 날짜 패턴: 2026-05-30, 30 May 2026, May 30, 2026, 30/05/2026
+_DATE_PATTERNS = [
+    r'(\d{4}-\d{2}-\d{2})',                              # 2026-05-30
+    r'(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})',  # 30 May 2026
+    r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})',  # May 30, 2026
+    r'(\d{1,2}/\d{1,2}/\d{4})',                           # 30/05/2026
+]
+
+_DEADLINE_LABELS = [
+    r'Submission\s+Deadline',
+    r'Closing\s+Date',
+    r'Deadline\s+(?:for\s+)?Submission',
+    r'Date\s+of\s+Deadline',
+    r'Due\s+Date',
+    r'Expressions?\s+of\s+Interest.*?(?:before|by|deadline)',
+    r'Bid\s+Closing\s+Date',
+]
+
+_AMOUNT_LABELS = [
+    r'Estimated\s+(?:Cost|Value|Budget|Amount)',
+    r'Contract\s+(?:Amount|Value|Price)',
+    r'Project\s+(?:Cost|Amount|Budget)',
+    r'Total\s+(?:Cost|Value)',
+    r'Loan\s+Amount',
+    r'Financing\s+Amount',
+    r'Approved\s+Amount',
+]
+
+
+def _extract_labeled_date(text: str, labels: list) -> str:
+    """라벨 키워드 주변에서 날짜 추출."""
+    for label in labels:
+        for dp in _DATE_PATTERNS:
+            pat = rf'{label}\s*[:\-–]\s*{dp}'
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                return _normalize_date_str(m.group(1))
+    return ''
+
+
+def _extract_any_date(text: str) -> str:
+    """텍스트 내 첫 번째 파싱 가능한 날짜."""
+    for dp in _DATE_PATTERNS:
+        m = re.search(dp, text, re.IGNORECASE)
+        if m:
+            return _normalize_date_str(m.group(1))
+    return ''
+
+
+def _normalize_date_str(raw: str) -> str:
+    """다양한 날짜 형식을 ISO (YYYY-MM-DD)로 변환."""
+    from datetime import datetime as dt_cls
+    if not raw:
+        return ''
+    raw = raw.strip().replace(',', '')
+    for fmt in ('%Y-%m-%d', '%d %B %Y', '%d %b %Y', '%B %d %Y', '%b %d %Y',
+                '%d/%m/%Y', '%m/%d/%Y'):
+        try:
+            return dt_cls.strptime(raw, fmt).strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+    return raw[:10]
+
+
+def _fetch_adb_detail(source_url: str) -> dict:
+    """ADB 공고 상세 페이지에서 마감일·금액·발주처·조달방식 등 추출.
+
+    ADB는 Drupal CMS 기반 — .field-content, .pane-content, meta 태그 등 탐색.
+    403 / 타임아웃 시 빈 dict 반환 (호출자가 graceful 처리).
+    """
+    import requests as req
+
+    if not source_url:
+        return {}
+    try:
+        r = req.get(source_url, timeout=12,
+                    headers=_browser_headers(referer='https://www.adb.org/projects/tenders'))
+        if r.status_code != 200:
+            print(f'[ADB-detail] HTTP {r.status_code}: {source_url}')
+            return {}
+    except req.RequestException as e:
+        print(f'[ADB-detail] 요청 실패: {e}')
+        return {}
+
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return {}
+
+    soup = BeautifulSoup(r.text, 'html.parser')
+    plain = soup.get_text(' ', strip=True)
+    details = {}
+
+    # 마감일
+    deadline = _extract_labeled_date(plain, _DEADLINE_LABELS)
+    if deadline:
+        details['deadline'] = deadline
+
+    # 금액 — 라벨 있는 금액 우선
+    for label_rx in _AMOUNT_LABELS:
+        m = re.search(
+            rf'{label_rx}\s*[:\-–]?\s*({_CURRENCY_CODES})\s*([\d,]+(?:\.\d+)?)\s*'
+            rf'(million|billion|mln|bn|M|B|K)?',
+            plain, re.IGNORECASE
+        )
+        if m:
+            val = _format_compact_money(m.group(1), m.group(2), m.group(3),
+                                        min_threshold=_MIN_CONTRACT_USD_THRESHOLD)
+            if val:
+                details['contract_value'] = val
+                break
+
+    # 국가
+    cm = re.search(r'Country\s*[:\-–]\s*([A-Z][A-Za-z ,\-]+)', plain)
+    if cm:
+        details['country'] = cm.group(1).strip().rstrip('.,')[:100]
+
+    # 발주처 / Executing Agency
+    ea = re.search(r'(?:Executing\s+Agency|Borrower|Employer|Client)\s*[:\-–]\s*([^\n<;]{3,200})', plain)
+    if ea:
+        details['client'] = ea.group(1).strip()[:200]
+
+    # 조달방식
+    pm = re.search(r'(?:Procurement\s+Method|Type\s+of\s+Contract|Selection\s+Method)\s*[:\-–]\s*([^\n<;]+)', plain)
+    if pm:
+        details['procurement_method'] = pm.group(1).strip()[:200]
+
+    # 참조번호
+    ref = re.search(r'(?:Reference\s+No\.?|Package\s+No\.?|Tender\s+No\.?|CSRN\s+No\.?)\s*[:\-–]?\s*([A-Z0-9][\w\-/]+)', plain, re.IGNORECASE)
+    if ref:
+        details['reference_no'] = ref.group(1).strip()[:100]
+
+    # 본문 발췌
+    if plain:
+        details['text_excerpt'] = plain[:1200]
+
+    return details
+
+
+def _fetch_afdb_detail(source_url: str) -> dict:
+    """AfDB 공고 상세 페이지에서 마감일·금액·국가·조달방식 등 추출.
+
+    AfDB는 Drupal/Liferay 기반 — .field-items, .content-body, meta 태그 등 탐색.
+    """
+    import requests as req
+
+    if not source_url:
+        return {}
+    try:
+        r = req.get(source_url, timeout=12,
+                    headers=_browser_headers(referer='https://www.afdb.org/en/'))
+        if r.status_code != 200:
+            print(f'[AfDB-detail] HTTP {r.status_code}: {source_url}')
+            return {}
+    except req.RequestException as e:
+        print(f'[AfDB-detail] 요청 실패: {e}')
+        return {}
+
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return {}
+
+    soup = BeautifulSoup(r.text, 'html.parser')
+    plain = soup.get_text(' ', strip=True)
+    details = {}
+
+    # 마감일
+    deadline = _extract_labeled_date(plain, _DEADLINE_LABELS)
+    if deadline:
+        details['deadline'] = deadline
+
+    # 금액
+    for label_rx in _AMOUNT_LABELS:
+        m = re.search(
+            rf'{label_rx}\s*[:\-–]?\s*({_CURRENCY_CODES})\s*([\d,]+(?:\.\d+)?)\s*'
+            rf'(million|billion|mln|bn|M|B|K)?',
+            plain, re.IGNORECASE
+        )
+        if m:
+            val = _format_compact_money(m.group(1), m.group(2), m.group(3),
+                                        min_threshold=_MIN_CONTRACT_USD_THRESHOLD)
+            if val:
+                details['contract_value'] = val
+                break
+
+    # 국가 — AfDB 문서는 다양한 형식으로 국가 표시
+    cm = re.search(r'(?:Country|Pays|Location)\s*[:\-–]\s*([A-Z][A-Za-zÀ-ÿ ,\-]+)', plain)
+    if cm:
+        details['country'] = cm.group(1).strip().rstrip('.,')[:100]
+
+    # 발주처
+    ea = re.search(r'(?:Executing\s+Agency|Borrower|Client|Agence\s+d.ex[ée]cution)\s*[:\-–]\s*([^\n<;]{3,200})', plain)
+    if ea:
+        details['client'] = ea.group(1).strip()[:200]
+
+    # 조달방식
+    pm = re.search(r'(?:Procurement\s+Method|M[ée]thode\s+de\s+passation|Type\s+of\s+Contract)\s*[:\-–]\s*([^\n<;]+)', plain)
+    if pm:
+        details['procurement_method'] = pm.group(1).strip()[:200]
+
+    # 참조번호
+    ref = re.search(r'(?:Reference|Réf[ée]rence|Tender\s+No\.?|Notice\s+No\.?)\s*[:\-–]?\s*([A-Z0-9][\w\-/]+)', plain, re.IGNORECASE)
+    if ref:
+        details['reference_no'] = ref.group(1).strip()[:100]
+
+    # 본문 발췌
+    if plain:
+        details['text_excerpt'] = plain[:1200]
+
+    return details
+
+
+def _enrich_pending_notices(limit: int = 15) -> dict:
+    """ADB/AfDB 공고 중 상세 정보가 없는 건을 source_url 방문으로 보강.
+
+    raw_data 에 adb_details/afdb_details 키가 없는 건을 대상으로
+    상세 페이지를 fetch 해 마감일·금액·발주처 등을 채운다.
+    """
+    import time as t
+
+    detail_fetchers = {
+        'adb': _fetch_adb_detail,
+        'afdb': _fetch_afdb_detail,
+    }
+
+    # adb/afdb 이면서 details 키가 없는 건
+    candidates = (BidNotice.query
+                  .filter(BidNotice.source.in_(['adb', 'afdb']))
+                  .order_by(BidNotice.created_at.desc())
+                  .limit(limit * 3)  # details 있는 건도 포함되므로 여유 있게
+                  .all())
+
+    pending = []
+    for n in candidates:
+        detail_key = f'{n.source}_details'
+        rd = n.raw_data if isinstance(n.raw_data, dict) else {}
+        if detail_key not in rd:
+            pending.append(n)
+        if len(pending) >= limit:
+            break
+
+    if not pending:
+        return {'attempted': 0, 'enriched': 0}
+
+    enriched = 0
+    for n in pending:
+        fetcher = detail_fetchers.get(n.source)
+        if not fetcher:
+            continue
+        try:
+            details = fetcher(n.source_url)
+        except Exception as e:
+            print(f'[enrich] {n.source} #{n.id} 실패: {e}')
+            details = {}
+
+        if details:
+            rd = dict(n.raw_data) if isinstance(n.raw_data, dict) else {}
+            detail_key = f'{n.source}_details'
+            rd[detail_key] = details
+            n.raw_data = rd
+
+            # 본문 결과로 DB 필드 보강 (기존 값이 비어있을 때만)
+            if details.get('deadline') and (not n.deadline or n.deadline == n.created_at.strftime('%Y-%m-%d') if n.created_at else True):
+                n.deadline = details['deadline']
+            if details.get('contract_value') and not n.contract_value:
+                n.contract_value = details['contract_value']
+            if details.get('country') and not n.country:
+                n.country = details['country']
+            if details.get('client') and n.client in ('ADB', 'AfDB'):
+                n.client = details['client']
+
+            enriched += 1
+
+        t.sleep(0.5)  # rate-limit 보호
+
+    if enriched:
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f'[enrich] commit 실패: {e}')
+            return {'attempted': len(pending), 'enriched': 0, 'error': str(e)}
+
+    print(f'[enrich] {enriched}/{len(pending)} 보강 완료')
+    return {'attempted': len(pending), 'enriched': enriched}
+
+
 # ── Tier 2: KOICA / data.go.kr ──────────────────────────────────────────────
 
 # 농업 + 해외기술용역 통합 키워드
@@ -1439,14 +1730,27 @@ def _collect_isdb() -> list:
                 continue
 
             combined = f'{title} {row_text}'
-            if not _is_agri(combined) and not _is_consulting(combined):
+            # IsDB 는 농업 관련 필수 — consulting 단독 매칭은 비농업 오탐 빈발
+            # (변전소 Design, 냉동창고 Construction 등). 농업 키워드 포함 시에만 수집.
+            if not _is_agri(combined):
                 continue
 
-            # 마감일
+            # 마감일 — 목록 텍스트에서 추출 + 다양한 포맷 시도
             deadline = ''
+            # YYYY-MM-DD
             dm = re.search(r'(\d{4}-\d{2}-\d{2})', row_text)
             if dm:
                 deadline = dm.group(1)
+            # "DD Month YYYY" / "Month DD, YYYY"
+            if not deadline:
+                dm2 = re.search(
+                    r'(?:Closing|Deadline|Close)\s*(?:Date)?[:\s]*'
+                    r'(\d{1,2}\s+\w+\s+\d{4}|\w+\s+\d{1,2},?\s*\d{4})',
+                    row_text, re.IGNORECASE)
+                if dm2:
+                    d = _parse_date_any(dm2.group(1))
+                    if d:
+                        deadline = d.isoformat()
             if _is_deadline_passed(deadline):
                 continue
 
@@ -1499,6 +1803,18 @@ def _collect_isdb() -> list:
                 val = _extract_value_from_text(main_text)
                 if val:
                     item['contract_value'] = val
+                # 마감일 — 목록에서 못 구했으면 상세에서 추출
+                if not item.get('deadline'):
+                    dm = re.search(
+                        r'(?:Closing|Deadline|Submission|Close)\s*(?:Date)?[:\s]*'
+                        r'(\d{4}-\d{2}-\d{2}|\d{1,2}\s+\w+\s+\d{4}|\w+\s+\d{1,2},?\s*\d{4})',
+                        main_text, re.IGNORECASE)
+                    if dm:
+                        d = _parse_date_any(dm.group(1))
+                        if d:
+                            item['deadline'] = d.isoformat()
+                            if _is_deadline_passed(item['deadline']):
+                                keep = False
                 # 게시일 탐색 — "Published on YYYY-MM-DD" / "Posted: DD Month YYYY" 등
                 pm = re.search(
                     r'(?:Published|Posted|Publish Date|Date Posted|Publication Date)\s*(?:on)?\s*[:\-]?\s*'
@@ -1829,6 +2145,9 @@ def _do_collect():
     # 수집 완료 후 자동 정리 — 60일 초과 또는 마감된 공고 삭제
     cleanup_result = _cleanup_stale_notices(days=DEFAULT_FRESHNESS_DAYS)
 
+    # ADB/AfDB 상세 페이지 보강 — 마감일·금액·발주처 추출
+    enrich_result = _enrich_pending_notices(limit=15)
+
     # 한국어 번역 — title_ko 비어있는 건만 일괄 처리
     # Vercel Lambda 60s 제약 고려해 1회당 최대 30건만 처리,
     # 나머지는 다음 cron 또는 /translate 엔드포인트로 백필
@@ -1842,6 +2161,7 @@ def _do_collect():
         'by_source': created_by_source,
         'errors': errors,
         'cleanup': cleanup_result,
+        'enrich': enrich_result,
         'translate': translate_result,
         'collected_at': datetime.utcnow().isoformat() + 'Z',
     })
@@ -1919,6 +2239,22 @@ def translate_pending_endpoint():
         limit = 30
     limit = max(1, min(limit, 100))
     return jsonify({'success': True, **_translate_pending(limit=limit)})
+
+
+@collector_bp.route('/enrich', methods=['POST'])
+def enrich_notices_endpoint():
+    """ADB/AfDB 상세 페이지 보강 — 수동 백필.
+    쿼리: ?limit=N (기본 15, 최대 50)
+    인증: COLLECT_SECRET.
+    """
+    if not _check_collect_auth():
+        return jsonify({'success': False, 'message': '인증 실패'}), 401
+    try:
+        limit = int(request.args.get('limit', 15))
+    except (TypeError, ValueError):
+        limit = 15
+    limit = max(1, min(limit, 50))
+    return jsonify({'success': True, **_enrich_pending_notices(limit=limit)})
 
 
 @collector_bp.route('/cleanup', methods=['POST'])
