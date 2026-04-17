@@ -1627,7 +1627,9 @@ class BidNotice(db.Model):
     def to_dict(self):
         details = None
         if isinstance(self.raw_data, dict):
-            details = self.raw_data.get('wb_details')
+            details = (self.raw_data.get('wb_details')
+                       or self.raw_data.get('adb_details')
+                       or self.raw_data.get('afdb_details'))
         return {
             'id': self.id,
             'source': self.source,
