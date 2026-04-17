@@ -328,16 +328,70 @@
             display: flex; gap: 12px; font-size: 11px; color: var(--color-neutral-600); flex-wrap: wrap;
         }
 
-        /* 지도 위 통계 배지 */
+        /* 지도 위 통계 */
         .map-stats {
             padding: 8px 2px 10px; font-size: 13px;
             color: var(--color-neutral-600);
             display: flex; justify-content: space-between; align-items: baseline;
         }
 
+        /* 로딩 오버레이 */
+        .map-loading-overlay {
+            position: absolute; inset: 0; z-index: 800;
+            background: rgba(255,255,255,0.65);
+            backdrop-filter: blur(3px);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 12px; transition: opacity 0.3s;
+        }
+        .map-loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .map-loading-spinner {
+            width: 32px; height: 32px;
+            border: 3px solid var(--color-neutral-300);
+            border-top-color: var(--color-primary-500);
+            border-radius: 50%;
+            animation: mapSpin 0.8s linear infinite;
+        }
+        @keyframes mapSpin { to { transform: rotate(360deg); } }
+        .map-loading-text {
+            font-size: 13px; font-weight: 600;
+            color: var(--color-neutral-700);
+        }
+
+        /* 발주처 토글 컨트롤 (지도 위) */
+        .source-toggle-panel {
+            position: absolute; top: 12px; right: 12px; z-index: 900;
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            padding: 10px 12px;
+            display: flex; flex-wrap: wrap; gap: 6px;
+            max-width: 320px;
+        }
+        .source-toggle {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; border-radius: 14px;
+            font-size: 11px; font-weight: 600;
+            cursor: pointer; user-select: none;
+            border: 1.5px solid var(--color-neutral-300);
+            background: var(--color-neutral-0);
+            color: var(--color-neutral-600);
+            transition: all 0.15s;
+        }
+        .source-toggle.active {
+            background: var(--color-primary-500);
+            color: #fff;
+            border-color: var(--color-primary-500);
+        }
+        .source-toggle:hover { border-color: var(--color-primary-400); }
+        .source-toggle .toggle-count {
+            font-size: 10px; opacity: 0.8;
+        }
+
         @media (max-width: 768px) {
             .notice-side-panel { width: 100%; }
-            .notice-map-container { min-height: 360px; height: calc(100vh - 320px); }
+            .notice-map-container { min-height: 360px; height: calc(100vh - 200px); }
+            .source-toggle-panel { max-width: calc(100% - 24px); top: 8px; right: 8px; }
         }
 
         /* 모달 */
@@ -775,35 +829,9 @@
                 </div>
             </details>
 
-            <!-- 필터 바 -->
-            <div class="filter-bar">
-                <select id="sourceFilter">
-                    <option value="">기관 전체</option>
-                    <option value="worldbank">World Bank (WB)</option>
-                    <option value="adb">ADB</option>
-                    <option value="aiib">AIIB</option>
-                    <option value="afdb">AfDB</option>
-                    <option value="isdb">IsDB</option>
-                    <option value="ifad">IFAD</option>
-                    <option value="ida">IDA</option>
-                    <option value="koica">KOICA</option>
-                    <option value="edcf">EDCF</option>
-                    <option value="ungm">UNGM</option>
-                    <option value="devex">DevEx</option>
-                    <option value="other">기타</option>
-                </select>
-                <input type="text" id="countryFilter" placeholder="국가 검색" style="min-width: 130px;">
-                <select id="statusFilter">
-                    <option value="">상태 전체</option>
-                    <option value="new">New (미확인)</option>
-                    <option value="reviewed">검토중</option>
-                    <option value="applied">응찰완료</option>
-                    <option value="closed">마감</option>
-                </select>
-                <input type="text" id="searchInput" placeholder="제목 검색" style="min-width: 200px;">
-                <button class="btn btn-secondary" onclick="loadAllNotices()">검색</button>
-                <button class="btn btn-secondary" onclick="resetFilter()">초기화</button>
-                <button id="collectBtn" class="btn btn-primary" onclick="triggerCollect()" style="display:none; margin-left:auto;">🔄 지금 수집</button>
+            <!-- 수집 버튼 (관리자) -->
+            <div style="display:flex; justify-content:flex-end;">
+                <button id="collectBtn" class="btn btn-primary" onclick="triggerCollect()" style="display:none;">🔄 지금 수집</button>
             </div>
             </div>
             <!-- /상단 고정 영역 -->
@@ -817,6 +845,16 @@
             <!-- 세계지도 -->
             <div class="notice-map-container" id="noticeMapContainer">
                 <div id="noticeMap"></div>
+
+                <!-- 로딩 오버레이 -->
+                <div class="map-loading-overlay" id="mapLoadingOverlay">
+                    <div class="map-loading-spinner"></div>
+                    <div class="map-loading-text">데이터를 불러오고 있습니다</div>
+                </div>
+
+                <!-- 발주처 온/오프 토글 -->
+                <div class="source-toggle-panel" id="sourceTogglePanel"></div>
+
                 <div class="notice-side-panel" id="noticeSidePanel">
                     <div class="panel-header">
                         <div class="panel-header-left">
@@ -1009,6 +1047,7 @@
         let allNotices = [];
         let groupedByCountry = {};
         let currentNoticeId = null;
+        let activeSources = new Set(); // 현재 켜진 발주처
 
         // ── 초기화 ──────────────────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1038,11 +1077,6 @@
             initMap();
             await loadAllNotices();
             loadScrapingStatus();
-
-            document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadAllNotices(); });
-            document.getElementById('countryFilter').addEventListener('keydown', e => { if (e.key === 'Enter') loadAllNotices(); });
-            document.getElementById('sourceFilter').addEventListener('change', () => loadAllNotices());
-            document.getElementById('statusFilter').addEventListener('change', () => loadAllNotices());
 
             const historyEl = document.getElementById('scrapingHistory');
             let historyLoaded = false;
@@ -1075,43 +1109,85 @@
             if (noticeMap) noticeMap.invalidateSize();
         }
 
+        // ── 로딩 오버레이 ────────────────────────────────────────────────────────
+        function showLoading() {
+            document.getElementById('mapLoadingOverlay').classList.remove('hidden');
+        }
+        function hideLoading() {
+            document.getElementById('mapLoadingOverlay').classList.add('hidden');
+        }
+
         // ── 공고 전체 로드 ───────────────────────────────────────────────────────
         async function loadAllNotices() {
-            const source  = document.getElementById('sourceFilter').value;
-            const country = document.getElementById('countryFilter').value.trim();
-            const status  = document.getElementById('statusFilter').value;
-            const search  = document.getElementById('searchInput').value.trim();
-
+            showLoading();
             const params = new URLSearchParams({ page: 1, perPage: 2000 });
-            if (source)  params.set('source', source);
-            if (country) params.set('country', country);
-            if (status)  params.set('status', status);
-            if (search)  params.set('search', search);
 
             try {
                 const data = await apiCall(`/webhook/notices?${params}`);
                 if (!data.success) return;
                 allNotices = data.data || [];
-                document.getElementById('feedTotalCount').textContent = data.total || 0;
 
-                const hints = [];
-                if (source)  hints.push(`기관=${source.toUpperCase()}`);
-                if (country) hints.push(`국가=${country}`);
-                if (status)  hints.push(`상태=${STATUS_LABELS[status] || status}`);
-                if (search)  hints.push(`검색="${search}"`);
-                document.getElementById('feedFilterHint').textContent =
-                    hints.length ? '필터: ' + hints.join(' · ') : '';
-
-                groupNoticesByCountry();
-                updateMapMarkers();
+                buildSourceToggles();
+                applySourceFilter();
             } catch (e) {
                 console.error('공고 로드 오류:', e);
+            } finally {
+                hideLoading();
             }
         }
 
-        function groupNoticesByCountry() {
-            groupedByCountry = {};
+        // ── 발주처 토글 ──────────────────────────────────────────────────────────
+        function buildSourceToggles() {
+            const counts = {};
             allNotices.forEach(n => {
+                const s = n.source || 'other';
+                counts[s] = (counts[s] || 0) + 1;
+            });
+
+            // 초기: 모든 소스 활성화
+            if (activeSources.size === 0) {
+                Object.keys(counts).forEach(s => activeSources.add(s));
+            }
+
+            const panel = document.getElementById('sourceTogglePanel');
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+            panel.innerHTML = sorted.map(([src, cnt]) => {
+                const label = SOURCE_LABELS[src] || src;
+                const active = activeSources.has(src) ? ' active' : '';
+                return `<button class="source-toggle${active}" data-source="${src}" onclick="toggleSource('${src}', this)">
+                    ${label} <span class="toggle-count">${cnt}</span>
+                </button>`;
+            }).join('');
+        }
+
+        function toggleSource(src, el) {
+            if (activeSources.has(src)) {
+                activeSources.delete(src);
+                el.classList.remove('active');
+            } else {
+                activeSources.add(src);
+                el.classList.add('active');
+            }
+            applySourceFilter();
+        }
+
+        function applySourceFilter() {
+            const filtered = allNotices.filter(n => activeSources.has(n.source || 'other'));
+
+            document.getElementById('feedTotalCount').textContent = filtered.length;
+
+            const activeLabels = [...activeSources].map(s => SOURCE_LABELS[s] || s);
+            const allOn = activeSources.size === Object.keys(SOURCE_LABELS).length || activeSources.size >= new Set(allNotices.map(n => n.source)).size;
+            document.getElementById('feedFilterHint').textContent =
+                allOn ? '' : `표시: ${activeLabels.join(', ')}`;
+
+            groupNoticesByCountry(filtered);
+            updateMapMarkers();
+        }
+
+        function groupNoticesByCountry(notices) {
+            groupedByCountry = {};
+            notices.forEach(n => {
                 const raw = (n.country || '').trim();
                 const key = normalizeCountry(raw) || '기타 (국가 미지정)';
                 if (!groupedByCountry[key]) groupedByCountry[key] = [];
@@ -1122,6 +1198,7 @@
 
         function updateMapMarkers() {
             markersLayer.clearLayers();
+            closeSidePanel();
             const fallback = [0, -30];
             for (const [country, notices] of Object.entries(groupedByCountry)) {
                 const coords = COUNTRY_COORDS[country] || fallback;
@@ -1271,13 +1348,11 @@
             } catch (e) { tbody.innerHTML = '<tr><td colspan="6" style="padding:14px; color:#dc3545;">이력 로드 실패</td></tr>'; }
         }
 
-        // ── 필터 초기화 ──────────────────────────────────────────────────────────
+        // ── 필터 초기화 (전체 소스 활성화) ─────────────────────────────────────────
         function resetFilter() {
-            document.getElementById('sourceFilter').value = '';
-            document.getElementById('countryFilter').value = '';
-            document.getElementById('statusFilter').value = '';
-            document.getElementById('searchInput').value = '';
-            loadAllNotices();
+            activeSources = new Set(allNotices.map(n => n.source || 'other'));
+            buildSourceToggles();
+            applySourceFilter();
         }
 
         // ── 상세 모달 ────────────────────────────────────────────────────────────
