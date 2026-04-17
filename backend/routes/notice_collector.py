@@ -1860,7 +1860,7 @@ def _translate_pending(limit: int = 30) -> dict:
         return {'attempted': 0, 'succeeded': 0, 'hf_token_set': False, 'error': msg}
 
     try:
-        from services.translator import translate_to_korean
+        from services.translator import translate_to_korean, get_last_error
     except Exception as e:
         print(f'[translate] import 실패: {e}')
         return {'attempted': 0, 'succeeded': 0, 'hf_token_set': True,
@@ -1887,6 +1887,8 @@ def _translate_pending(limit: int = 30) -> dict:
         if ko:
             n.title_ko = ko[:500]
             succeeded += 1
+        elif not first_error:
+            first_error = get_last_error()
     print(f'[translate] 결과: {succeeded}/{len(pending)} 성공')
 
     if succeeded:
@@ -1899,7 +1901,7 @@ def _translate_pending(limit: int = 30) -> dict:
 
     result = {'attempted': len(pending), 'succeeded': succeeded, 'hf_token_set': True}
     if first_error:
-        result['first_error'] = first_error
+        result['first_error'] = first_error[:500]
     return result
 
 

@@ -113,42 +113,62 @@ def translate_to_korean(text: str, retries: int = 2) -> Optional[str]:
         'options': {'wait_for_model': True},
     }
 
+    last_error = ''
     for attempt in range(retries + 1):
         try:
             r = requests.post(HF_API_URL, headers=headers, json=payload,
                               timeout=HTTP_TIMEOUT)
         except requests.RequestException as e:
-            print(f'[translate] 네트워크 오류 (attempt {attempt+1}): {e}')
+            last_error = f'네트워크 오류: {e}'
+            print(f'[translate] {last_error} (attempt {attempt+1})')
             if attempt < retries:
                 time.sleep(2)
                 continue
+            _last_translate_error = last_error
             return None
 
         if r.status_code == 200:
             try:
                 data = r.json()
             except ValueError:
-                print(f'[translate] JSON 파싱 실패: {r.text[:200]}')
+                last_error = f'JSON 파싱 실패: {r.text[:200]}'
+                print(f'[translate] {last_error}')
+                _last_translate_error = last_error
                 return None
             if isinstance(data, list) and data and isinstance(data[0], dict):
                 out = data[0].get('translation_text')
                 if out:
                     return out.strip()
-            print(f'[translate] 예기치 않은 응답 형식: {str(data)[:200]}')
+            last_error = f'예기치 않은 응답 형식: {str(data)[:200]}'
+            print(f'[translate] {last_error}')
+            _last_translate_error = last_error
             return None
 
         if r.status_code in (503, 524):
-            print(f'[translate] 모델 로딩 중 (HTTP {r.status_code}, attempt {attempt+1})')
+            last_error = f'모델 로딩 중 HTTP {r.status_code}'
+            print(f'[translate] {last_error} (attempt {attempt+1})')
             if attempt < retries:
                 time.sleep(3)
                 continue
+            _last_translate_error = last_error
             return None
 
         # 401/403/429 등 즉시 포기
-        print(f'[translate] HF API 오류 HTTP {r.status_code}: {r.text[:300]}')
+        last_error = f'HF API HTTP {r.status_code}: {r.text[:300]}'
+        print(f'[translate] {last_error}')
+        _last_translate_error = last_error
         return None
 
+    _last_translate_error = last_error
     return None
+
+
+# 모듈 레벨 — 마지막 에러 원인 저장 (외부에서 읽어갈 수 있도록)
+_last_translate_error = ''
+
+
+def get_last_error() -> str:
+    return _last_translate_error
 
 
 def translate_batch(texts: List[str], sleep_between: float = 0.4) -> List[Optional[str]]:
