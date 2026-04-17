@@ -272,12 +272,18 @@
             font-size: 15px;
             font-weight: 600;
             color: var(--color-neutral-900);
-            margin: 0 0 8px;
+            margin: 0 0 4px;
             line-height: 1.45;
             word-break: keep-all;
         }
         .feed-card:hover .feed-card-title {
             color: var(--color-primary-600);
+        }
+        .feed-card-original {
+            font-size: 12px;
+            color: var(--color-neutral-500);
+            margin: 0 0 8px;
+            line-height: 1.4;
         }
 
         .feed-card-foot {
@@ -1201,7 +1207,10 @@
                             : ''}
                     </span>
                 </div>
-                <h3 class="feed-card-title">${escapeHtml(n.title)}</h3>
+                <h3 class="feed-card-title">${escapeHtml(n.titleKo || n.title)}</h3>
+                ${n.titleKo && n.titleKo !== n.title
+                    ? `<div class="feed-card-original">${escapeHtml(n.title)}</div>`
+                    : ''}
                 <div class="feed-card-foot">
                     <span><span class="label">No.</span>${displayNo} / ${total}</span>
                     ${n.contractValue ? `<span><span class="label">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}

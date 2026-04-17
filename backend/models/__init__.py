@@ -1613,6 +1613,7 @@ class BidNotice(db.Model):
     id             = db.Column(db.Integer, primary_key=True)
     source         = db.Column(db.String(50),  nullable=False, index=True)   # worldbank, adb, koica 등
     title          = db.Column(db.String(500), nullable=False)
+    title_ko       = db.Column(db.String(500))                               # HF NLLB 번역 결과 (없으면 NULL)
     country        = db.Column(db.String(100))
     client         = db.Column(db.String(200))                               # 발주처
     sector         = db.Column(db.String(100))                               # agriculture, irrigation 등
@@ -1631,6 +1632,7 @@ class BidNotice(db.Model):
             'id': self.id,
             'source': self.source,
             'title': self.title,
+            'titleKo': self.title_ko,
             'country': self.country,
             'client': self.client,
             'sector': self.sector,
