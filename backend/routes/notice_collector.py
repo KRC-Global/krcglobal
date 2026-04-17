@@ -477,33 +477,57 @@ def _normalize_country(country: str) -> str:
     return _TITLE_NORMALIZE_RX.sub('', country.lower())[:50]
 
 
+_existing_fingerprints_cache = None  # 수집 배치 시작 시 1회 빌드, 매 건마다 재사용
+
+
+def _build_fingerprint_cache():
+    """DB 의 기존 BidNotice 를 (title_norm, country_norm) set 으로 빌드.
+    _save_notice 에서 매 건마다 query.all() 하지 않도록 1회만 호출."""
+    global _existing_fingerprints_cache
+    cache = set()
+    url_set = set()
+    for n in BidNotice.query.all():
+        if n.source_url:
+            url_set.add(n.source_url)
+        tn = _normalize_title(n.title or '')
+        cn = _normalize_country(n.country or '')
+        if tn:
+            cache.add((tn, cn))
+    _existing_fingerprints_cache = (cache, url_set)
+
+
 def _save_notice(source, title, country, client, sector,
                  contract_value, deadline, source_url, raw_data) -> bool:
     """중복 확인 후 BidNotice 저장. 신규면 True.
 
-    중복 판정은 두 단계:
-      1) source_url 완전 일치
-      2) (정규화된 title, 정규화된 country) 일치 — 서로 다른 source_url /
-         소스 기관이라도 같은 사업으로 보이면 중복 처리
+    중복 판정은 인메모리 캐시 기반 (DB 전체 스캔 매번 안 함):
+      1) source_url 캐시 일치
+      2) (정규화 title, 정규화 country) 캐시 일치
     """
+    global _existing_fingerprints_cache
     if not source_url or not title:
         return False
 
+    # 캐시 미빌드 시 (단독 호출 등) DB 직접 체크 — 느리지만 안전
+    if _existing_fingerprints_cache is None:
+        _build_fingerprint_cache()
+
+    fp_cache, url_cache = _existing_fingerprints_cache
+
     # 1단계: source_url 일치
-    existing = BidNotice.query.filter_by(source_url=source_url).first()
-    if existing:
+    if source_url in url_cache:
         return False
 
-    # 2단계: (title_norm, country_norm) 일치 — source 무관 cross-source 중복도 잡음
+    # 2단계: (title_norm, country_norm) 일치
     norm_new = _normalize_title(title)
     country_norm_new = _normalize_country(country or '')
+    if norm_new and (norm_new, country_norm_new) in fp_cache:
+        return False
+
+    # 저장 + 캐시 업데이트 (같은 배치 내 후속 건의 중복 체크에 반영)
+    url_cache.add(source_url)
     if norm_new:
-        for cand in BidNotice.query.all():
-            if _normalize_title(cand.title or '') != norm_new:
-                continue
-            if _normalize_country(cand.country or '') != country_norm_new:
-                continue
-            return False  # 제목·국가 동일 → 중복 (source 다르더라도)
+        fp_cache.add((norm_new, country_norm_new))
 
     n = BidNotice(
         source=source,
@@ -1714,7 +1738,24 @@ def collect_notices():
     if not _check_collect_auth():
         return jsonify({'success': False, 'message': '인증 실패'}), 401
 
+    try:
+        return _do_collect()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'수집 중 오류: {e}'}), 500
+
+
+def _do_collect():
+    """collect_notices 의 실제 작업 — 예외 시 호출자가 500 응답 처리."""
+    global _existing_fingerprints_cache
+    _existing_fingerprints_cache = None  # 매 수집 run 마다 캐시 리셋
+
     all_items, errors = _run_all_collectors()
+
+    # 캐시 1회 빌드 — _save_notice 에서 매번 query.all() 안 하도록
+    _build_fingerprint_cache()
 
     # 배치 내 선제 중복 제거 — 같은 수집 run 에서 URL 중복 또는
     # (정규화 title, 정규화 country) 중복인 항목 제거 (DB 저장 전).
