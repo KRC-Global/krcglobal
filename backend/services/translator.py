@@ -1,0 +1,161 @@
+"""
+HuggingFace Inference API 기반 다국어 → 한국어 번역.
+
+- 모델: facebook/nllb-200-distilled-600M (200개 언어, 한국어 출력 지원)
+- 언어 감지: langdetect (서버 로컬, 외부 호출 없음)
+- 환경변수: HF_TOKEN (HuggingFace Read 토큰 필수)
+- 실패/타임아웃 시 None 반환 → 호출자가 원문 유지
+
+Vercel Lambda 50~200MB 제약 때문에 transformers/torch 직접 사용 불가.
+"""
+import os
+import time
+from typing import Optional, List
+
+import requests
+
+try:
+    from langdetect import detect, DetectorFactory, LangDetectException
+    DetectorFactory.seed = 0  # 결과 재현 가능
+    _LANGDETECT_OK = True
+except Exception:
+    _LANGDETECT_OK = False
+
+HF_API_URL = (
+    'https://api-inference.huggingface.co/models/'
+    'facebook/nllb-200-distilled-600M'
+)
+TARGET_LANG = 'kor_Hang'
+HTTP_TIMEOUT = 25  # NLLB cold-start 대비
+MAX_INPUT_CHARS = 1000  # NLLB 입력 토큰 보호
+
+# langdetect ISO-639-1 → NLLB Flores-200 코드
+# 누락된 언어는 영어로 가정 (대부분 국제 공고가 영문)
+LANG_MAP = {
+    'en': 'eng_Latn',
+    'es': 'spa_Latn',
+    'fr': 'fra_Latn',
+    'pt': 'por_Latn',
+    'ru': 'rus_Cyrl',
+    'ar': 'arb_Arab',
+    'zh-cn': 'zho_Hans',
+    'zh-tw': 'zho_Hant',
+    'ja': 'jpn_Jpan',
+    'vi': 'vie_Latn',
+    'th': 'tha_Thai',
+    'id': 'ind_Latn',
+    'de': 'deu_Latn',
+    'it': 'ita_Latn',
+    'tr': 'tur_Latn',
+    'nl': 'nld_Latn',
+    'pl': 'pol_Latn',
+    'sw': 'swh_Latn',
+    'fa': 'pes_Arab',
+    'uk': 'ukr_Cyrl',
+    'mn': 'khk_Cyrl',
+    'tl': 'tgl_Latn',
+    'ne': 'npi_Deva',
+    'hi': 'hin_Deva',
+    'bn': 'ben_Beng',
+    'my': 'mya_Mymr',
+    'km': 'khm_Khmr',
+    'lo': 'lao_Laoo',
+    'ur': 'urd_Arab',
+    'am': 'amh_Ethi',
+    'ha': 'hau_Latn',
+    'so': 'som_Latn',
+    'yo': 'yor_Latn',
+}
+
+
+def _detect_src_lang(text: str) -> Optional[str]:
+    """원문 언어 감지 → NLLB src_lang 반환. 한국어면 None (번역 불필요)."""
+    if not text:
+        return None
+    if not _LANGDETECT_OK:
+        return 'eng_Latn'  # langdetect 없으면 영어로 가정
+    try:
+        code = detect(text)
+    except LangDetectException:
+        return 'eng_Latn'
+    if code == 'ko':
+        return None
+    return LANG_MAP.get(code, 'eng_Latn')
+
+
+def translate_to_korean(text: str, retries: int = 2) -> Optional[str]:
+    """단일 텍스트 → 한국어. 실패 시 None.
+
+    HF Inference API 무료 티어는 모델 cold-start 시 503 + estimated_time 응답을
+    반환할 수 있어 재시도 로직 필수.
+    """
+    token = os.environ.get('HF_TOKEN')
+    if not token:
+        print('[translate] HF_TOKEN 환경변수 미설정 — 번역 불가')
+        return None
+    if not text:
+        return None
+
+    src_lang = _detect_src_lang(text)
+    if src_lang is None:
+        return None  # 이미 한국어
+
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+    }
+    payload = {
+        'inputs': text[:MAX_INPUT_CHARS],
+        'parameters': {
+            'src_lang': src_lang,
+            'tgt_lang': TARGET_LANG,
+        },
+        'options': {'wait_for_model': True},
+    }
+
+    for attempt in range(retries + 1):
+        try:
+            r = requests.post(HF_API_URL, headers=headers, json=payload,
+                              timeout=HTTP_TIMEOUT)
+        except requests.RequestException as e:
+            print(f'[translate] 네트워크 오류 (attempt {attempt+1}): {e}')
+            if attempt < retries:
+                time.sleep(2)
+                continue
+            return None
+
+        if r.status_code == 200:
+            try:
+                data = r.json()
+            except ValueError:
+                print(f'[translate] JSON 파싱 실패: {r.text[:200]}')
+                return None
+            if isinstance(data, list) and data and isinstance(data[0], dict):
+                out = data[0].get('translation_text')
+                if out:
+                    return out.strip()
+            print(f'[translate] 예기치 않은 응답 형식: {str(data)[:200]}')
+            return None
+
+        if r.status_code in (503, 524):
+            print(f'[translate] 모델 로딩 중 (HTTP {r.status_code}, attempt {attempt+1})')
+            if attempt < retries:
+                time.sleep(3)
+                continue
+            return None
+
+        # 401/403/429 등 즉시 포기
+        print(f'[translate] HF API 오류 HTTP {r.status_code}: {r.text[:300]}')
+        return None
+
+    return None
+
+
+def translate_batch(texts: List[str], sleep_between: float = 0.4) -> List[Optional[str]]:
+    """순차 번역. 실패 항목은 None. rate-limit 보호용 sleep 포함."""
+    results: List[Optional[str]] = []
+    for t in texts:
+        results.append(translate_to_korean(t))
+        if sleep_between:
+            time.sleep(sleep_between)
+    return results

@@ -1810,12 +1810,20 @@ def _translate_pending(limit: int = 30) -> dict:
     """title_ko 가 NULL 인 BidNotice 를 HF NLLB 로 번역 → DB 저장.
 
     Returns:
-        {attempted, succeeded, skipped} — 실패 시에도 예외 발생 안 함.
+        {attempted, succeeded, error?, hf_token_set} — 실패 원인 진단 포함.
     """
+    hf_token_set = bool(os.environ.get('HF_TOKEN'))
+    if not hf_token_set:
+        msg = 'HF_TOKEN 환경변수 미설정 — 번역 불가. Vercel 환경변수에 HuggingFace Read 토큰을 추가하세요.'
+        print(f'[translate] {msg}')
+        return {'attempted': 0, 'succeeded': 0, 'hf_token_set': False, 'error': msg}
+
     try:
         from services.translator import translate_to_korean
     except Exception as e:
-        return {'attempted': 0, 'succeeded': 0, 'error': f'import 실패: {e}'}
+        print(f'[translate] import 실패: {e}')
+        return {'attempted': 0, 'succeeded': 0, 'hf_token_set': True,
+                'error': f'translator import 실패: {e}'}
 
     pending = (BidNotice.query
                .filter(BidNotice.title_ko.is_(None))
@@ -1823,25 +1831,35 @@ def _translate_pending(limit: int = 30) -> dict:
                .limit(limit)
                .all())
     if not pending:
-        return {'attempted': 0, 'succeeded': 0}
+        return {'attempted': 0, 'succeeded': 0, 'hf_token_set': True}
 
+    print(f'[translate] 미번역 {len(pending)}건 번역 시작...')
     succeeded = 0
+    first_error = ''
     for n in pending:
         try:
             ko = translate_to_korean(n.title)
-        except Exception:
+        except Exception as e:
             ko = None
+            if not first_error:
+                first_error = str(e)
         if ko:
             n.title_ko = ko[:500]
             succeeded += 1
+    print(f'[translate] 결과: {succeeded}/{len(pending)} 성공')
+
     if succeeded:
         try:
             db.session.commit()
         except Exception as e:
             db.session.rollback()
             return {'attempted': len(pending), 'succeeded': 0,
-                    'error': f'commit 실패: {e}'}
-    return {'attempted': len(pending), 'succeeded': succeeded}
+                    'hf_token_set': True, 'error': f'commit 실패: {e}'}
+
+    result = {'attempted': len(pending), 'succeeded': succeeded, 'hf_token_set': True}
+    if first_error:
+        result['first_error'] = first_error
+    return result
 
 
 @collector_bp.route('/translate', methods=['POST'])
