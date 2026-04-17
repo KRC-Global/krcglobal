@@ -21,13 +21,12 @@ try:
 except Exception:
     _LANGDETECT_OK = False
 
-HF_API_URL = (
-    'https://router.huggingface.co/hf-inference/models/'
-    'facebook/nllb-200-distilled-600M'
-)
-TARGET_LANG = 'kor_Hang'
-HTTP_TIMEOUT = 25  # NLLB cold-start 대비
-MAX_INPUT_CHARS = 1000  # NLLB 입력 토큰 보호
+HF_API_BASE = 'https://router.huggingface.co/hf-inference/models/'
+# Helsinki-NLP opus-mt 계열 — 단방향 경량 모델 (HF Inference API 지원 확인됨)
+HF_MODEL_EN_KO = 'Helsinki-NLP/opus-mt-en-ko'
+HF_MODEL_MULTI = 'Helsinki-NLP/opus-mt-tc-big-en-ko'  # fallback (en→ko, transformer-big)
+HTTP_TIMEOUT = 25
+MAX_INPUT_CHARS = 1000
 
 # langdetect ISO-639-1 → NLLB Flores-200 코드
 # 누락된 언어는 영어로 가정 (대부분 국제 공고가 영문)
@@ -103,23 +102,25 @@ def translate_to_korean(text: str, retries: int = 2) -> Optional[str]:
     if src_lang is None:
         return None  # 이미 한국어
 
+    # opus-mt-en-ko 는 영어 전용. 비영어 텍스트는 스킵 (향후 다국어 체인 추가 가능)
+    if src_lang != 'eng_Latn':
+        return None
+
+    api_url = HF_API_BASE + HF_MODEL_EN_KO
     headers = {
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json',
     }
+    # opus-mt 계열은 src_lang/tgt_lang 파라미터 불필요 — 모델 자체가 단방향
     payload = {
         'inputs': text[:MAX_INPUT_CHARS],
-        'parameters': {
-            'src_lang': src_lang,
-            'tgt_lang': TARGET_LANG,
-        },
         'options': {'wait_for_model': True},
     }
 
     last_error = ''
     for attempt in range(retries + 1):
         try:
-            r = requests.post(HF_API_URL, headers=headers, json=payload,
+            r = requests.post(api_url, headers=headers, json=payload,
                               timeout=HTTP_TIMEOUT)
         except requests.RequestException as e:
             last_error = f'네트워크 오류: {e}'
