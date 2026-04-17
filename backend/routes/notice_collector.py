@@ -438,14 +438,47 @@ def _wb_extract_details(raw_html: str) -> dict:
     return details
 
 
+_TITLE_NORMALIZE_RX = re.compile(r'[\s\W_]+', re.UNICODE)
+
+
+def _normalize_title(title: str) -> str:
+    """제목 정규화 — 대소문자/공백/특수문자 무시하고 비교 가능하게.
+    중복 판정용 키에 사용. 예: 'Agricultural Zones Connectivity Project (AZCP)'
+    → 'agriculturalzonesconnectivityprojectazcp'"""
+    if not title:
+        return ''
+    return _TITLE_NORMALIZE_RX.sub('', title.lower())[:200]
+
+
 def _save_notice(source, title, country, client, sector,
                  contract_value, deadline, source_url, raw_data) -> bool:
-    """중복(source_url) 확인 후 BidNotice 저장. 신규면 True."""
+    """중복 확인 후 BidNotice 저장. 신규면 True.
+
+    중복 판정은 두 단계:
+      1) source_url 완전 일치 (기존)
+      2) (source, 정규화된 title, country) 일치 — source_url 이 쿼리 파라미터/
+         fragment 등으로 달라지거나 fallback URL 이 겹쳐도 잡아냄
+    """
     if not source_url or not title:
         return False
+
+    # 1단계: source_url 일치
     existing = BidNotice.query.filter_by(source_url=source_url).first()
     if existing:
         return False
+
+    # 2단계: (source, title_norm, country) 일치 — Python 레벨 대조
+    norm_new = _normalize_title(title)
+    if norm_new:
+        # 동일 source + country 내에서만 조회 (SQL 부하 절감)
+        country_val = (country or '').strip()
+        q = BidNotice.query.filter_by(source=source)
+        if country_val:
+            q = q.filter_by(country=country_val[:100])
+        for cand in q.all():
+            if _normalize_title(cand.title or '') == norm_new:
+                return False  # 제목·국가·소스 동일 → 중복
+
     n = BidNotice(
         source=source,
         title=title[:500],
@@ -1244,8 +1277,15 @@ def _collect_aiib() -> list:
             source_url = ('https://www.aiib.org' + doc_path
                           if doc_path.startswith('/') else doc_path)
         else:
-            # 다큐 없으면 project procurement 목록 페이지로
-            source_url = 'https://www.aiib.org/en/opportunities/business/project-procurement/list.html'
+            # 다큐 없으면 project + country + type 해시 fragment 로 고유화
+            # (모든 no-doc 공고가 같은 URL 로 저장돼 중복 skip 되는 문제 방지)
+            fp = hashlib.md5(
+                f'{project}|{country}|{notice_type}|{posted}'.encode('utf-8')
+            ).hexdigest()[:12]
+            source_url = (
+                'https://www.aiib.org/en/opportunities/business/'
+                f'project-procurement/list.html#{fp}'
+            )
 
         title = project or desc[:200] or notice_type
         if not title:
@@ -1565,16 +1605,61 @@ def _cleanup_stale_notices(days: int = DEFAULT_FRESHNESS_DAYS) -> dict:
                 'deleted_by_deadline': 0, 'total': 0, 'error': str(e)}
 
     total = deleted_age + deleted_posted + deleted_deadline
+
+    # 추가 — 중복 레코드 제거 (기준: source + 정규화 title + country 가 같으면
+    # 최신 created_at 하나만 남기고 나머지 삭제)
+    deleted_dup = _dedupe_existing_notices()
+
+    total += deleted_dup
     if total:
         print(f'[cleanup] 삭제: age={deleted_age} + posted={deleted_posted} '
-              f'+ deadline={deleted_deadline} = {total}')
+              f'+ deadline={deleted_deadline} + duplicates={deleted_dup} = {total}')
     return {
         'deleted_by_age': deleted_age,
         'deleted_by_posted': deleted_posted,
         'deleted_by_deadline': deleted_deadline,
+        'deleted_duplicates': deleted_dup,
         'total': total,
         'cutoff_days': days,
     }
+
+
+def _dedupe_existing_notices() -> int:
+    """기존 BidNotice 중 (source, 정규화 title, country) 조합이 같은 레코드
+    중에서 가장 최신 created_at 을 가진 1건만 남기고 나머지 삭제.
+
+    Returns: 삭제된 건수.
+    """
+    groups = {}
+    for n in BidNotice.query.all():
+        key = (n.source or '', _normalize_title(n.title or ''),
+               (n.country or '').strip())
+        if not key[1]:
+            continue  # 정규화 제목이 비면 판정 보류
+        groups.setdefault(key, []).append(n)
+
+    to_delete_ids = []
+    for key, notices in groups.items():
+        if len(notices) < 2:
+            continue
+        # 최신 created_at 을 남김 — None 은 맨 뒤로
+        notices.sort(key=lambda x: x.created_at or datetime.min, reverse=True)
+        keeper = notices[0]
+        for dup in notices[1:]:
+            to_delete_ids.append(dup.id)
+
+    if not to_delete_ids:
+        return 0
+    try:
+        deleted = (BidNotice.query
+                   .filter(BidNotice.id.in_(to_delete_ids))
+                   .delete(synchronize_session=False))
+        db.session.commit()
+        return deleted
+    except Exception as e:
+        db.session.rollback()
+        print(f'[dedupe] DB 삭제 실패: {e}')
+        return 0
 
 
 # ── 엔드포인트 ───────────────────────────────────────────────────────────────
@@ -1603,6 +1688,25 @@ def collect_notices():
         return jsonify({'success': False, 'message': '인증 실패'}), 401
 
     all_items, errors = _run_all_collectors()
+
+    # 배치 내 선제 중복 제거 — 같은 수집 run 에서 URL 중복 또는
+    # (source, 정규화 title, country) 중복인 항목 제거 (DB 저장 전)
+    deduped = []
+    seen_urls = set()
+    seen_fingerprints = set()
+    for it in all_items:
+        url = it.get('source_url', '')
+        fp = (it['source'], _normalize_title(it.get('title', '')),
+              (it.get('country') or '').strip())
+        if url and url in seen_urls:
+            continue
+        if fp[1] and fp in seen_fingerprints:
+            continue
+        seen_urls.add(url)
+        if fp[1]:
+            seen_fingerprints.add(fp)
+        deduped.append(it)
+    all_items = deduped
 
     created = 0
     skipped = 0
@@ -1656,6 +1760,11 @@ def collect_notices():
     # 수집 완료 후 자동 정리 — 60일 초과 또는 마감된 공고 삭제
     cleanup_result = _cleanup_stale_notices(days=DEFAULT_FRESHNESS_DAYS)
 
+    # 한국어 번역 — title_ko 비어있는 건만 일괄 처리
+    # Vercel Lambda 60s 제약 고려해 1회당 최대 30건만 처리,
+    # 나머지는 다음 cron 또는 /translate 엔드포인트로 백필
+    translate_result = _translate_pending(limit=30)
+
     return jsonify({
         'success': True,
         'created': created,
@@ -1664,8 +1773,63 @@ def collect_notices():
         'by_source': created_by_source,
         'errors': errors,
         'cleanup': cleanup_result,
+        'translate': translate_result,
         'collected_at': datetime.utcnow().isoformat() + 'Z',
     })
+
+
+def _translate_pending(limit: int = 30) -> dict:
+    """title_ko 가 NULL 인 BidNotice 를 HF NLLB 로 번역 → DB 저장.
+
+    Returns:
+        {attempted, succeeded, skipped} — 실패 시에도 예외 발생 안 함.
+    """
+    try:
+        from services.translator import translate_to_korean
+    except Exception as e:
+        return {'attempted': 0, 'succeeded': 0, 'error': f'import 실패: {e}'}
+
+    pending = (BidNotice.query
+               .filter(BidNotice.title_ko.is_(None))
+               .order_by(BidNotice.created_at.desc())
+               .limit(limit)
+               .all())
+    if not pending:
+        return {'attempted': 0, 'succeeded': 0}
+
+    succeeded = 0
+    for n in pending:
+        try:
+            ko = translate_to_korean(n.title)
+        except Exception:
+            ko = None
+        if ko:
+            n.title_ko = ko[:500]
+            succeeded += 1
+    if succeeded:
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return {'attempted': len(pending), 'succeeded': 0,
+                    'error': f'commit 실패: {e}'}
+    return {'attempted': len(pending), 'succeeded': succeeded}
+
+
+@collector_bp.route('/translate', methods=['POST'])
+def translate_pending_endpoint():
+    """미번역 공고 백필 — 수동/스케줄 호출.
+    쿼리: ?limit=N (기본 30, 최대 100)
+    인증: COLLECT_SECRET (collect 와 동일).
+    """
+    if not _check_collect_auth():
+        return jsonify({'success': False, 'message': '인증 실패'}), 401
+    try:
+        limit = int(request.args.get('limit', 30))
+    except (TypeError, ValueError):
+        limit = 30
+    limit = max(1, min(limit, 100))
+    return jsonify({'success': True, **_translate_pending(limit=limit)})
 
 
 @collector_bp.route('/cleanup', methods=['POST'])
