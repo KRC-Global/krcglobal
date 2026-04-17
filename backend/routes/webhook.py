@@ -22,7 +22,7 @@ LIST_FRESHNESS_DAYS = 60
 def list_notices(current_user):
     """발주공고 목록 조회 (필터 + 페이지네이션)"""
     page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('perPage', 20, type=int), 100)
+    per_page = min(request.args.get('perPage', 20, type=int), 2000)
     source = request.args.get('source', '')
     country = request.args.get('country', '')
     status = request.args.get('status', '')

@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="../../assets/css/base.css">
     <link rel="stylesheet" href="../../assets/css/components.css">
     <link rel="stylesheet" href="../../assets/css/pages.css">
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="../../assets/lib/leaflet/leaflet.css">
 
     <style>
         /* 중첩 서브메뉴 스타일 */
@@ -228,130 +230,115 @@
             gap: 12px;
         }
 
-        /* 뉴스피드 카드 리스트 */
-        .feed-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        /* 지도 컨테이너 */
+        .notice-map-container {
+            position: relative;
+            flex: 1;
+            min-height: 480px;
+            height: calc(100vh - 280px);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 1px solid var(--color-neutral-200);
+            box-shadow: var(--shadow-sm);
+        }
+        #noticeMap { width: 100%; height: 100%; }
+
+        /* 국가 마커 */
+        .country-div-icon { background: transparent !important; border: none !important; }
+        .country-marker {
+            display: flex; flex-direction: column; align-items: center; position: relative;
+        }
+        .country-marker-flag {
+            width: 32px; height: 32px; border-radius: 50%; overflow: hidden;
+            border: 2.5px solid var(--color-primary-500);
+            box-shadow: 0 2px 8px rgba(26,75,124,0.35);
+            background: var(--color-neutral-0);
+        }
+        .country-marker-flag img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .country-marker-count {
+            position: absolute; right: -7px; bottom: 8px;
+            min-width: 18px; height: 18px; padding: 0 5px;
+            background: var(--color-primary-600); color: #fff;
+            border-radius: 999px; font-size: 10px; font-weight: 800;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            border: 1.5px solid #fff;
+        }
+        .country-marker-label {
+            margin-top: 1px; font-size: 10px; font-weight: 600;
+            color: var(--color-neutral-700);
+            text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+            white-space: nowrap; text-align: center; max-width: 80px;
+            overflow: hidden; text-overflow: ellipsis;
         }
 
-        .feed-card {
+        /* 사이드패널 */
+        .notice-side-panel {
+            position: absolute; top: 0; right: 0; width: 380px; height: 100%;
+            background: var(--color-neutral-0);
+            border-left: 1px solid var(--color-neutral-200);
+            box-shadow: -4px 0 16px rgba(0,0,0,0.1);
+            z-index: 1000; display: flex; flex-direction: column;
+            transform: translateX(100%);
+            transition: transform 0.25s ease;
+        }
+        .notice-side-panel.open { transform: translateX(0); }
+        .panel-header {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--color-neutral-200);
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--color-primary-50);
+        }
+        .panel-header-left { display: flex; align-items: center; gap: 8px; }
+        .panel-header-left img { width: 22px; height: 22px; border-radius: 50%; }
+        .panel-close {
+            background: none; border: none; font-size: 22px;
+            cursor: pointer; color: var(--color-neutral-500);
+            line-height: 1; padding: 4px;
+        }
+        .panel-close:hover { color: var(--color-neutral-900); }
+        .panel-body {
+            flex: 1; overflow-y: auto; padding: 12px;
+        }
+
+        /* 사이드패널 내 카드 */
+        .panel-card {
             background: var(--color-neutral-0);
             border: 1px solid var(--color-neutral-200);
-            border-radius: var(--radius-lg);
-            padding: 14px 18px;
-            box-shadow: var(--shadow-sm);
+            border-radius: var(--radius-md);
+            padding: 12px 14px; margin-bottom: 8px;
             cursor: pointer;
-            transition: box-shadow 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
-        .feed-card:hover {
-            box-shadow: var(--shadow-md);
+        .panel-card:hover {
             border-color: var(--color-primary-300);
+            box-shadow: var(--shadow-sm);
         }
-        .feed-card:active {
-            transform: translateY(1px);
+        .panel-card-head {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;
         }
-
-        .feed-card-head {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 8px;
+        .panel-card-title {
+            font-size: 13px; font-weight: 600; color: var(--color-neutral-900);
+            margin: 0 0 4px; line-height: 1.4;
         }
-        .feed-card-meta {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-left: auto;
-            color: var(--color-neutral-500);
-            font-size: 12px;
+        .panel-card:hover .panel-card-title { color: var(--color-primary-600); }
+        .panel-card-foot {
+            display: flex; gap: 12px; font-size: 11px; color: var(--color-neutral-600); flex-wrap: wrap;
         }
 
-        .feed-card-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--color-neutral-900);
-            margin: 0 0 4px;
-            line-height: 1.45;
-            word-break: keep-all;
-        }
-        .feed-card:hover .feed-card-title {
-            color: var(--color-primary-600);
-        }
-        .feed-card-original {
-            font-size: 12px;
-            color: var(--color-neutral-500);
-            margin: 0 0 8px;
-            line-height: 1.4;
+        /* 지도 위 통계 배지 */
+        .map-stats {
+            padding: 8px 2px 10px; font-size: 13px;
+            color: var(--color-neutral-600);
+            display: flex; justify-content: space-between; align-items: baseline;
         }
 
-        .feed-card-foot {
-            display: flex;
-            align-items: center;
-            gap: 18px;
-            font-size: 12px;
-            color: var(--color-neutral-700);
-            flex-wrap: wrap;
+        @media (max-width: 768px) {
+            .notice-side-panel { width: 100%; }
+            .notice-map-container { min-height: 360px; height: calc(100vh - 320px); }
         }
-        .feed-card-foot .label {
-            color: var(--color-neutral-500);
-            margin-right: 4px;
-        }
-
-        .feed-card-link {
-            color: var(--color-primary-600);
-            font-weight: 600;
-            text-decoration: none;
-            font-size: 12px;
-            white-space: nowrap;
-        }
-        .feed-card-link:hover {
-            text-decoration: underline;
-        }
-
-        .feed-empty {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--color-neutral-500);
-            background: var(--color-neutral-0);
-            border: 1px dashed var(--color-neutral-200);
-            border-radius: var(--radius-lg);
-        }
-
-        /* 무한스크롤 로더/종료 표시 */
-        .feed-sentinel {
-            height: 1px;
-        }
-        .feed-loader {
-            display: none;
-            text-align: center;
-            padding: 18px 12px;
-            color: var(--color-neutral-500);
-            font-size: 13px;
-        }
-        .feed-loader.show { display: block; }
-        .feed-loader::before {
-            content: '';
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            margin-right: 8px;
-            border: 2px solid var(--color-neutral-300);
-            border-top-color: var(--color-primary-500);
-            border-radius: 50%;
-            vertical-align: -3px;
-            animation: feedSpin 0.8s linear infinite;
-        }
-        @keyframes feedSpin { to { transform: rotate(360deg); } }
-        .feed-end {
-            display: none;
-            text-align: center;
-            padding: 18px 12px;
-            color: var(--color-neutral-500);
-            font-size: 12px;
-        }
-        .feed-end.show { display: block; }
 
         /* 모달 */
         .modal {
@@ -814,26 +801,34 @@
                     <option value="closed">마감</option>
                 </select>
                 <input type="text" id="searchInput" placeholder="제목 검색" style="min-width: 200px;">
-                <button class="btn btn-secondary" onclick="loadNotices(1)">검색</button>
+                <button class="btn btn-secondary" onclick="loadAllNotices()">검색</button>
                 <button class="btn btn-secondary" onclick="resetFilter()">초기화</button>
                 <button id="collectBtn" class="btn btn-primary" onclick="triggerCollect()" style="display:none; margin-left:auto;">🔄 지금 수집</button>
             </div>
             </div>
             <!-- /상단 고정 영역 -->
 
-            <!-- 뉴스피드 -->
-            <div class="feed-list-header" id="feedListHeader" style="padding:8px 2px 10px; font-size:13px; color:var(--color-neutral-600); display:flex; justify-content:space-between; align-items:baseline;">
-                <span><b id="feedTotalCount">0</b>건의 공고 <span id="feedPageRange" style="color:var(--color-neutral-500);"></span></span>
+            <!-- 지도 통계 -->
+            <div class="map-stats">
+                <span><b id="feedTotalCount">0</b>건의 공고 · <b id="mapCountryCount">0</b>개 국가</span>
                 <span id="feedFilterHint" style="font-size:12px; color:var(--color-neutral-500);"></span>
             </div>
-            <div class="feed-list" id="noticeFeed">
-                <div class="feed-empty">데이터를 불러오는 중...</div>
-            </div>
 
-            <!-- 무한스크롤 로더 / 종료 표시 / 감시 센티널 -->
-            <div class="feed-loader" id="feedLoader">공고를 더 불러오는 중...</div>
-            <div class="feed-end" id="feedEnd">— 마지막 공고까지 불러왔어요 —</div>
-            <div class="feed-sentinel" id="feedSentinel" aria-hidden="true"></div>
+            <!-- 세계지도 -->
+            <div class="notice-map-container" id="noticeMapContainer">
+                <div id="noticeMap"></div>
+                <div class="notice-side-panel" id="noticeSidePanel">
+                    <div class="panel-header">
+                        <div class="panel-header-left">
+                            <span id="panelCountryFlag"></span>
+                            <strong id="panelCountryName">국가</strong>
+                            <span id="panelNoticeCount" style="font-size:12px; color:var(--color-neutral-500);">0건</span>
+                        </div>
+                        <button class="panel-close" onclick="closeSidePanel()">&times;</button>
+                    </div>
+                    <div class="panel-body" id="panelNoticeList"></div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -882,6 +877,7 @@
         </div>
     </div>
 
+    <script src="../../assets/lib/leaflet/leaflet.js"></script>
     <script src="../../assets/js/common.js"></script>
     <script src="../../assets/js/api.js"></script>
     <script src="../../assets/js/components/toast.js"></script>
@@ -896,23 +892,102 @@
             new: 'New', reviewed: '검토중', applied: '응찰완료', closed: '마감'
         };
 
-        let currentPage = 0;          // 마지막으로 로드한 페이지 (0 = 아직 없음)
-        let totalPages = 1;
-        let totalNotices = 0;
-        let loadedCount = 0;
-        let isLoadingFeed = false;
-        let feedObserver = null;
+        // 국가 영문명 → [lat, lng]
+        const COUNTRY_COORDS = {
+            'Afghanistan':[33.93,67.71],'Albania':[41.15,20.17],'Algeria':[28.03,1.66],'Angola':[-11.20,17.87],
+            'Argentina':[-38.42,-63.62],'Armenia':[40.07,45.04],'Azerbaijan':[40.14,47.58],
+            'Bangladesh':[23.68,90.36],'Benin':[9.31,2.32],'Bhutan':[27.51,90.43],'Bolivia':[-16.29,-63.59],
+            'Bosnia and Herzegovina':[43.92,17.68],'Botswana':[-22.33,24.68],'Brazil':[-14.24,-51.93],
+            'Brunei':[4.54,114.73],'Burkina Faso':[12.24,-1.56],'Burundi':[-3.37,29.92],
+            'Cambodia':[12.57,104.99],'Cameroon':[7.37,12.35],'Chad':[15.45,18.73],
+            'Chile':[-35.68,-71.54],'China':[35.86,104.20],'Colombia':[4.57,-74.30],
+            'Comoros':[-11.65,43.33],'Congo':[-0.23,15.83],
+            'Costa Rica':[9.75,-83.75],'Côte d\'Ivoire':[7.54,-5.55],
+            'Democratic Republic of the Congo':[-4.04,21.76],'DR Congo':[-4.04,21.76],
+            'Djibouti':[11.83,42.59],'Dominican Republic':[18.74,-70.16],
+            'Ecuador':[-1.83,-78.18],'Egypt':[26.82,30.80],'El Salvador':[13.79,-88.90],
+            'Eritrea':[15.18,39.78],'Ethiopia':[9.15,40.49],'Fiji':[-17.71,178.07],
+            'Gambia':[13.44,-15.31],'Georgia':[42.32,43.36],'Ghana':[7.95,-1.02],
+            'Guatemala':[15.78,-90.23],'Guinea':[9.95,-9.70],'Guinea-Bissau':[11.80,-15.18],
+            'Haiti':[18.97,-72.29],'Honduras':[15.20,-86.24],'India':[20.59,78.96],
+            'Indonesia':[-0.79,113.92],'Iran':[32.43,53.69],'Iraq':[33.22,43.68],
+            'Jamaica':[18.11,-77.30],'Jordan':[30.59,36.24],'Kazakhstan':[48.02,66.92],
+            'Kenya':[-0.02,37.91],'Kiribati':[1.87,-157.36],'Kosovo':[42.60,20.90],
+            'Kyrgyz Republic':[41.20,74.77],'Kyrgyzstan':[41.20,74.77],
+            'Lao PDR':[19.86,102.50],'Laos':[19.86,102.50],
+            'Lebanon':[33.85,35.86],'Lesotho':[-29.61,28.23],'Liberia':[6.43,-9.43],
+            'Libya':[26.34,17.23],'Madagascar':[-18.77,46.87],'Malawi':[-13.25,34.30],
+            'Malaysia':[4.21,101.98],'Maldives':[3.20,73.22],'Mali':[17.57,-4.00],
+            'Mauritania':[21.01,-10.94],'Mauritius':[-20.35,57.55],
+            'Mexico':[23.63,-102.55],'Moldova':[47.41,28.37],'Mongolia':[46.86,103.85],
+            'Montenegro':[42.71,19.37],'Morocco':[31.79,-7.09],'Mozambique':[-18.67,35.53],
+            'Myanmar':[21.91,95.96],'Namibia':[-22.96,18.49],'Nepal':[28.39,84.12],
+            'Nicaragua':[12.87,-85.21],'Niger':[17.61,8.08],'Nigeria':[9.08,8.68],
+            'North Macedonia':[41.51,21.75],
+            'Pakistan':[30.38,69.35],'Palestine':[31.95,35.23],'Palestine, State of':[31.95,35.23],
+            'Panama':[8.54,-80.78],'Papua New Guinea':[-6.31,143.96],
+            'Paraguay':[-23.44,-58.44],'Peru':[-9.19,-75.02],'Philippines':[12.88,121.77],
+            'Rwanda':[-1.94,29.87],'Russia':[61.52,105.32],
+            'Samoa':[-13.76,-172.10],'São Tomé and Príncipe':[0.19,6.61],
+            'Senegal':[14.50,-14.45],'Serbia':[44.02,21.01],
+            'Sierra Leone':[8.46,-11.78],'Solomon Islands':[-9.43,160.03],
+            'Somalia':[5.15,46.20],'Somalia, Federal Republic of':[5.15,46.20],
+            'South Africa':[-30.56,22.94],'South Sudan':[6.88,31.31],
+            'Sri Lanka':[7.87,80.77],'Sudan':[12.86,30.22],'Suriname':[3.92,-56.03],
+            'Syrian Arab Republic':[34.80,38.99],'Syria':[34.80,38.99],
+            'Tajikistan':[38.86,71.28],'Tanzania':[-6.37,34.89],'Thailand':[15.87,100.99],
+            'Timor-Leste':[-8.87,125.73],'Togo':[8.62,0.82],
+            'Tonga':[-21.18,-175.20],'Tunisia':[33.89,9.54],
+            'Turkey':[38.96,35.24],'Turkiye':[38.96,35.24],'Turkmenistan':[38.97,59.56],
+            'Tuvalu':[-7.11,177.65],'Uganda':[1.37,32.29],'Ukraine':[48.38,31.17],
+            'Uruguay':[-32.52,-55.77],'Uzbekistan':[41.38,64.59],'Vanuatu':[-15.38,166.96],
+            'Vietnam':[14.06,108.28],'Viet Nam':[14.06,108.28],
+            'Yemen':[15.55,48.52],'Zambia':[-13.13,27.85],'Zimbabwe':[-19.02,29.15],
+        };
+
+        // 국가 영문명 → ISO 2자리 (국기 SVG 파일명)
+        const COUNTRY_ISO = {
+            'Afghanistan':'af','Argentina':'ar','Bangladesh':'bd','Bolivia':'bo','Brunei':'bn',
+            'Cambodia':'kh','Cameroon':'cm','China':'cn','Côte d\'Ivoire':'ci',
+            'Democratic Republic of the Congo':'cd','DR Congo':'cd',
+            'Algeria':'dz','Ethiopia':'et','Ghana':'gh','Gambia':'gm','Guinea':'gn',
+            'Guatemala':'gt','India':'in','Indonesia':'id','Iran':'ir','Italy':'it',
+            'Jordan':'jo','Kenya':'ke','Kyrgyzstan':'kg','Kyrgyz Republic':'kg',
+            'Kiribati':'ki','South Korea':'kr','Kazakhstan':'kz',
+            'Laos':'la','Lao PDR':'la','Sri Lanka':'lk','Myanmar':'mm','Mongolia':'mn',
+            'Malawi':'mw','Malaysia':'my','Mozambique':'mz','Nepal':'np',
+            'Peru':'pe','Philippines':'ph','Pakistan':'pk','Paraguay':'py',
+            'Russia':'ru','Senegal':'sn','El Salvador':'sv','Thailand':'th',
+            'Tanzania':'tz','Uganda':'ug','Uzbekistan':'uz','Vietnam':'vn','Viet Nam':'vn',
+        };
+
+        function normalizeCountry(name) {
+            if (!name) return '';
+            const aliases = {
+                'Viet Nam':'Vietnam','Lao PDR':'Laos',
+                "Lao People's Democratic Republic":'Laos',
+                'Congo, Democratic Republic of':'DR Congo',
+                'Republic of the Philippines':'Philippines',
+                'Korea, Republic of':'South Korea',
+                'Turkiye':'Turkey',
+                'Somalia, Federal Republic of':'Somalia',
+                'Palestine, State of':'Palestine',
+                'Syrian Arab Republic':'Syria',
+            };
+            return aliases[name] || name;
+        }
+
+        let noticeMap = null;
+        let markersLayer = null;
+        let allNotices = [];
+        let groupedByCountry = {};
         let currentNoticeId = null;
 
         // ── 초기화 ──────────────────────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', async () => {
             const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
             const userInfo = localStorage.getItem('gbms_user') || sessionStorage.getItem('gbms_user');
-
-            if (!token || !userInfo) {
-                window.location.href = '../../index.html';
-                return;
-            }
+            if (!token || !userInfo) { window.location.href = '../../index.html'; return; }
 
             try {
                 const user = JSON.parse(userInfo);
@@ -920,79 +995,201 @@
                 document.getElementById('dropdownName').textContent = user.name || '사용자';
                 document.getElementById('dropdownRole').textContent = user.role === 'admin' ? '관리자' : user.role === 'manager' ? '매니저' : '사용자';
                 document.getElementById('dropdownDept').textContent = user.departmentName || user.department || '';
-
                 const initial = user.name ? user.name.charAt(0) : '사';
                 document.getElementById('userAvatar').textContent = initial;
                 document.getElementById('dropdownAvatar').textContent = initial;
-
                 if (user.role === 'admin') {
                     document.getElementById('adminMenuUser').style.display = 'block';
                     document.getElementById('adminDropdownLink').style.display = 'flex';
                     document.getElementById('btnDelete').style.display = 'inline-block';
                     document.getElementById('collectBtn').style.display = 'inline-flex';
                 }
-            } catch (e) {
-                console.error('사용자 정보 파싱 오류:', e);
-            }
+            } catch (e) { console.error('사용자 정보 파싱 오류:', e); }
 
-            if (typeof initCommonUI === 'function') {
-                initCommonUI();
-            }
+            if (typeof initCommonUI === 'function') initCommonUI();
 
-            setupInfiniteScroll();
-            await loadNotices(true);
+            initMap();
+            await loadAllNotices();
             loadScrapingStatus();
 
-            // 검색 Enter 키 / 필터 변경 시 리셋 후 1페이지부터 다시 로드
-            document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadNotices(true); });
-            document.getElementById('countryFilter').addEventListener('keydown', e => { if (e.key === 'Enter') loadNotices(true); });
-            document.getElementById('sourceFilter').addEventListener('change', () => loadNotices(true));
-            document.getElementById('statusFilter').addEventListener('change', () => loadNotices(true));
+            document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadAllNotices(); });
+            document.getElementById('countryFilter').addEventListener('keydown', e => { if (e.key === 'Enter') loadAllNotices(); });
+            document.getElementById('sourceFilter').addEventListener('change', () => loadAllNotices());
+            document.getElementById('statusFilter').addEventListener('change', () => loadAllNotices());
 
-            // 수집 이력 패널 — 펼치면 1회만 로드
             const historyEl = document.getElementById('scrapingHistory');
             let historyLoaded = false;
             historyEl.addEventListener('toggle', () => {
-                if (historyEl.open && !historyLoaded) {
-                    historyLoaded = true;
-                    loadScrapingHistory();
-                }
+                if (historyEl.open && !historyLoaded) { historyLoaded = true; loadScrapingHistory(); }
             });
+
+            window.addEventListener('resize', resizeMap);
+            setTimeout(resizeMap, 200);
         });
 
-        // ── 수동 수집 트리거 (관리자 전용) ───────────────────────────────────────
+        // ── 지도 초기화 ─────────────────────────────────────────────────────────
+        function initMap() {
+            noticeMap = L.map('noticeMap', {
+                center: [20, 30], zoom: 3,
+                zoomControl: true, worldCopyJump: true, minZoom: 2
+            });
+            L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+                maxZoom: 19, subdomains: 'abcd'
+            }).addTo(noticeMap);
+            markersLayer = L.layerGroup().addTo(noticeMap);
+        }
+
+        function resizeMap() {
+            const container = document.getElementById('noticeMapContainer');
+            if (!container) return;
+            const top = container.getBoundingClientRect().top;
+            container.style.height = Math.max(400, window.innerHeight - top - 24) + 'px';
+            if (noticeMap) noticeMap.invalidateSize();
+        }
+
+        // ── 공고 전체 로드 ───────────────────────────────────────────────────────
+        async function loadAllNotices() {
+            const source  = document.getElementById('sourceFilter').value;
+            const country = document.getElementById('countryFilter').value.trim();
+            const status  = document.getElementById('statusFilter').value;
+            const search  = document.getElementById('searchInput').value.trim();
+
+            const params = new URLSearchParams({ page: 1, perPage: 2000 });
+            if (source)  params.set('source', source);
+            if (country) params.set('country', country);
+            if (status)  params.set('status', status);
+            if (search)  params.set('search', search);
+
+            try {
+                const data = await apiCall(`/webhook/notices?${params}`);
+                if (!data.success) return;
+                allNotices = data.data || [];
+                document.getElementById('feedTotalCount').textContent = data.total || 0;
+
+                const hints = [];
+                if (source)  hints.push(`기관=${source.toUpperCase()}`);
+                if (country) hints.push(`국가=${country}`);
+                if (status)  hints.push(`상태=${STATUS_LABELS[status] || status}`);
+                if (search)  hints.push(`검색="${search}"`);
+                document.getElementById('feedFilterHint').textContent =
+                    hints.length ? '필터: ' + hints.join(' · ') : '';
+
+                groupNoticesByCountry();
+                updateMapMarkers();
+            } catch (e) {
+                console.error('공고 로드 오류:', e);
+            }
+        }
+
+        function groupNoticesByCountry() {
+            groupedByCountry = {};
+            allNotices.forEach(n => {
+                const raw = (n.country || '').trim();
+                const key = normalizeCountry(raw) || '기타 (국가 미지정)';
+                if (!groupedByCountry[key]) groupedByCountry[key] = [];
+                groupedByCountry[key].push(n);
+            });
+            document.getElementById('mapCountryCount').textContent = Object.keys(groupedByCountry).length;
+        }
+
+        function updateMapMarkers() {
+            markersLayer.clearLayers();
+            const fallback = [0, -30];
+            for (const [country, notices] of Object.entries(groupedByCountry)) {
+                const coords = COUNTRY_COORDS[country] || fallback;
+                createCountryMarker(country, notices, coords);
+            }
+        }
+
+        function createCountryMarker(country, notices, coords) {
+            const count = notices.length;
+            const iso = COUNTRY_ISO[country] || COUNTRY_ISO[normalizeCountry(country)] || '';
+
+            let flagHtml;
+            if (iso) {
+                flagHtml = `<img src="../../assets/images/flags/${iso}.svg"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+                    style="width:100%;height:100%;object-fit:cover;">
+                    <div style="display:none;width:100%;height:100%;background:var(--color-primary-500);
+                        align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;">${count}</div>`;
+            } else {
+                flagHtml = `<div style="width:100%;height:100%;background:var(--color-primary-500);display:flex;
+                    align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;border-radius:50%;">${count}</div>`;
+            }
+
+            const html = `<div class="country-marker">
+                <div class="country-marker-flag">${flagHtml}</div>
+                ${count > 1 ? `<div class="country-marker-count">${count}</div>` : ''}
+                <div class="country-marker-label">${escapeHtml(country)}</div>
+            </div>`;
+
+            const icon = L.divIcon({
+                html, className: 'country-div-icon',
+                iconSize: [64, 50], iconAnchor: [32, 22]
+            });
+            const marker = L.marker(coords, { icon });
+            marker.on('click', () => openSidePanel(country, notices));
+            markersLayer.addLayer(marker);
+        }
+
+        // ── 사이드패널 ───────────────────────────────────────────────────────────
+        function openSidePanel(country, notices) {
+            const panel = document.getElementById('noticeSidePanel');
+            const iso = COUNTRY_ISO[country] || COUNTRY_ISO[normalizeCountry(country)] || '';
+
+            document.getElementById('panelCountryName').textContent = country;
+            document.getElementById('panelNoticeCount').textContent = `${notices.length}건`;
+            document.getElementById('panelCountryFlag').innerHTML = iso
+                ? `<img src="../../assets/images/flags/${iso}.svg" style="width:22px;height:22px;border-radius:50%;vertical-align:middle;" onerror="this.outerHTML='🌍'">`
+                : '🌍';
+
+            document.getElementById('panelNoticeList').innerHTML = notices.map(n => `
+                <div class="panel-card" onclick='openDetail(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
+                    <div class="panel-card-head">
+                        <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
+                        <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
+                        <span style="margin-left:auto; font-size:11px; color:var(--color-neutral-500);">
+                            ${n.deadline ? `📅 ${escapeHtml(n.deadline)}` : ''}
+                        </span>
+                    </div>
+                    <div class="panel-card-title">${escapeHtml(n.titleKo || n.title)}</div>
+                    ${n.titleKo && n.titleKo !== n.title ? `<div style="font-size:11px;color:var(--color-neutral-500);margin-bottom:4px;">${escapeHtml(n.title)}</div>` : ''}
+                    <div class="panel-card-foot">
+                        ${n.contractValue ? `<span>${escapeHtml(n.contractValue)}</span>` : ''}
+                        ${n.sourceUrl ? `<a href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--color-primary-600);font-weight:600;text-decoration:none;">↗ 원문</a>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            panel.classList.add('open');
+        }
+
+        function closeSidePanel() {
+            document.getElementById('noticeSidePanel').classList.remove('open');
+        }
+
+        // ── 수동 수집 트리거 ─────────────────────────────────────────────────────
         async function triggerCollect() {
             const btn = document.getElementById('collectBtn');
             const origText = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = '수집 중...';
-
+            btn.disabled = true; btn.textContent = '수집 중...';
             try {
                 const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
                 const res = await fetch(`${API_BASE_URL}/notices/collect?trigger=manual`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
+                    method: 'POST', headers: { 'Authorization': `Bearer ${token}` },
                 });
                 const ct = res.headers.get('content-type') || '';
-                if (!ct.includes('application/json')) {
-                    throw new Error(`서버 오류 (HTTP ${res.status})`);
-                }
+                if (!ct.includes('application/json')) throw new Error(`서버 오류 (HTTP ${res.status})`);
                 const data = await res.json();
                 if (data.success) {
-                    const bySource = Object.entries(data.by_source || {})
-                        .map(([k, v]) => `${k}: ${v}건`).join(', ');
+                    const bySource = Object.entries(data.by_source || {}).map(([k,v])=>`${k}: ${v}건`).join(', ');
                     Toast.success(`수집 완료 — 신규 ${data.created}건 저장${bySource ? ` (${bySource})` : ''}`);
-                    await loadNotices(true);
+                    await loadAllNotices();
                     await loadScrapingStatus();
-                } else {
-                    Toast.error(data.message || '수집 실패');
-                }
-            } catch (e) {
-                Toast.error('수집 오류: ' + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = origText;
-            }
+                } else { Toast.error(data.message || '수집 실패'); }
+            } catch (e) { Toast.error('수집 오류: ' + e.message); }
+            finally { btn.disabled = false; btn.textContent = origText; }
         }
 
         // ── 수집 상태 카드 ───────────────────────────────────────────────────────
@@ -1006,12 +1203,8 @@
 
         function renderSourceChip(s) {
             const name = escapeHtml(s.name || '');
-            if (s.error) {
-                const title = escapeHtml(String(s.error).slice(0, 200));
-                return `<span class="source-chip fail" title="${title}">${name} ❌</span>`;
-            }
-            const cls = s.count > 0 ? 'ok' : 'empty';
-            return `<span class="source-chip ${cls}">${name} ${s.count}</span>`;
+            if (s.error) return `<span class="source-chip fail" title="${escapeHtml(String(s.error).slice(0,200))}">${name} ❌</span>`;
+            return `<span class="source-chip ${s.count > 0 ? 'ok' : 'empty'}">${name} ${s.count}</span>`;
         }
 
         async function loadScrapingStatus() {
@@ -1020,30 +1213,18 @@
                 const res = await apiCall('/webhook/notices/runs/latest');
                 if (!res.success || !res.data) { card.hidden = true; return; }
                 const r = res.data;
-
                 document.getElementById('statusRunAt').textContent = formatRunAt(r.runAt);
                 const trigEl = document.getElementById('statusTrigger');
                 trigEl.textContent = r.trigger === 'manual' ? '수동' : '자동';
                 trigEl.className = 'trigger-pill' + (r.trigger === 'manual' ? ' manual' : '');
-
                 document.getElementById('statusTotals').innerHTML =
                     `이번 실행 발견 <b>${r.totalFound}</b>건 · 신규 저장 <b>${r.totalCreated}</b>건 · 기존 중복 ${r.totalSkipped}건`;
-
-                const chips = (r.sources || []).map(renderSourceChip).join('');
-                document.getElementById('statusChips').innerHTML = chips || '<span class="status-meta">소스 없음</span>';
-
+                document.getElementById('statusChips').innerHTML = (r.sources || []).map(renderSourceChip).join('') || '<span class="status-meta">소스 없음</span>';
                 const err = document.getElementById('statusSendError');
-                if (r.sendError) {
-                    err.textContent = '⚠️ GBMS 전송 실패: ' + r.sendError;
-                    err.hidden = false;
-                } else {
-                    err.hidden = true;
-                }
-
+                if (r.sendError) { err.textContent = '⚠️ GBMS 전송 실패: ' + r.sendError; err.hidden = false; }
+                else { err.hidden = true; }
                 card.hidden = false;
-            } catch (e) {
-                card.hidden = true;
-            }
+            } catch (e) { card.hidden = true; }
         }
 
         async function loadScrapingHistory() {
@@ -1057,21 +1238,10 @@
                 }
                 tbody.innerHTML = res.data.map(r => {
                     const chips = (r.sources || []).map(renderSourceChip).join(' ');
-                    const trig = r.trigger === 'manual'
-                        ? '<span class="trigger-pill manual">수동</span>'
-                        : '<span class="trigger-pill">자동</span>';
-                    return `<tr>
-                        <td class="run-at">${formatRunAt(r.runAt)}</td>
-                        <td>${trig}</td>
-                        <td>${r.totalFound}</td>
-                        <td><b>${r.totalCreated}</b></td>
-                        <td>${r.totalSkipped}</td>
-                        <td style="text-align:left;">${chips}</td>
-                    </tr>`;
+                    const trig = r.trigger === 'manual' ? '<span class="trigger-pill manual">수동</span>' : '<span class="trigger-pill">자동</span>';
+                    return `<tr><td class="run-at">${formatRunAt(r.runAt)}</td><td>${trig}</td><td>${r.totalFound}</td><td><b>${r.totalCreated}</b></td><td>${r.totalSkipped}</td><td style="text-align:left;">${chips}</td></tr>`;
                 }).join('');
-            } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="6" style="padding:14px; color:#dc3545;">이력 로드 실패</td></tr>';
-            }
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="6" style="padding:14px; color:#dc3545;">이력 로드 실패</td></tr>'; }
         }
 
         // ── 필터 초기화 ──────────────────────────────────────────────────────────
@@ -1080,203 +1250,38 @@
             document.getElementById('countryFilter').value = '';
             document.getElementById('statusFilter').value = '';
             document.getElementById('searchInput').value = '';
-            loadNotices(true);
+            loadAllNotices();
         }
 
-        // ── 공고 목록 로드 (무한스크롤) ────────────────────────────────────────────
-        const NOTICES_PER_PAGE = 20;
-
-        function setupInfiniteScroll() {
-            const sentinel = document.getElementById('feedSentinel');
-            if (!sentinel || !('IntersectionObserver' in window)) return;
-            feedObserver = new IntersectionObserver(entries => {
-                if (entries[0].isIntersecting) {
-                    loadNotices(false);
-                }
-            }, { rootMargin: '300px 0px' });
-            feedObserver.observe(sentinel);
-        }
-
-        async function loadNotices(reset) {
-            if (isLoadingFeed) return;
-
-            if (reset) {
-                currentPage = 0;
-                totalPages = 1;
-                totalNotices = 0;
-                loadedCount = 0;
-                const feed = document.getElementById('noticeFeed');
-                feed.innerHTML = '<div class="feed-empty">데이터를 불러오는 중...</div>';
-                document.getElementById('feedEnd').classList.remove('show');
-            } else {
-                // 더 이상 로드할 페이지 없음
-                if (currentPage >= totalPages) return;
-            }
-
-            const nextPage = currentPage + 1;
-            isLoadingFeed = true;
-            document.getElementById('feedLoader').classList.toggle('show', !reset);
-
-            const source  = document.getElementById('sourceFilter').value;
-            const country = document.getElementById('countryFilter').value.trim();
-            const status  = document.getElementById('statusFilter').value;
-            const search  = document.getElementById('searchInput').value.trim();
-
-            const params = new URLSearchParams({ page: nextPage, perPage: NOTICES_PER_PAGE });
-            if (source)  params.set('source', source);
-            if (country) params.set('country', country);
-            if (status)  params.set('status', status);
-            if (search)  params.set('search', search);
-
-            try {
-                const data = await apiCall(`/webhook/notices?${params}`);
-                if (!data.success) {
-                    if (reset) {
-                        document.getElementById('noticeFeed').innerHTML =
-                            '<div class="feed-empty">데이터를 불러오지 못했습니다.</div>';
-                    }
-                    return;
-                }
-
-                totalNotices = data.total || 0;
-                totalPages = data.pages || 1;
-                currentPage = data.currentPage || nextPage;
-
-                const items = data.data || [];
-                // 역순 일련번호: 첫 항목 = 전체 총건수에서 앞쪽 페이지들 차감 후 시작
-                const startNo = totalNotices - (currentPage - 1) * NOTICES_PER_PAGE;
-
-                if (reset) {
-                    renderFeedReset(items, startNo, totalNotices);
-                } else {
-                    appendFeed(items, startNo, totalNotices);
-                }
-                loadedCount += items.length;
-
-                // 상단 헤더 갱신
-                document.getElementById('feedTotalCount').textContent = totalNotices;
-                document.getElementById('feedPageRange').textContent =
-                    loadedCount > 0 ? `(1–${loadedCount} 표시)` : '';
-                const hints = [];
-                if (source)  hints.push(`기관=${source.toUpperCase()}`);
-                if (country) hints.push(`국가=${country}`);
-                if (status)  hints.push(`상태=${STATUS_LABELS[status] || status}`);
-                if (search)  hints.push(`검색="${search}"`);
-                document.getElementById('feedFilterHint').textContent =
-                    hints.length ? '필터 적용: ' + hints.join(' · ') : '';
-
-                // 종료 표시
-                const endEl = document.getElementById('feedEnd');
-                if (currentPage >= totalPages && totalNotices > 0) {
-                    endEl.classList.add('show');
-                } else {
-                    endEl.classList.remove('show');
-                }
-
-                // 센티널이 여전히 뷰포트에 있으면 다음 페이지 자동 이어받기
-                if (currentPage < totalPages) {
-                    requestAnimationFrame(() => {
-                        const rect = document.getElementById('feedSentinel').getBoundingClientRect();
-                        if (rect.top < window.innerHeight + 300) {
-                            loadNotices(false);
-                        }
-                    });
-                }
-            } catch (e) {
-                if (reset) {
-                    document.getElementById('noticeFeed').innerHTML =
-                        '<div class="feed-empty" style="color:#dc3545;">오류가 발생했습니다.</div>';
-                }
-            } finally {
-                isLoadingFeed = false;
-                document.getElementById('feedLoader').classList.remove('show');
-            }
-        }
-
-        function cardHTML(n, displayNo, total) {
-            return `
-            <article class="feed-card" onclick='openDetail(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
-                <div class="feed-card-head">
-                    <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
-                    <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
-                    <span class="feed-card-meta">
-                        ${n.country ? `<span>🌍 ${escapeHtml(n.country)}</span>` : ''}
-                        ${n.deadline ? `<span>📅 ${escapeHtml(n.deadline)}</span>` : ''}
-                        ${n.sourceUrl
-                            ? `<a class="feed-card-link" href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ 원문</a>`
-                            : ''}
-                    </span>
-                </div>
-                <h3 class="feed-card-title">${escapeHtml(n.titleKo || n.title)}</h3>
-                ${n.titleKo && n.titleKo !== n.title
-                    ? `<div class="feed-card-original">${escapeHtml(n.title)}</div>`
-                    : ''}
-                <div class="feed-card-foot">
-                    <span><span class="label">No.</span>${displayNo} / ${total}</span>
-                    ${n.contractValue ? `<span><span class="label">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}
-                </div>
-            </article>`;
-        }
-
-        function renderFeedReset(items, startNo, total) {
-            const feed = document.getElementById('noticeFeed');
-            if (!items || items.length === 0) {
-                feed.innerHTML = '<div class="feed-empty">공고가 없습니다.</div>';
-                return;
-            }
-            feed.innerHTML = items.map((n, idx) => cardHTML(n, startNo - idx, total)).join('');
-        }
-
-        function appendFeed(items, startNo, total) {
-            if (!items || items.length === 0) return;
-            const feed = document.getElementById('noticeFeed');
-            const frag = document.createDocumentFragment();
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = items.map((n, idx) => cardHTML(n, startNo - idx, total)).join('');
-            while (wrapper.firstChild) frag.appendChild(wrapper.firstChild);
-            feed.appendChild(frag);
-        }
-
-        // ── 상세 모달 ─────────────────────────────────────────────────────────────
+        // ── 상세 모달 ────────────────────────────────────────────────────────────
         function openDetail(notice) {
             currentNoticeId = notice.id;
             document.getElementById('detailTitle').textContent = notice.title;
-            document.getElementById('detailSource').innerHTML =
-                `<span class="source-badge">${SOURCE_LABELS[notice.source] || notice.source}</span>`;
+            document.getElementById('detailSource').innerHTML = `<span class="source-badge">${SOURCE_LABELS[notice.source] || notice.source}</span>`;
             document.getElementById('detailCountry').textContent       = notice.country || '-';
             document.getElementById('detailClient').textContent        = notice.client || '-';
             document.getElementById('detailSector').textContent        = notice.sector || '-';
             document.getElementById('detailContractValue').textContent = notice.contractValue || '-';
             document.getElementById('detailDeadline').textContent      = notice.deadline || '-';
             document.getElementById('detailUrl').innerHTML = notice.sourceUrl
-                ? `<a href="${escapeHtml(notice.sourceUrl)}" target="_blank" rel="noopener" style="color:var(--color-primary-600);">${escapeHtml(notice.sourceUrl)}</a>`
-                : '-';
+                ? `<a href="${escapeHtml(notice.sourceUrl)}" target="_blank" rel="noopener" style="color:var(--color-primary-600);">${escapeHtml(notice.sourceUrl)}</a>` : '-';
             document.getElementById('detailCreatedAt').textContent = notice.createdAt || '-';
             document.getElementById('detailStatusSelect').value = notice.status || 'new';
 
-            // WB 상세 필드 채우기 — notice.details 있을 때만 해당 row 표시
             const d = notice.details || {};
             const mapping = {
-                detailScope:       d.scope,
-                detailProcMethod:  d.procurement_method,
-                detailDuration:    d.duration,
-                detailRef:         d.reference_no,
-                detailLoan:        d.loan_credit,
-                detailAwarded:     d.awarded_bidder,
-                detailProjectId:   d.project_id,
-                detailExcerpt:     d.text_excerpt,
+                detailScope: d.scope, detailProcMethod: d.procurement_method,
+                detailDuration: d.duration, detailRef: d.reference_no,
+                detailLoan: d.loan_credit, detailAwarded: d.awarded_bidder,
+                detailProjectId: d.project_id, detailExcerpt: d.text_excerpt,
             };
             for (const [id, val] of Object.entries(mapping)) {
                 const el = document.getElementById(id);
+                if (!el) continue;
                 const row = el.closest('tr');
-                if (val) {
-                    el.textContent = val;
-                    row.hidden = false;
-                } else {
-                    row.hidden = true;
-                }
+                if (val) { el.textContent = val; row.hidden = false; }
+                else { row.hidden = true; }
             }
-
             document.getElementById('detailModal').classList.add('show');
         }
 
@@ -1285,51 +1290,32 @@
             currentNoticeId = null;
         }
 
-        // ── 상태 변경 ─────────────────────────────────────────────────────────────
         async function updateStatus() {
             if (!currentNoticeId) return;
             const newStatus = document.getElementById('detailStatusSelect').value;
             try {
                 const res = await apiCall(`/webhook/notices/${currentNoticeId}`, 'PATCH', { status: newStatus });
-                if (res.success) {
-                    Toast.success('상태가 변경되었습니다.');
-                    await loadNotices(true);
-                } else {
-                    Toast.error(res.message || '상태 변경 실패');
-                }
-            } catch (e) {
-                Toast.error('상태 변경 중 오류가 발생했습니다.');
-            }
+                if (res.success) { Toast.success('상태가 변경되었습니다.'); await loadAllNotices(); }
+                else { Toast.error(res.message || '상태 변경 실패'); }
+            } catch (e) { Toast.error('상태 변경 중 오류가 발생했습니다.'); }
         }
 
-        // ── 삭제 (관리자) ─────────────────────────────────────────────────────────
         async function deleteNotice() {
             if (!currentNoticeId) return;
             if (!confirm('이 공고를 삭제하시겠습니까?')) return;
             try {
                 const res = await apiCall(`/webhook/notices/${currentNoticeId}`, 'DELETE');
-                if (res.success) {
-                    Toast.success('삭제되었습니다.');
-                    closeDetailModal();
-                    await loadNotices(true);
-                } else {
-                    Toast.error(res.message || '삭제 실패');
-                }
-            } catch (e) {
-                Toast.error('삭제 중 오류가 발생했습니다.');
-            }
+                if (res.success) { Toast.success('삭제되었습니다.'); closeDetailModal(); await loadAllNotices(); }
+                else { Toast.error(res.message || '삭제 실패'); }
+            } catch (e) { Toast.error('삭제 중 오류가 발생했습니다.'); }
         }
 
-        // ── 유틸 ──────────────────────────────────────────────────────────────────
         function escapeHtml(str) {
             if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
 
-        // 모달 배경 클릭 시 닫기
-        document.addEventListener('click', function (e) {
+        document.addEventListener('click', function(e) {
             if (e.target === document.getElementById('detailModal')) closeDetailModal();
         });
     </script>
