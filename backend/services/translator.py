@@ -22,64 +22,75 @@ except Exception:
     _LANGDETECT_OK = False
 
 HF_API_BASE = 'https://router.huggingface.co/hf-inference/models/'
-# Helsinki-NLP opus-mt 계열 — 단방향 경량 모델 (HF Inference API 지원 확인됨)
-HF_MODEL_EN_KO = 'Helsinki-NLP/opus-mt-en-ko'
-HF_MODEL_MULTI = 'Helsinki-NLP/opus-mt-tc-big-en-ko'  # fallback (en→ko, transformer-big)
-HTTP_TIMEOUT = 25
-MAX_INPUT_CHARS = 1000
+# mBART-50 — 다국어 번역 (50개 언어, HF Inference warm 모델)
+HF_MODEL = 'facebook/mbart-large-50-many-to-many-mmt'
+TARGET_LANG = 'ko_KR'  # mBART 한국어 코드
+HTTP_TIMEOUT = 30      # mBART 은 NLLB 보다 클 수 있어 여유 확보
+MAX_INPUT_CHARS = 800  # mBART 토큰 제한 보수적 적용
 
-# langdetect ISO-639-1 → NLLB Flores-200 코드
+# langdetect ISO-639-1 → mBART-50 코드 (XX 접미사)
 # 누락된 언어는 영어로 가정 (대부분 국제 공고가 영문)
 LANG_MAP = {
-    'en': 'eng_Latn',
-    'es': 'spa_Latn',
-    'fr': 'fra_Latn',
-    'pt': 'por_Latn',
-    'ru': 'rus_Cyrl',
-    'ar': 'arb_Arab',
-    'zh-cn': 'zho_Hans',
-    'zh-tw': 'zho_Hant',
-    'ja': 'jpn_Jpan',
-    'vi': 'vie_Latn',
-    'th': 'tha_Thai',
-    'id': 'ind_Latn',
-    'de': 'deu_Latn',
-    'it': 'ita_Latn',
-    'tr': 'tur_Latn',
-    'nl': 'nld_Latn',
-    'pl': 'pol_Latn',
-    'sw': 'swh_Latn',
-    'fa': 'pes_Arab',
-    'uk': 'ukr_Cyrl',
-    'mn': 'khk_Cyrl',
-    'tl': 'tgl_Latn',
-    'ne': 'npi_Deva',
-    'hi': 'hin_Deva',
-    'bn': 'ben_Beng',
-    'my': 'mya_Mymr',
-    'km': 'khm_Khmr',
-    'lo': 'lao_Laoo',
-    'ur': 'urd_Arab',
-    'am': 'amh_Ethi',
-    'ha': 'hau_Latn',
-    'so': 'som_Latn',
-    'yo': 'yor_Latn',
+    'en': 'en_XX',
+    'es': 'es_XX',
+    'fr': 'fr_XX',
+    'pt': 'pt_XX',
+    'ru': 'ru_RU',
+    'ar': 'ar_AR',
+    'zh-cn': 'zh_CN',
+    'zh-tw': 'zh_CN',
+    'ja': 'ja_XX',
+    'vi': 'vi_VN',
+    'th': 'th_TH',
+    'id': 'id_ID',
+    'de': 'de_DE',
+    'it': 'it_IT',
+    'tr': 'tr_TR',
+    'nl': 'nl_XX',
+    'pl': 'pl_PL',
+    'sw': 'sw_KE',
+    'fa': 'fa_IR',
+    'uk': 'uk_UA',
+    'hi': 'hi_IN',
+    'bn': 'bn_IN',
+    'ur': 'ur_PK',
+    'ne': 'ne_NP',
+    'ta': 'ta_IN',
+    'te': 'te_IN',
+    'ml': 'ml_IN',
+    'gu': 'gu_IN',
+    'mr': 'mr_IN',
+    'mn': 'mn_MN',
+    'my': 'my_MM',
+    'ka': 'ka_GE',
+    'km': 'km_KH',
+    'si': 'si_LK',
+    'lt': 'lt_LT',
+    'lv': 'lv_LV',
+    'et': 'et_EE',
+    'fi': 'fi_FI',
+    'ro': 'ro_RO',
+    'cs': 'cs_CZ',
+    'hr': 'hr_HR',
+    'sl': 'sl_SI',
+    'af': 'af_ZA',
+    'xh': 'xh_ZA',
 }
 
 
 def _detect_src_lang(text: str) -> Optional[str]:
-    """원문 언어 감지 → NLLB src_lang 반환. 한국어면 None (번역 불필요)."""
+    """원문 언어 감지 → mBART src_lang 코드 반환. 한국어면 None (번역 불필요)."""
     if not text:
         return None
     if not _LANGDETECT_OK:
-        return 'eng_Latn'  # langdetect 없으면 영어로 가정
+        return 'en_XX'  # langdetect 없으면 영어로 가정
     try:
         code = detect(text)
     except LangDetectException:
-        return 'eng_Latn'
+        return 'en_XX'
     if code == 'ko':
         return None
-    return LANG_MAP.get(code, 'eng_Latn')
+    return LANG_MAP.get(code, 'en_XX')
 
 
 def translate_to_korean(text: str, retries: int = 2) -> Optional[str]:
@@ -102,18 +113,18 @@ def translate_to_korean(text: str, retries: int = 2) -> Optional[str]:
     if src_lang is None:
         return None  # 이미 한국어
 
-    # opus-mt-en-ko 는 영어 전용. 비영어 텍스트는 스킵 (향후 다국어 체인 추가 가능)
-    if src_lang != 'eng_Latn':
-        return None
-
-    api_url = HF_API_BASE + HF_MODEL_EN_KO
+    api_url = HF_API_BASE + HF_MODEL
     headers = {
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json',
     }
-    # opus-mt 계열은 src_lang/tgt_lang 파라미터 불필요 — 모델 자체가 단방향
+    # mBART-50 다국어 모델 — src_lang + tgt_lang 파라미터 필요
     payload = {
         'inputs': text[:MAX_INPUT_CHARS],
+        'parameters': {
+            'src_lang': src_lang,
+            'tgt_lang': TARGET_LANG,
+        },
         'options': {'wait_for_model': True},
     }
 
