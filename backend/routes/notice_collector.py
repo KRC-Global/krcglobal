@@ -439,15 +439,42 @@ def _wb_extract_details(raw_html: str) -> dict:
 
 
 _TITLE_NORMALIZE_RX = re.compile(r'[\s\W_]+', re.UNICODE)
+_BRACKETED_RX = re.compile(r'[\[\(\{][^\]\)\}]*[\]\)\}]')
+# notice_type 류 키워드 (제목 정규화 시 제거)
+_NOTICE_TYPE_TOKENS_RX = re.compile(
+    r'\b(?:request\s+for\s+(?:bids?|proposals?|expression\s+of\s+interest|'
+    r'expressions?\s+of\s+interest|quotations?|eoi)|rfp|rfb|rfq|reoi|'
+    r'general\s+procurement\s+notice|specific\s+procurement\s+notice|'
+    r'gpn|spn|eoi|pqn|pre[- ]?qualification|addend(?:um|a)|amendment|'
+    r'invitation\s+for\s+(?:bids?|tenders?)|ifb|ift|contract\s+award(?:\s+notice)?|'
+    r'procurement\s+plan|notices?|early\s+market\s+engagement(?:\s+notice)?)\b',
+    re.IGNORECASE,
+)
 
 
 def _normalize_title(title: str) -> str:
-    """제목 정규화 — 대소문자/공백/특수문자 무시하고 비교 가능하게.
-    중복 판정용 키에 사용. 예: 'Agricultural Zones Connectivity Project (AZCP)'
-    → 'agriculturalzonesconnectivityprojectazcp'"""
+    """제목 정규화 — 대소문자/공백/특수문자/괄호내용/공고유형 표기 무시.
+
+    중복 판정용 키에 사용. 예:
+      'Nigeria Rural Water Project (P123) [Request for Bids]'
+      'NIGERIA RURAL WATER PROJECT  [Addenda]'
+      'Nigeria Rural Water Project — EOI'
+    → 모두 'nigeriaruralwaterproject' 로 수렴.
+    """
     if not title:
         return ''
-    return _TITLE_NORMALIZE_RX.sub('', title.lower())[:200]
+    t = title.lower()
+    t = _BRACKETED_RX.sub(' ', t)        # [...] (...) {...} 전부 제거
+    t = _NOTICE_TYPE_TOKENS_RX.sub(' ', t)  # RFP/EOI/GPN 등 키워드 제거
+    t = _TITLE_NORMALIZE_RX.sub('', t)   # 공백/특수문자 전부 제거
+    return t[:120]
+
+
+def _normalize_country(country: str) -> str:
+    """국가명 정규화 — 대소문자/공백 무시. 'Türkiye' ↔ 'Turkey' 등은 별도 처리 안 함."""
+    if not country:
+        return ''
+    return _TITLE_NORMALIZE_RX.sub('', country.lower())[:50]
 
 
 def _save_notice(source, title, country, client, sector,
@@ -455,9 +482,9 @@ def _save_notice(source, title, country, client, sector,
     """중복 확인 후 BidNotice 저장. 신규면 True.
 
     중복 판정은 두 단계:
-      1) source_url 완전 일치 (기존)
-      2) (source, 정규화된 title, country) 일치 — source_url 이 쿼리 파라미터/
-         fragment 등으로 달라지거나 fallback URL 이 겹쳐도 잡아냄
+      1) source_url 완전 일치
+      2) (정규화된 title, 정규화된 country) 일치 — 서로 다른 source_url /
+         소스 기관이라도 같은 사업으로 보이면 중복 처리
     """
     if not source_url or not title:
         return False
@@ -467,17 +494,16 @@ def _save_notice(source, title, country, client, sector,
     if existing:
         return False
 
-    # 2단계: (source, title_norm, country) 일치 — Python 레벨 대조
+    # 2단계: (title_norm, country_norm) 일치 — source 무관 cross-source 중복도 잡음
     norm_new = _normalize_title(title)
+    country_norm_new = _normalize_country(country or '')
     if norm_new:
-        # 동일 source + country 내에서만 조회 (SQL 부하 절감)
-        country_val = (country or '').strip()
-        q = BidNotice.query.filter_by(source=source)
-        if country_val:
-            q = q.filter_by(country=country_val[:100])
-        for cand in q.all():
-            if _normalize_title(cand.title or '') == norm_new:
-                return False  # 제목·국가·소스 동일 → 중복
+        for cand in BidNotice.query.all():
+            if _normalize_title(cand.title or '') != norm_new:
+                continue
+            if _normalize_country(cand.country or '') != country_norm_new:
+                continue
+            return False  # 제목·국가 동일 → 중복 (source 다르더라도)
 
     n = BidNotice(
         source=source,
@@ -1625,16 +1651,17 @@ def _cleanup_stale_notices(days: int = DEFAULT_FRESHNESS_DAYS) -> dict:
 
 
 def _dedupe_existing_notices() -> int:
-    """기존 BidNotice 중 (source, 정규화 title, country) 조합이 같은 레코드
+    """기존 BidNotice 중 (정규화 title, 정규화 country) 조합이 같은 레코드
     중에서 가장 최신 created_at 을 가진 1건만 남기고 나머지 삭제.
+    source 는 무시 — 서로 다른 기관이 같은 사업을 공고해도 중복으로 처리.
 
     Returns: 삭제된 건수.
     """
     groups = {}
     for n in BidNotice.query.all():
-        key = (n.source or '', _normalize_title(n.title or ''),
-               (n.country or '').strip())
-        if not key[1]:
+        key = (_normalize_title(n.title or ''),
+               _normalize_country(n.country or ''))
+        if not key[0]:
             continue  # 정규화 제목이 비면 판정 보류
         groups.setdefault(key, []).append(n)
 
@@ -1690,20 +1717,21 @@ def collect_notices():
     all_items, errors = _run_all_collectors()
 
     # 배치 내 선제 중복 제거 — 같은 수집 run 에서 URL 중복 또는
-    # (source, 정규화 title, country) 중복인 항목 제거 (DB 저장 전)
+    # (정규화 title, 정규화 country) 중복인 항목 제거 (DB 저장 전).
+    # source 는 무시 — 서로 다른 기관이 같은 사업을 공고해도 중복으로 처리.
     deduped = []
     seen_urls = set()
     seen_fingerprints = set()
     for it in all_items:
         url = it.get('source_url', '')
-        fp = (it['source'], _normalize_title(it.get('title', '')),
-              (it.get('country') or '').strip())
+        fp = (_normalize_title(it.get('title', '')),
+              _normalize_country(it.get('country', '')))
         if url and url in seen_urls:
             continue
-        if fp[1] and fp in seen_fingerprints:
+        if fp[0] and fp in seen_fingerprints:
             continue
         seen_urls.add(url)
-        if fp[1]:
+        if fp[0]:
             seen_fingerprints.add(fp)
         deduped.append(it)
     all_items = deduped
