@@ -389,9 +389,28 @@
         }
 
         @media (max-width: 768px) {
+            .notice-fixed-top {
+                position: relative;
+                padding: var(--spacing-3) var(--spacing-3) 8px;
+                margin: 0;
+                gap: 8px;
+            }
+            .scraping-status-card { font-size: 12px; padding: 10px 12px; }
+            .scraping-history { margin-bottom: 8px; }
+            .notice-map-container {
+                min-height: 300px;
+                height: calc(100vh - 140px);
+                border-radius: var(--radius-md);
+            }
             .notice-side-panel { width: 100%; }
-            .notice-map-container { min-height: 360px; height: calc(100vh - 200px); }
-            .source-toggle-panel { max-width: calc(100% - 24px); top: 8px; right: 8px; }
+            .source-toggle-panel {
+                max-width: calc(100% - 16px);
+                top: 8px; right: 8px; left: 8px;
+                padding: 6px 8px; gap: 4px;
+            }
+            .source-toggle { font-size: 10px; padding: 3px 7px; }
+            .map-stats { padding: 4px 2px 6px; font-size: 12px; }
+            .page-header { margin-bottom: var(--spacing-2) !important; }
         }
 
         /* 모달 */
@@ -981,6 +1000,14 @@
             'Uruguay':[-32.52,-55.77],'Uzbekistan':[41.38,64.59],'Vanuatu':[-15.38,166.96],
             'Vietnam':[14.06,108.28],'Viet Nam':[14.06,108.28],
             'Yemen':[15.55,48.52],'Zambia':[-13.13,27.85],'Zimbabwe':[-19.02,29.15],
+            // WB 지역명
+            'Eastern and Southern Africa':[-5.0,30.0],'Western and Central Africa':[8.0,2.0],
+            'Africa':[-1.0,20.0],'East Africa':[-2.0,35.0],'West Africa':[10.0,-5.0],
+            'South Asia':[22.0,78.0],'East Asia and Pacific':[-2.0,115.0],
+            'Southeast Asia':[5.0,110.0],'Central Asia':[43.0,65.0],
+            'Middle East and North Africa':[28.0,35.0],'Latin America and Caribbean':[-5.0,-60.0],
+            'Europe and Central Asia':[45.0,40.0],
+            'World':[20.0,0.0],'Global':[20.0,0.0],
         };
 
         // 국가 영문명 → ISO 2자리 (국기 SVG 파일명)
@@ -1028,19 +1055,34 @@
 
         function normalizeCountry(name) {
             if (!name) return '';
+            // 쉼표/세미콜론으로 여러 국가 나열된 경우 첫 번째만
+            const first = name.split(/[;,\/]/)[0].trim();
             const aliases = {
                 'Viet Nam':'Vietnam','Lao PDR':'Laos',
                 "Lao People's Democratic Republic":'Laos',
                 'Congo, Democratic Republic of':'DR Congo',
+                'Congo, Republic of':'Congo',
                 'Republic of the Philippines':'Philippines',
                 'Korea, Republic of':'South Korea',
-                'Turkiye':'Turkey',
+                'Turkiye':'Turkey','Türkiye':'Turkey',
                 'Somalia, Federal Republic of':'Somalia',
                 'Palestine, State of':'Palestine',
                 'Syrian Arab Republic':'Syria',
                 'Karabakh':'Azerbaijan','Nagorno-Karabakh':'Azerbaijan',
+                'Ivory Coast':'Côte d\'Ivoire',
+                'Burma':'Myanmar',
+                'Timor Leste':'Timor-Leste',
+                'Republic of Korea':'South Korea',
+                'Russian Federation':'Russia',
+                'Czech Republic':'Czechia',
+                'United Republic of Tanzania':'Tanzania',
+                'Republic of Mozambique':'Mozambique',
+                'Republic of Madagascar':'Madagascar',
+                'Republic of Zambia':'Zambia',
+                'Multiple destinations':'',
+                'Multiple Countries':'',
             };
-            return aliases[name] || name;
+            return aliases[first] || first;
         }
 
         let noticeMap = null;
@@ -1086,7 +1128,9 @@
             });
 
             window.addEventListener('resize', resizeMap);
-            setTimeout(resizeMap, 200);
+            resizeMap();
+            setTimeout(resizeMap, 300);
+            setTimeout(resizeMap, 1000);
         });
 
         // ── 지도 초기화 ─────────────────────────────────────────────────────────
@@ -1106,8 +1150,14 @@
             const container = document.getElementById('noticeMapContainer');
             if (!container) return;
             const top = container.getBoundingClientRect().top;
-            container.style.height = Math.max(400, window.innerHeight - top - 24) + 'px';
-            if (noticeMap) noticeMap.invalidateSize();
+            const isMobile = window.innerWidth <= 768;
+            const padding = isMobile ? 12 : 24;
+            const minH = isMobile ? 280 : 400;
+            const h = Math.max(minH, window.innerHeight - top - padding);
+            container.style.height = h + 'px';
+            if (noticeMap) {
+                noticeMap.invalidateSize();
+            }
         }
 
         // ── 로딩 오버레이 ────────────────────────────────────────────────────────
