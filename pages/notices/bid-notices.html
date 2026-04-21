@@ -328,12 +328,64 @@
             display: flex; gap: 12px; font-size: 11px; color: var(--color-neutral-600); flex-wrap: wrap;
         }
 
-        /* 지도 위 통계 */
-        .map-stats {
-            padding: 8px 2px 10px; font-size: 13px;
-            color: var(--color-neutral-600);
-            display: flex; justify-content: space-between; align-items: baseline;
+        /* 뷰 탭 + 통계 */
+        .view-tab-bar {
+            display: flex; align-items: center; gap: 0;
+            padding: 0 0 8px;
         }
+        .view-tab {
+            padding: 7px 18px; font-size: 13px; font-weight: 600;
+            cursor: pointer; border: 1.5px solid var(--color-neutral-300);
+            background: var(--color-neutral-0); color: var(--color-neutral-600);
+            transition: all 0.15s;
+        }
+        .view-tab:first-child { border-radius: 8px 0 0 8px; }
+        .view-tab:last-of-type { border-radius: 0 8px 8px 0; border-left: none; }
+        .view-tab.active {
+            background: var(--color-primary-500); color: #fff;
+            border-color: var(--color-primary-500);
+        }
+        .view-tab-stats {
+            margin-left: auto; font-size: 13px; color: var(--color-neutral-600);
+        }
+        .view-tab-stats b { color: var(--color-neutral-800); }
+
+        /* 리스트 뷰 */
+        .notice-list-container { display: none; }
+        .notice-list-container.active { display: block; }
+        .notice-map-container.hidden-view { display: none; }
+
+        .list-card {
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-md);
+            padding: 14px 16px; margin-bottom: 8px;
+            cursor: pointer;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .list-card:hover {
+            border-color: var(--color-primary-300);
+            box-shadow: var(--shadow-sm);
+        }
+        .list-card-head {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;
+        }
+        .list-card-title {
+            font-size: 14px; font-weight: 600; color: var(--color-neutral-900);
+            margin: 0 0 4px; line-height: 1.45;
+        }
+        .list-card:hover .list-card-title { color: var(--color-primary-600); }
+        .list-card-original {
+            font-size: 12px; color: var(--color-neutral-500);
+            margin: 0 0 6px; line-height: 1.35;
+        }
+        .list-card-foot {
+            display: flex; gap: 14px; font-size: 12px; color: var(--color-neutral-600); flex-wrap: wrap;
+        }
+        .list-card-foot .lbl { color: var(--color-neutral-500); margin-right: 3px; }
+
+        /* 지도 위 통계 (기존 호환) */
+        .map-stats { display: none; }
 
         /* 로딩 오버레이 */
         .map-loading-overlay {
@@ -392,14 +444,16 @@
             .notice-fixed-top {
                 position: relative;
                 padding: var(--spacing-3) var(--spacing-3) 8px;
-                margin: 0;
-                gap: 8px;
+                margin: 0; gap: 8px;
             }
             .scraping-status-card { font-size: 12px; padding: 10px 12px; }
             .scraping-history { margin-bottom: 8px; }
+            .view-tab-bar { gap: 0; flex-wrap: wrap; }
+            .view-tab { padding: 6px 14px; font-size: 12px; }
+            .view-tab-stats { font-size: 11px; width: 100%; margin-top: 4px; margin-left: 0; }
             .notice-map-container {
                 min-height: 300px;
-                height: calc(100vh - 140px);
+                height: calc(100vh - 160px);
                 border-radius: var(--radius-md);
             }
             .notice-side-panel { width: 100%; }
@@ -409,7 +463,8 @@
                 padding: 6px 8px; gap: 4px;
             }
             .source-toggle { font-size: 10px; padding: 3px 7px; }
-            .map-stats { padding: 4px 2px 6px; font-size: 12px; }
+            .list-card { padding: 10px 12px; }
+            .list-card-title { font-size: 13px; }
             .page-header { margin-bottom: var(--spacing-2) !important; }
         }
 
@@ -855,10 +910,14 @@
             </div>
             <!-- /상단 고정 영역 -->
 
-            <!-- 지도 통계 -->
-            <div class="map-stats">
-                <span><b id="feedTotalCount">0</b>건의 공고 · <b id="mapCountryCount">0</b>개 국가</span>
-                <span id="feedFilterHint" style="font-size:12px; color:var(--color-neutral-500);"></span>
+            <!-- 뷰 탭 -->
+            <div class="view-tab-bar">
+                <button class="view-tab active" data-view="map" onclick="switchView('map')">🗺️ 지도</button>
+                <button class="view-tab" data-view="list" onclick="switchView('list')">📋 리스트</button>
+                <span class="view-tab-stats">
+                    <b id="feedTotalCount">0</b>건 · <b id="mapCountryCount">0</b>개국
+                    <span id="feedFilterHint" style="font-size:12px; color:var(--color-neutral-500); margin-left:8px;"></span>
+                </span>
             </div>
 
             <!-- 세계지도 -->
@@ -885,6 +944,11 @@
                     </div>
                     <div class="panel-body" id="panelNoticeList"></div>
                 </div>
+            </div>
+
+            <!-- 리스트 뷰 -->
+            <div class="notice-list-container" id="noticeListContainer">
+                <div id="noticeListContent"></div>
             </div>
         </div>
     </main>
@@ -1222,18 +1286,74 @@
             applySourceFilter();
         }
 
-        function applySourceFilter() {
-            const filtered = allNotices.filter(n => activeSources.has(n.source || 'other'));
+        let filteredNotices = []; // 현재 필터된 공고 (리스트 뷰용)
 
-            document.getElementById('feedTotalCount').textContent = filtered.length;
+        function applySourceFilter() {
+            filteredNotices = allNotices.filter(n => activeSources.has(n.source || 'other'));
+
+            document.getElementById('feedTotalCount').textContent = filteredNotices.length;
 
             const activeLabels = [...activeSources].map(s => SOURCE_LABELS[s] || s);
-            const allOn = activeSources.size === Object.keys(SOURCE_LABELS).length || activeSources.size >= new Set(allNotices.map(n => n.source)).size;
+            const allOn = activeSources.size >= new Set(allNotices.map(n => n.source)).size;
             document.getElementById('feedFilterHint').textContent =
                 allOn ? '' : `표시: ${activeLabels.join(', ')}`;
 
-            groupNoticesByCountry(filtered);
+            groupNoticesByCountry(filteredNotices);
             updateMapMarkers();
+            renderListView();
+        }
+
+        // ── 뷰 탭 전환 ──────────────────────────────────────────────────────────
+        let currentView = 'map';
+
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
+
+            const mapEl = document.getElementById('noticeMapContainer');
+            const listEl = document.getElementById('noticeListContainer');
+
+            if (view === 'map') {
+                mapEl.classList.remove('hidden-view');
+                listEl.classList.remove('active');
+                setTimeout(() => { resizeMap(); }, 50);
+            } else {
+                mapEl.classList.add('hidden-view');
+                listEl.classList.add('active');
+                renderListView();
+            }
+        }
+
+        // ── 리스트 뷰 렌더링 ─────────────────────────────────────────────────────
+        function renderListView() {
+            if (currentView !== 'list') return;
+            const container = document.getElementById('noticeListContent');
+            if (!filteredNotices.length) {
+                container.innerHTML = '<div style="text-align:center; padding:60px 20px; color:var(--color-neutral-500);">공고가 없습니다.</div>';
+                return;
+            }
+            container.innerHTML = filteredNotices.map((n, idx) => {
+                const no = filteredNotices.length - idx;
+                const iso = COUNTRY_ISO[normalizeCountry(n.country)] || COUNTRY_ISO[n.country] || '';
+                const flagImg = iso ? `<img src="/assets/images/flags/${iso}.svg" style="width:16px;height:16px;border-radius:50%;vertical-align:-2px;" onerror="this.outerHTML='🌍'"> ` : '';
+                return `<div class="list-card" onclick='openDetail(${JSON.stringify(n).replace(/'/g,"&#39;")})'>
+                    <div class="list-card-head">
+                        <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
+                        <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
+                        <span style="margin-left:auto; font-size:11px; color:var(--color-neutral-500);">
+                            ${n.deadline ? '📅 ' + escapeHtml(n.deadline) : ''}
+                        </span>
+                    </div>
+                    <div class="list-card-title">${escapeHtml(n.titleKo || n.title)}</div>
+                    ${n.titleKo && n.titleKo !== n.title ? `<div class="list-card-original">${escapeHtml(n.title)}</div>` : ''}
+                    <div class="list-card-foot">
+                        <span><span class="lbl">No.</span>${no}</span>
+                        ${n.country ? `<span>${flagImg}${escapeHtml(n.country)}</span>` : ''}
+                        ${n.contractValue ? `<span><span class="lbl">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}
+                        ${n.sourceUrl ? `<a href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--color-primary-600);font-weight:600;text-decoration:none;">↗ 원문</a>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
         }
 
         function groupNoticesByCountry(notices) {
