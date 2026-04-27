@@ -491,6 +491,39 @@
         }
         .fs-empty .emoji { font-size: 36px; display: block; margin-bottom: 8px; }
 
+        .fs-suggested-chip {
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-primary-200, #c7dcec);
+            color: var(--color-primary-700, #1A4B7C);
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            line-height: 1.2;
+            transition: all .15s;
+            min-width: 110px;
+        }
+        .fs-suggested-chip:hover {
+            background: var(--color-primary-500);
+            border-color: var(--color-primary-500);
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+        .fs-suggested-chip .date {
+            font-weight: 700;
+            font-size: 13px;
+        }
+        .fs-suggested-chip .price {
+            font-size: 11px;
+            color: var(--color-neutral-500);
+        }
+        .fs-suggested-chip:hover .price { color: rgba(255,255,255,0.9); }
+
         /* 가격 캘린더 */
         .fs-calendar-grid {
             display: grid;
@@ -1025,7 +1058,11 @@
         <section id="fsEmptyState" class="fs-section fs-empty" hidden>
             <span class="emoji">✈️</span>
             <div style="font-size:16px; font-weight:600; color: var(--color-neutral-700); margin-bottom: 4px;">검색 조건에 맞는 항공편이 없습니다</div>
-            <div style="font-size:13px;">날짜를 바꾸거나 직항 제한을 풀어 보세요.</div>
+            <div style="font-size:13px; margin-bottom: 12px;">날짜를 바꾸거나 직항 제한을 풀어 보세요.</div>
+            <div id="fsSuggestedDates" hidden style="margin-top: 16px;">
+                <div style="font-size:13px; font-weight:600; color: var(--color-neutral-700); margin-bottom:8px;">🗓️ 가까운 가용 날짜로 다시 검색</div>
+                <div id="fsSuggestedDatesGrid" style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center;"></div>
+            </div>
         </section>
 
         <!-- 안내 배너 -->

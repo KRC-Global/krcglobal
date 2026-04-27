@@ -273,6 +273,38 @@
         if (synth) synth.hidden = true;
         const fb = $('#fsFallbackBanner');
         if (fb) fb.hidden = true;
+        const sg = $('#fsSuggestedDates');
+        if (sg) sg.hidden = true;
+    }
+
+    // 빈 결과일 때 인근 가용 날짜 후보 칩 렌더 (백엔드 meta.suggested_dates 사용)
+    function renderSuggestedDates(items) {
+        const container = $('#fsSuggestedDates');
+        const grid = $('#fsSuggestedDatesGrid');
+        if (!container || !grid) return;
+        if (!items || !items.length) {
+            container.hidden = true;
+            return;
+        }
+        grid.innerHTML = '';
+        items.slice(0, 8).forEach((it) => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'fs-suggested-chip';
+            const dateLabel = it.departure_date ? `${fmtDateShort(it.departure_date)}` : '';
+            chip.innerHTML = `
+                <span class="date">${it.departure_date || ''}${dateLabel ? ' · ' + dateLabel : ''}</span>
+                <span class="price">${fmtKRW(it.price_total || 0)}</span>
+            `;
+            chip.addEventListener('click', () => {
+                if (!it.departure_date) return;
+                $('#fsDeparture').value = it.departure_date;
+                if (it.return_date) $('#fsReturn').value = it.return_date;
+                handleSearchSubmit();
+            });
+            grid.appendChild(chip);
+        });
+        container.hidden = false;
     }
 
     // ───── 자동완성 ─────
@@ -578,6 +610,7 @@
                 $('#fsResultsSection').hidden = true;
                 $('#fsEmptyState').hidden = false;
                 renderCalendar(); // 캘린더는 결과가 없어도 표시 시도
+                renderSuggestedDates((searchResp.meta || {}).suggested_dates || []);
                 return;
             }
 
@@ -1447,6 +1480,7 @@
             if (!state.results.length) {
                 $('#fsResultsSection').hidden = true;
                 $('#fsEmptyState').hidden = false;
+                renderSuggestedDates((resp.meta || {}).suggested_dates || []);
                 return;
             }
             initFiltersFromResults();

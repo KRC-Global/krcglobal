@@ -86,6 +86,62 @@ def _meta_base(extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     return base
 
 
+def _suggest_nearby_dates(
+    origin: str,
+    destination: str,
+    departure_date: str,
+    one_way: bool,
+    currency: str,
+    limit: int = 8,
+) -> list:
+    """검색 결과가 비어 있을 때 동일 노선의 가용 날짜 후보 N개 반환.
+    프로바이더의 cheapest-dates 를 호출 → 사용자 날짜에 가까운 순 + 가격 순 정렬.
+    """
+    try:
+        from datetime import datetime
+        result = provider.search_cheapest_dates(
+            origin=origin, destination=destination,
+            departure_date=departure_date,
+            one_way=one_way, currency=currency,
+        )
+    except Exception:
+        return []
+    if not result or not result.get('items'):
+        return []
+
+    target = None
+    try:
+        target = datetime.strptime(departure_date, '%Y-%m-%d')
+    except (ValueError, TypeError):
+        pass
+
+    def _diff(item: Dict[str, Any]) -> int:
+        if not target or not item.get('departure_date'):
+            return 999
+        try:
+            d = datetime.strptime(item['departure_date'], '%Y-%m-%d')
+            return abs((d - target).days)
+        except ValueError:
+            return 999
+
+    items = sorted(
+        result['items'],
+        key=lambda x: (_diff(x), float(x.get('price_total') or 0))
+    )
+    # 중복 날짜 제거
+    seen = set()
+    out = []
+    for it in items:
+        key = it.get('departure_date')
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(it)
+        if len(out) >= limit:
+            break
+    return out
+
+
 def _service_error_response() -> Tuple[Any, int]:
     """프로바이더 호출 실패 시 표준 에러."""
     last = provider.get_last_error() or '항공권 정보 제공처에서 응답을 받지 못했습니다.'
@@ -217,6 +273,14 @@ def search(current_user):
         return _service_error_response()
 
     _cache_set(cache_key, result)
+    # 빈 결과일 때 인근 가용 날짜 후보 자동 첨부
+    suggested_dates = []
+    if not result['offers']:
+        suggested_dates = _suggest_nearby_dates(
+            origin=origin, destination=destination,
+            departure_date=departure_date,
+            one_way=not return_date, currency=currency,
+        )
     return jsonify({
         'success': True,
         'data': result['offers'],
@@ -226,6 +290,7 @@ def search(current_user):
             'dictionaries': result.get('dictionaries', {}),
             'fallback': bool(result.get('fallback')),
             'requested_date': result.get('requested_date'),
+            'suggested_dates': suggested_dates,
         })
     })
 
@@ -364,6 +429,15 @@ def multi_city(current_user):
     if result is None:
         return _service_error_response()
 
+    # 빈 결과일 때 첫 leg 기준 인근 가용 날짜 후보 첨부
+    suggested_dates = []
+    if not result['offers'] and cleaned:
+        first = cleaned[0]
+        suggested_dates = _suggest_nearby_dates(
+            origin=first['origin'], destination=first['destination'],
+            departure_date=first['date'],
+            one_way=True, currency=currency,
+        )
     return jsonify({
         'success': True,
         'data': result['offers'],
@@ -373,5 +447,7 @@ def multi_city(current_user):
             'dictionaries': result.get('dictionaries', {}),
             'synthesized': bool(result.get('synthesized')),
             'partial': bool(result.get('partial')),
+            'empty': bool(result.get('empty')),
+            'suggested_dates': suggested_dates,
         })
     })

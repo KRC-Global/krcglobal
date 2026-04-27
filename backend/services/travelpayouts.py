@@ -558,11 +558,19 @@ def search_multi_city(
             idx, res = fut.result()
             legs_raw[idx] = res
 
-    # 모든 구간이 비어 있으면 실패 처리
+    # 모든 구간이 비어 있어도 None 대신 빈 응답 반환
+    # (None 을 돌리면 라우트가 에러 토스트로 처리해 캘린더/추천 표시까지 못 감)
     if all((not r) or (not r.get('offers')) for r in legs_raw):
         if not get_last_error():
             _set_error('각 구간에서 항공편을 찾지 못했습니다.')
-        return None
+        return {
+            'offers': [],
+            'currency': currency.upper(),
+            'count': 0,
+            'dictionaries': {'carriers': {}, 'aircraft': {}},
+            'synthesized': True,
+            'empty': True,
+        }
 
     # 구간별 상위 3개 후보로 조합 (3^N 폭주 방지)
     top_per_leg = []
