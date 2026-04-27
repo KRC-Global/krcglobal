@@ -225,24 +225,88 @@
             border-radius: var(--radius-md);
             box-shadow: var(--shadow-md);
             z-index: 50;
-            max-height: 280px;
+            max-height: 360px;
             overflow-y: auto;
             margin-top: 4px;
             display: none;
+            padding: 4px 0;
         }
         .fs-suggest.show { display: block; }
+        .fs-suggest-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--color-neutral-600);
+            background: var(--color-neutral-50);
+            border-bottom: 1px solid var(--color-neutral-100);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .fs-suggest-group .count {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--color-neutral-500);
+            background: var(--color-neutral-0);
+            padding: 1px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--color-neutral-200);
+        }
         .fs-suggest-item {
-            padding: 10px 12px;
+            padding: 8px 12px;
             cursor: pointer;
             border-bottom: 1px solid var(--color-neutral-100);
             font-size: var(--font-size-sm);
+            display: grid;
+            grid-template-columns: auto 1fr;
+            grid-template-rows: auto auto;
+            column-gap: 10px;
+            align-items: baseline;
         }
         .fs-suggest-item:last-child { border-bottom: none; }
         .fs-suggest-item:hover, .fs-suggest-item.active {
             background: var(--color-primary-50);
         }
-        .fs-suggest-item .iata { font-weight: 700; color: var(--color-primary-600); margin-right: 8px; }
-        .fs-suggest-item .meta { font-size: 11px; color: var(--color-neutral-500); display: block; margin-top: 2px; }
+        .fs-suggest-item .iata {
+            grid-row: 1 / 3;
+            align-self: center;
+            font-weight: 700;
+            color: var(--color-primary-600);
+            font-size: 13px;
+            min-width: 44px;
+            background: var(--color-primary-50);
+            padding: 4px 6px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid var(--color-primary-100);
+        }
+        .fs-suggest-item .iata.country {
+            color: var(--color-secondary-700, #7a6f5b);
+            background: var(--color-secondary-50, #f5f0e6);
+            border-color: var(--color-secondary-200, #e0d4c0);
+        }
+        .fs-suggest-item .primary {
+            font-weight: 600;
+            color: var(--color-neutral-900);
+            grid-column: 2;
+        }
+        .fs-suggest-item .meta {
+            font-size: 11px;
+            color: var(--color-neutral-500);
+            grid-column: 2;
+            margin-top: 1px;
+        }
+        .fs-suggest-item[data-subtype="COUNTRY"] {
+            background: linear-gradient(0deg, var(--color-secondary-50, #faf6ee), transparent);
+        }
+        .fs-suggest-item[data-subtype="COUNTRY"]:hover {
+            background: var(--color-secondary-100, #f0e6d2);
+        }
 
         /* 다구간 입력행 */
         .fs-mc-row {
@@ -766,12 +830,12 @@
             <form id="fsForm" class="fs-form" autocomplete="off" novalidate>
                 <div class="fs-field fs-col-3">
                     <label for="fsOrigin">출발지</label>
-                    <input id="fsOrigin" type="text" class="fs-input" placeholder="도시/공항 (예: ICN)" data-suggest="origin" required>
+                    <input id="fsOrigin" type="text" class="fs-input" placeholder="도시·국가·공항 (예: 서울, Korea, ICN)" data-suggest="origin" required>
                     <div id="fsOriginSuggest" class="fs-suggest" role="listbox"></div>
                 </div>
                 <div class="fs-field fs-col-3">
                     <label for="fsDestination">도착지</label>
-                    <input id="fsDestination" type="text" class="fs-input" placeholder="도시/공항 (예: CDG)" data-suggest="destination">
+                    <input id="fsDestination" type="text" class="fs-input" placeholder="도시·국가·공항 (예: 베이징, Japan, CDG)" data-suggest="destination">
                     <div id="fsDestinationSuggest" class="fs-suggest" role="listbox"></div>
                 </div>
                 <div class="fs-field fs-col-2">

@@ -274,16 +274,20 @@ def _build_offer_from_v3(item: Dict[str, Any], currency: str) -> Dict[str, Any]:
 
 # ────────────── 검색 함수 ──────────────
 
-def search_airports(keyword: str, limit: int = 10) -> Optional[List[Dict[str, Any]]]:
-    """공항/도시 자동완성 (Travelpayouts places2, 인증 불필요)."""
-    if not keyword or len(keyword.strip()) < 2:
+def search_airports(keyword: str, limit: int = 15) -> Optional[List[Dict[str, Any]]]:
+    """공항/도시/국가 자동완성 (Travelpayouts places2, 인증 불필요).
+
+    types[]=airport,city,country 까지 받아 결과를 한 번에 반환한다.
+    프론트는 subtype('AIRPORT'|'CITY'|'COUNTRY')으로 그룹/아이콘 표시.
+    """
+    if not keyword or len(keyword.strip()) < 1:
         return []
     _, _, _, ac = _get_config()
     url = f'{ac}/places2'
     data = _request('GET', url, params={
         'term': keyword.strip(),
         'locale': 'ko',
-        'types[]': ['airport', 'city'],
+        'types[]': ['airport', 'city', 'country'],
     }, auth_required=False)
     if data is None:
         return None
@@ -292,21 +296,45 @@ def search_airports(keyword: str, limit: int = 10) -> Optional[List[Dict[str, An
 
     out: List[Dict[str, Any]] = []
     for loc in data[:limit]:
-        kind = (loc.get('type') or '').lower()  # 'airport' | 'city'
-        iata = loc.get('code')
-        if not iata:
+        kind = (loc.get('type') or '').lower()  # 'airport' | 'city' | 'country'
+        code = loc.get('code')
+        if not code:
             continue
+
+        # 공통 필드
+        name = loc.get('name') or ''
+        coords = loc.get('coordinates') or {}
+        lat = coords.get('lat')
+        lng = coords.get('lon')
+
+        if kind == 'country':
+            # 국가: code = ISO-2, name = 국가명
+            out.append({
+                'iata': code,                  # 호환을 위해 iata 키에 ISO 코드를 둠
+                'iso': code,
+                'name': name,
+                'detailed_name': name,
+                'city': None,
+                'city_code': None,
+                'country': name,
+                'country_code': code,
+                'subtype': 'COUNTRY',
+                'latitude': lat,
+                'longitude': lng,
+            })
+            continue
+
         out.append({
-            'iata': iata,
-            'name': loc.get('name') or '',
-            'detailed_name': loc.get('name') or '',
-            'city': loc.get('city_name') or loc.get('name'),
-            'city_code': loc.get('city_code') or iata,
+            'iata': code,
+            'name': name,
+            'detailed_name': name,
+            'city': loc.get('city_name') or name,
+            'city_code': loc.get('city_code') or code,
             'country': loc.get('country_name'),
             'country_code': loc.get('country_code'),
             'subtype': 'CITY' if kind == 'city' else 'AIRPORT',
-            'latitude': (loc.get('coordinates') or {}).get('lat'),
-            'longitude': (loc.get('coordinates') or {}).get('lon'),
+            'latitude': lat,
+            'longitude': lng,
         })
     return out
 

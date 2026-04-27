@@ -310,42 +310,110 @@
         });
     }
 
+    // 종류별 메타 (아이콘/라벨/그룹 우선순위)
+    const SUBTYPE_META = {
+        AIRPORT: { icon: '✈️', label: '공항', order: 1 },
+        CITY:    { icon: '🏙️', label: '도시', order: 2 },
+        COUNTRY: { icon: '🌍', label: '국가', order: 3 },
+    };
+
+    function groupSuggestionsForRender(items) {
+        // AIRPORT > CITY > COUNTRY 그룹 순서, 그룹 내부는 원래 순서 유지
+        const sorted = (items || []).slice().sort((a, b) => {
+            const oa = (SUBTYPE_META[a.subtype] || {}).order || 9;
+            const ob = (SUBTYPE_META[b.subtype] || {}).order || 9;
+            return oa - ob;
+        });
+        const groups = [];
+        let currentType = null;
+        sorted.forEach((it) => {
+            if (it.subtype !== currentType) {
+                groups.push({ subtype: it.subtype, items: [] });
+                currentType = it.subtype;
+            }
+            groups[groups.length - 1].items.push(it);
+        });
+        return { sorted, groups };
+    }
+
     function wireAutocomplete(input, listEl, role) {
         if (!input || !listEl) return;
         let selectedIdx = -1;
-        let lastResults = [];
+        let flatResults = [];   // 화면 순서 그대로의 평탄화된 배열 (키보드 nav 용)
 
         const render = (items) => {
             listEl.innerHTML = '';
             if (!items || !items.length) {
                 listEl.classList.remove('show');
+                flatResults = [];
                 return;
             }
-            items.forEach((item, idx) => {
-                const div = document.createElement('div');
-                div.className = 'fs-suggest-item';
-                div.role = 'option';
-                div.dataset.idx = String(idx);
-                const sub = [item.city || item.detailed_name, item.country].filter(Boolean).join(', ');
-                div.innerHTML = `
-                    <span class="iata">${item.iata || ''}</span>${item.name || ''}
-                    <span class="meta">${sub}${item.subtype ? ' · ' + (item.subtype === 'CITY' ? '도시' : '공항') : ''}</span>
-                `;
-                div.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    pick(item);
+            const { sorted, groups } = groupSuggestionsForRender(items);
+            flatResults = sorted;
+
+            let runningIdx = 0;
+            groups.forEach((g) => {
+                const meta = SUBTYPE_META[g.subtype] || { icon: '·', label: '기타' };
+                const header = document.createElement('div');
+                header.className = 'fs-suggest-group';
+                header.innerHTML = `<span>${meta.icon} ${meta.label}</span><span class="count">${g.items.length}</span>`;
+                listEl.appendChild(header);
+
+                g.items.forEach((item) => {
+                    const idx = runningIdx++;
+                    const div = document.createElement('div');
+                    div.className = 'fs-suggest-item';
+                    div.dataset.idx = String(idx);
+                    div.dataset.subtype = g.subtype;
+                    div.setAttribute('role', 'option');
+
+                    if (g.subtype === 'COUNTRY') {
+                        // 국가: 코드(ISO-2) + 국가명 + 추가 안내
+                        div.innerHTML = `
+                            <span class="iata country">${item.iata || ''}</span>
+                            <span class="primary">${item.name || ''}</span>
+                            <span class="meta">국가 · 도시명을 함께 입력하면 더 정확합니다</span>
+                        `;
+                    } else {
+                        const primary = item.subtype === 'CITY'
+                            ? (item.city || item.name || '')
+                            : (item.name || item.city || '');
+                        const sub = [
+                            item.subtype === 'AIRPORT' && item.city && item.city !== primary ? item.city : null,
+                            item.country,
+                        ].filter(Boolean).join(' · ');
+                        div.innerHTML = `
+                            <span class="iata">${item.iata || ''}</span>
+                            <span class="primary">${primary}</span>
+                            <span class="meta">${meta.label}${sub ? ' · ' + sub : ''}</span>
+                        `;
+                    }
+                    div.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        pick(item);
+                    });
+                    listEl.appendChild(div);
                 });
-                listEl.appendChild(div);
             });
             listEl.classList.add('show');
         };
 
         const pick = (item) => {
+            cacheAirport(item);
+            if (item.subtype === 'COUNTRY') {
+                // 국가는 검색 가능한 IATA 가 아님 → 클릭 시 input 에 국가명만 채우고
+                // 그 국가의 도시/공항으로 다시 자동완성 (같은 keyword 재호출)
+                input.value = item.name || '';
+                input.dataset.iata = '';
+                if (role === 'origin') state.selectedOrigin = null;
+                else state.selectedDestination = null;
+                fetcher(item.name || '');
+                return;
+            }
             input.value = `${item.iata} · ${item.name || item.city || ''}`;
             input.dataset.iata = item.iata || '';
             if (role === 'origin') state.selectedOrigin = item;
             else state.selectedDestination = item;
-            cacheAirport(item);
             listEl.classList.remove('show');
         };
 
@@ -353,8 +421,7 @@
             try {
                 const resp = await apiCall(`/flights/airports?keyword=${encodeURIComponent(q)}`);
                 if (resp && resp.success) {
-                    lastResults = resp.data || [];
-                    render(lastResults);
+                    render(resp.data || []);
                 } else if (resp && resp.message) {
                     safeToast('error', resp.message);
                 }
@@ -362,7 +429,7 @@
                 // apiCall 자체에서 401 리다이렉트 처리됨. 그 외엔 조용히 실패.
                 console.warn('[autocomplete] failed', e);
             }
-        }, 250);
+        }, 220);
 
         input.addEventListener('input', (e) => {
             const q = e.target.value.trim();
@@ -392,7 +459,7 @@
                 selectedIdx = Math.max(0, selectedIdx - 1);
             } else if (e.key === 'Enter' && selectedIdx >= 0) {
                 e.preventDefault();
-                pick(lastResults[selectedIdx]);
+                pick(flatResults[selectedIdx]);
                 return;
             } else if (e.key === 'Escape') {
                 listEl.classList.remove('show');
@@ -408,7 +475,7 @@
         });
 
         input.addEventListener('focus', () => {
-            if (lastResults.length) listEl.classList.add('show');
+            if (flatResults.length) listEl.classList.add('show');
         });
     }
 
@@ -1142,17 +1209,52 @@
 
     function wireAutocompleteSimple(input, listEl) {
         if (!input || !listEl) return;
-        let last = [];
-        const fetcher = (typeof debounce === 'function' ? debounce : (fn) => fn)(async (q) => {
-            try {
-                const resp = await apiCall(`/flights/airports?keyword=${encodeURIComponent(q)}`);
-                if (resp && resp.success) {
-                    last = resp.data || [];
-                    listEl.innerHTML = '';
-                    last.forEach((item) => {
-                        const div = document.createElement('div');
-                        div.className = 'fs-suggest-item';
-                        div.innerHTML = `<span class="iata">${item.iata}</span>${item.name || ''}<span class="meta">${item.city || ''}, ${item.country || ''}</span>`;
+
+        const renderInto = (items) => {
+            listEl.innerHTML = '';
+            if (!items || !items.length) {
+                listEl.classList.remove('show');
+                return;
+            }
+            const { groups } = groupSuggestionsForRender(items);
+            groups.forEach((g) => {
+                const meta = SUBTYPE_META[g.subtype] || { icon: '·', label: '기타' };
+                const header = document.createElement('div');
+                header.className = 'fs-suggest-group';
+                header.innerHTML = `<span>${meta.icon} ${meta.label}</span><span class="count">${g.items.length}</span>`;
+                listEl.appendChild(header);
+
+                g.items.forEach((item) => {
+                    const div = document.createElement('div');
+                    div.className = 'fs-suggest-item';
+                    div.dataset.subtype = g.subtype;
+
+                    if (g.subtype === 'COUNTRY') {
+                        div.innerHTML = `
+                            <span class="iata country">${item.iata || ''}</span>
+                            <span class="primary">${item.name || ''}</span>
+                            <span class="meta">국가 · 도시명을 함께 입력하면 더 정확합니다</span>
+                        `;
+                        div.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
+                            input.value = item.name || '';
+                            input.dataset.iata = '';
+                            cacheAirport(item);
+                            fetcher(item.name || '');
+                        });
+                    } else {
+                        const primary = g.subtype === 'CITY'
+                            ? (item.city || item.name || '')
+                            : (item.name || item.city || '');
+                        const sub = [
+                            g.subtype === 'AIRPORT' && item.city && item.city !== primary ? item.city : null,
+                            item.country,
+                        ].filter(Boolean).join(' · ');
+                        div.innerHTML = `
+                            <span class="iata">${item.iata || ''}</span>
+                            <span class="primary">${primary}</span>
+                            <span class="meta">${meta.label}${sub ? ' · ' + sub : ''}</span>
+                        `;
                         div.addEventListener('mousedown', (e) => {
                             e.preventDefault();
                             input.value = `${item.iata} · ${item.name || item.city || ''}`;
@@ -1160,12 +1262,20 @@
                             cacheAirport(item);
                             listEl.classList.remove('show');
                         });
-                        listEl.appendChild(div);
-                    });
-                    listEl.classList.add('show');
-                }
+                    }
+                    listEl.appendChild(div);
+                });
+            });
+            listEl.classList.add('show');
+        };
+
+        const fetcher = (typeof debounce === 'function' ? debounce : (fn) => fn)(async (q) => {
+            try {
+                const resp = await apiCall(`/flights/airports?keyword=${encodeURIComponent(q)}`);
+                if (resp && resp.success) renderInto(resp.data || []);
             } catch (_) { /* noop */ }
-        }, 250);
+        }, 220);
+
         input.addEventListener('input', () => {
             const q = input.value.trim();
             input.dataset.iata = '';
