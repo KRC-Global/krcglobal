@@ -1542,11 +1542,12 @@
             document.getElementById('detailStatusSelect').value = notice.status || 'new';
 
             const d = notice.details || {};
+            const excerptDisplay = d.text_excerpt_ko || d.text_excerpt;
             const mapping = {
                 detailScope: d.scope, detailProcMethod: d.procurement_method,
                 detailDuration: d.duration, detailRef: d.reference_no,
                 detailLoan: d.loan_credit, detailAwarded: d.awarded_bidder,
-                detailProjectId: d.project_id, detailExcerpt: d.text_excerpt,
+                detailProjectId: d.project_id, detailExcerpt: excerptDisplay,
             };
             for (const [id, val] of Object.entries(mapping)) {
                 const el = document.getElementById(id);

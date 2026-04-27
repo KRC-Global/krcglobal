@@ -1614,6 +1614,7 @@ class BidNotice(db.Model):
     source         = db.Column(db.String(50),  nullable=False, index=True)   # worldbank, adb, koica 등
     title          = db.Column(db.String(500), nullable=False)
     title_ko       = db.Column(db.String(500))                               # HF NLLB 번역 결과 (없으면 NULL)
+    text_excerpt_ko = db.Column(db.Text)                                     # 본문발췌 한국어 번역 (NULL=미번역, ''=발췌 없음)
     country        = db.Column(db.String(100))
     client         = db.Column(db.String(200))                               # 발주처
     sector         = db.Column(db.String(100))                               # agriculture, irrigation 등
@@ -1630,6 +1631,8 @@ class BidNotice(db.Model):
             details = (self.raw_data.get('wb_details')
                        or self.raw_data.get('adb_details')
                        or self.raw_data.get('afdb_details'))
+        if isinstance(details, dict) and self.text_excerpt_ko:
+            details = {**details, 'text_excerpt_ko': self.text_excerpt_ko}
         return {
             'id': self.id,
             'source': self.source,

@@ -13,6 +13,7 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 from xml.etree import ElementTree
 from flask import Blueprint, request, jsonify, current_app
+from sqlalchemy import or_
 from models import db, BidNotice, ScrapingRun
 
 collector_bp = Blueprint('collector', __name__)
@@ -2135,59 +2136,111 @@ def _do_collect():
     })
 
 
+def _extract_excerpt(raw_data) -> str:
+    """raw_data 의 details 딕셔너리에서 text_excerpt 추출."""
+    if not isinstance(raw_data, dict):
+        return ''
+    details = (raw_data.get('wb_details')
+               or raw_data.get('adb_details')
+               or raw_data.get('afdb_details'))
+    if not isinstance(details, dict):
+        return ''
+    return (details.get('text_excerpt') or '').strip()
+
+
 def _translate_pending(limit: int = 30) -> dict:
-    """title_ko 가 NULL 인 BidNotice 를 HF NLLB 로 번역 → DB 저장.
+    """title_ko / text_excerpt_ko 가 NULL 인 BidNotice 를 HF mBART 로 번역 → DB 저장.
+
+    title 은 단일 호출, text_excerpt(최대 1200자)는 청크 분할 번역.
+    HF 호출 횟수 = 미번역 title 수 + sum(excerpt 청크 수).
+    limit 은 처리 대상 공고 수 (호출 수 아님).
 
     Returns:
-        {attempted, succeeded, error?, hf_token_set} — 실패 원인 진단 포함.
+        {attempted, succeeded_title, succeeded_excerpt, error?, hf_token_set}
     """
     hf_token_set = bool(os.environ.get('HF_TOKEN'))
     if not hf_token_set:
         msg = 'HF_TOKEN 환경변수 미설정 — 번역 불가. Vercel 환경변수에 HuggingFace Read 토큰을 추가하세요.'
         print(f'[translate] {msg}')
-        return {'attempted': 0, 'succeeded': 0, 'hf_token_set': False, 'error': msg}
+        return {'attempted': 0, 'succeeded_title': 0, 'succeeded_excerpt': 0,
+                'hf_token_set': False, 'error': msg}
 
     try:
-        from services.translator import translate_to_korean, get_last_error
+        from services.translator import (translate_to_korean,
+                                          translate_long_to_korean,
+                                          get_last_error)
     except Exception as e:
         print(f'[translate] import 실패: {e}')
-        return {'attempted': 0, 'succeeded': 0, 'hf_token_set': True,
-                'error': f'translator import 실패: {e}'}
+        return {'attempted': 0, 'succeeded_title': 0, 'succeeded_excerpt': 0,
+                'hf_token_set': True, 'error': f'translator import 실패: {e}'}
 
     pending = (BidNotice.query
-               .filter(BidNotice.title_ko.is_(None))
+               .filter(or_(BidNotice.title_ko.is_(None),
+                           BidNotice.text_excerpt_ko.is_(None)))
                .order_by(BidNotice.created_at.desc())
                .limit(limit)
                .all())
     if not pending:
-        return {'attempted': 0, 'succeeded': 0, 'hf_token_set': True}
+        return {'attempted': 0, 'succeeded_title': 0, 'succeeded_excerpt': 0,
+                'hf_token_set': True}
 
     print(f'[translate] 미번역 {len(pending)}건 번역 시작...')
-    succeeded = 0
+    succeeded_title = 0
+    succeeded_excerpt = 0
     first_error = ''
     for n in pending:
-        try:
-            ko = translate_to_korean(n.title)
-        except Exception as e:
-            ko = None
-            if not first_error:
-                first_error = str(e)
-        if ko:
-            n.title_ko = ko[:500]
-            succeeded += 1
-        elif not first_error:
-            first_error = get_last_error()
-    print(f'[translate] 결과: {succeeded}/{len(pending)} 성공')
+        if n.title_ko is None:
+            try:
+                ko = translate_to_korean(n.title)
+            except Exception as e:
+                ko = None
+                if not first_error:
+                    first_error = str(e)
+            if ko:
+                n.title_ko = ko[:500]
+                succeeded_title += 1
+            elif not first_error:
+                first_error = get_last_error()
 
-    if succeeded:
+        if n.text_excerpt_ko is None:
+            excerpt = _extract_excerpt(n.raw_data)
+            if not excerpt:
+                n.text_excerpt_ko = ''  # 발췌 없음 — 재시도 방지
+            else:
+                try:
+                    ko_long = translate_long_to_korean(excerpt)
+                except Exception as e:
+                    ko_long = None
+                    if not first_error:
+                        first_error = str(e)
+                if ko_long:
+                    n.text_excerpt_ko = ko_long
+                    succeeded_excerpt += 1
+                elif not first_error:
+                    first_error = get_last_error()
+    print(f'[translate] 결과: title {succeeded_title} / excerpt {succeeded_excerpt} 성공')
+
+    if succeeded_title or succeeded_excerpt:
         try:
             db.session.commit()
         except Exception as e:
             db.session.rollback()
-            return {'attempted': len(pending), 'succeeded': 0,
-                    'hf_token_set': True, 'error': f'commit 실패: {e}'}
+            return {'attempted': len(pending), 'succeeded_title': 0,
+                    'succeeded_excerpt': 0, 'hf_token_set': True,
+                    'error': f'commit 실패: {e}'}
+    else:
+        # 발췌 없음 표시(text_excerpt_ko='') 만 일어났을 수 있음 → 그것도 commit
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
-    result = {'attempted': len(pending), 'succeeded': succeeded, 'hf_token_set': True}
+    result = {
+        'attempted': len(pending),
+        'succeeded_title': succeeded_title,
+        'succeeded_excerpt': succeeded_excerpt,
+        'hf_token_set': True,
+    }
     if first_error:
         result['first_error'] = first_error[:500]
     return result

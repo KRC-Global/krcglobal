@@ -9,6 +9,7 @@ HuggingFace Inference API 기반 다국어 → 한국어 번역.
 Vercel Lambda 50~200MB 제약 때문에 transformers/torch 직접 사용 불가.
 """
 import os
+import re
 import time
 from typing import Optional, List
 
@@ -194,3 +195,65 @@ def translate_batch(texts: List[str], sleep_between: float = 0.4) -> List[Option
         if sleep_between:
             time.sleep(sleep_between)
     return results
+
+
+def _split_into_chunks(text: str, max_chars: int = MAX_INPUT_CHARS) -> List[str]:
+    """문장 단위로 텍스트를 max_chars 이하 청크로 분할.
+
+    문장 경계: . ! ? 또는 줄바꿈. 단일 문장이 max_chars 초과 시 강제 분할.
+    """
+    if not text:
+        return []
+    if len(text) <= max_chars:
+        return [text]
+
+    sentences = re.split(r'(?<=[.!?])\s+|\n+', text)
+    chunks: List[str] = []
+    buf = ''
+    for s in sentences:
+        s = s.strip()
+        if not s:
+            continue
+        if len(s) > max_chars:
+            if buf:
+                chunks.append(buf)
+                buf = ''
+            for i in range(0, len(s), max_chars):
+                chunks.append(s[i:i + max_chars])
+            continue
+        candidate = (buf + ' ' + s).strip() if buf else s
+        if len(candidate) > max_chars:
+            chunks.append(buf)
+            buf = s
+        else:
+            buf = candidate
+    if buf:
+        chunks.append(buf)
+    return chunks
+
+
+def translate_long_to_korean(text: str, sleep_between: float = 0.3) -> Optional[str]:
+    """긴 텍스트(>800자)를 청크 분할 번역 후 결합.
+
+    어느 청크라도 실패하면 None 반환 (부분 번역 저장 방지).
+    한국어 텍스트는 None.
+    """
+    if not text:
+        return None
+    src_lang = _detect_src_lang(text)
+    if src_lang is None:
+        return None
+
+    chunks = _split_into_chunks(text)
+    if not chunks:
+        return None
+
+    out_parts: List[str] = []
+    for idx, chunk in enumerate(chunks):
+        ko = translate_to_korean(chunk)
+        if not ko:
+            return None
+        out_parts.append(ko)
+        if sleep_between and idx < len(chunks) - 1:
+            time.sleep(sleep_between)
+    return ' '.join(out_parts).strip()
