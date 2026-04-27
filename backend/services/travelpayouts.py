@@ -124,6 +124,57 @@ def _request(
 
 # ────────────── 응답 정규화 ──────────────
 
+# 자주 등장하는 항공사 IATA → 한국어/영어 이름 매핑.
+# Travelpayouts 가 항공사 풀네임을 응답에 포함하지 않으므로 보강 사전.
+# 누락된 코드는 그대로 코드 표시(폴백).
+_CARRIER_NAMES: Dict[str, str] = {
+    # 한국
+    'KE': '대한항공', 'OZ': '아시아나항공', 'BX': '에어부산',
+    '7C': '제주항공', 'LJ': '진에어', 'TW': '티웨이항공',
+    'ZE': '이스타항공', 'RS': '에어서울', 'YP': '에어프레미아', 'RF': '에어로케이',
+    # 일본
+    'JL': '일본항공', 'NH': '전일본공수', 'MM': '피치항공', 'GK': '지프스타재팬',
+    # 중국·홍콩·대만
+    'CA': '에어차이나', 'CZ': '중국남방항공', 'MU': '중국동방항공',
+    'HU': '하이난항공', 'CX': '캐세이퍼시픽', 'KA': '캐세이드래곤',
+    'HX': '홍콩항공', 'BR': '에바항공', 'CI': '중화항공',
+    # 동남아
+    'SQ': '싱가포르항공', 'MI': '실크에어', 'TR': '스쿠트',
+    'MH': '말레이시아항공', 'AK': '에어아시아', 'TG': '타이항공',
+    'PG': '방콕에어웨이', 'FD': '타이에어아시아',
+    'VN': '베트남항공', 'VJ': '비엣젯항공', 'PR': '필리핀항공',
+    'GA': '가루다인도네시아', 'QZ': '인도네시아에어아시아', 'JT': '라이언에어',
+    # 중동
+    'EK': '에미레이트항공', 'EY': '에티하드항공', 'QR': '카타르항공',
+    'TK': '터키항공', 'SV': '사우디아', 'WY': '오만에어',
+    # 유럽
+    'LH': '루프트한자', 'LX': '스위스국제항공', 'OS': '오스트리아항공',
+    'AF': '에어프랑스', 'KL': 'KLM', 'BA': '브리티시에어웨이즈',
+    'IB': '이베리아항공', 'AY': '핀에어', 'SK': 'SAS',
+    'AZ': 'ITA항공', 'LO': 'LOT폴란드항공', 'TP': 'TAP포르투갈',
+    # 북미
+    'UA': '유나이티드항공', 'AA': '아메리칸항공', 'DL': '델타항공',
+    'AC': '에어캐나다', 'AS': '알래스카항공', 'B6': '제트블루',
+    'WN': '사우스웨스트', 'NK': '스피릿', 'F9': '프론티어',
+    'HA': '하와이안항공',
+    # 오세아니아·기타
+    'QF': '콴타스', 'NZ': '뉴질랜드항공', 'VA': '버진오스트레일리아',
+    'FJ': '피지에어웨이즈',
+    # 인도·중앙아
+    'AI': '에어인디아', '6E': '인디고', 'UK': '비스타라', 'SG': '스파이스젯',
+    'KC': '에어아스타나', 'HY': '우즈베키스탄항공',
+    # 아프리카·기타
+    'ET': '에티오피아항공', 'KQ': '케냐항공', 'MS': '이집트에어',
+    'SA': '남아프리카항공',
+}
+
+
+def carrier_display_name(code: Optional[str]) -> str:
+    if not code:
+        return ''
+    return _CARRIER_NAMES.get(code.upper(), code.upper())
+
+
 def _make_segment(
     *, origin: str, destination: str,
     departure_iso: Optional[str], arrival_iso: Optional[str],
@@ -131,7 +182,7 @@ def _make_segment(
 ) -> Dict[str, Any]:
     return {
         'carrier': carrier,
-        'carrier_name': carrier or '',
+        'carrier_name': carrier_display_name(carrier),
         'flight_number': flight_number,
         'from': origin,
         'from_terminal': None,
@@ -316,11 +367,15 @@ def search_flight_offers(
             offer['class'] = travel_class.upper()
         offers.append(offer)
 
-    # 캐리어 사전: 항공사 코드 → (코드 그대로 표시 — 풀네임은 별도 데이터셋 필요)
+    # 캐리어 사전: IATA 코드 → 한국어 명칭 (없으면 코드 그대로)
     carriers: Dict[str, str] = {}
     for o in offers:
         for c in o.get('validating_carriers') or []:
-            carriers.setdefault(c, c)
+            carriers.setdefault(c, carrier_display_name(c))
+        for it in o.get('itineraries') or []:
+            for s in it.get('segments') or []:
+                if s.get('carrier'):
+                    carriers.setdefault(s['carrier'], carrier_display_name(s['carrier']))
 
     return {
         'offers': offers,
@@ -396,12 +451,14 @@ def search_multi_city(
         carriers: Dict[str, str] = {}
         for o in offers:
             for c in o.get('validating_carriers') or []:
-                carriers.setdefault(c, c)
+                carriers.setdefault(c, carrier_display_name(c))
         return {
             'offers': offers,
             'currency': currency.upper(),
             'count': len(offers),
             'dictionaries': {'carriers': carriers, 'aircraft': {}},
+            'synthesized': True,
+            'partial': True,
         }
 
     # 모든 구간이 결과 있음 → 데카르트 조합 후 가격순
@@ -436,13 +493,14 @@ def search_multi_city(
     carriers_dict: Dict[str, str] = {}
     for o in combined:
         for c in o.get('validating_carriers') or []:
-            carriers_dict.setdefault(c, c)
+            carriers_dict.setdefault(c, carrier_display_name(c))
 
     return {
         'offers': combined,
         'currency': currency.upper(),
         'count': len(combined),
         'dictionaries': {'carriers': carriers_dict, 'aircraft': {}},
+        'synthesized': True,
     }
 
 

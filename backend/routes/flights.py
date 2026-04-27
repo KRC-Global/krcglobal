@@ -1,7 +1,8 @@
 """
 항공권검색 Blueprint - /api/flights/*
 
-Amadeus Self-Service API 프록시. 프론트는 절대 Amadeus 직접 호출 금지.
+외부 항공권 데이터 프로바이더(Travelpayouts 기본, Amadeus fallback) 프록시.
+프론트는 절대 외부 API 직접 호출 금지. 활성 프로바이더는 FLIGHT_PROVIDER 환경변수.
 모든 라우트는 @token_required (사내 직원만 접근).
 
 엔드포인트:
@@ -9,8 +10,8 @@ Amadeus Self-Service API 프록시. 프론트는 절대 Amadeus 직접 호출 �
     GET  /api/flights/search?origin=...&destination=...&departureDate=...&...
     GET  /api/flights/cheapest-dates?origin=...&destination=...&departureDateRange=...
     GET  /api/flights/inspiration?origin=...&maxPrice=...
-    POST /api/flights/multi-city  body: { origin_destinations: [...], adults, ... }
-    GET  /api/flights/health  설정 상태 확인
+    POST /api/flights/multi-city  body: { originDestinations: [...], adults, ... }
+    GET  /api/flights/health  활성 프로바이더 / 자격증명 상태
 """
 import time
 from collections import OrderedDict
@@ -77,6 +78,14 @@ def _err(message: str, status: int = 400) -> Tuple[Any, int]:
     return jsonify({'success': False, 'message': message}), status
 
 
+def _meta_base(extra: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """모든 응답 meta 에 공통으로 포함할 정보."""
+    base = {'provider': provider.get_provider_name()}
+    if extra:
+        base.update(extra)
+    return base
+
+
 def _service_error_response() -> Tuple[Any, int]:
     """프로바이더 호출 실패 시 표준 에러."""
     last = provider.get_last_error() or '항공권 정보 제공처에서 응답을 받지 못했습니다.'
@@ -109,14 +118,14 @@ def airports(current_user):
     cache_key = f'airports::{keyword.lower()}'
     cached = _cache_get(cache_key)
     if cached is not None:
-        return jsonify({'success': True, 'data': cached, 'meta': {'count': len(cached), 'cached': True}})
+        return jsonify({'success': True, 'data': cached, 'meta': _meta_base({'count': len(cached), 'cached': True})})
 
     result = provider.search_airports(keyword, limit=10)
     if result is None:
         return _service_error_response()
 
     _cache_set(cache_key, result)
-    return jsonify({'success': True, 'data': result, 'meta': {'count': len(result)}})
+    return jsonify({'success': True, 'data': result, 'meta': _meta_base({'count': len(result)})})
 
 
 @flights_bp.route('/search', methods=['GET'])
@@ -153,12 +162,12 @@ def search(current_user):
         return jsonify({
             'success': True,
             'data': cached['offers'],
-            'meta': {
+            'meta': _meta_base({
                 'count': cached['count'],
                 'currency': cached['currency'],
                 'dictionaries': cached.get('dictionaries', {}),
                 'cached': True,
-            }
+            })
         })
 
     result = provider.search_flight_offers(
@@ -175,11 +184,11 @@ def search(current_user):
     return jsonify({
         'success': True,
         'data': result['offers'],
-        'meta': {
+        'meta': _meta_base({
             'count': result['count'],
             'currency': result['currency'],
             'dictionaries': result.get('dictionaries', {}),
-        }
+        })
     })
 
 
@@ -210,7 +219,7 @@ def cheapest_dates(current_user):
         return jsonify({
             'success': True,
             'data': cached['items'],
-            'meta': {'count': cached['count'], 'currency': cached['currency'], 'cached': True}
+            'meta': _meta_base({'count': cached['count'], 'currency': cached['currency'], 'cached': True})
         })
 
     result = provider.search_cheapest_dates(
@@ -226,7 +235,7 @@ def cheapest_dates(current_user):
     return jsonify({
         'success': True,
         'data': result['items'],
-        'meta': {'count': result['count'], 'currency': result['currency']}
+        'meta': _meta_base({'count': result['count'], 'currency': result['currency']})
     })
 
 
@@ -255,7 +264,7 @@ def inspiration(current_user):
         return jsonify({
             'success': True,
             'data': cached['items'],
-            'meta': {'count': cached['count'], 'currency': cached['currency'], 'cached': True}
+            'meta': _meta_base({'count': cached['count'], 'currency': cached['currency'], 'cached': True})
         })
 
     result = provider.search_inspiration(
@@ -270,7 +279,7 @@ def inspiration(current_user):
     return jsonify({
         'success': True,
         'data': result['items'],
-        'meta': {'count': result['count'], 'currency': result['currency']}
+        'meta': _meta_base({'count': result['count'], 'currency': result['currency']})
     })
 
 
@@ -320,9 +329,11 @@ def multi_city(current_user):
     return jsonify({
         'success': True,
         'data': result['offers'],
-        'meta': {
+        'meta': _meta_base({
             'count': result['count'],
             'currency': result['currency'],
             'dictionaries': result.get('dictionaries', {}),
-        }
+            'synthesized': bool(result.get('synthesized')),
+            'partial': bool(result.get('partial')),
+        })
     })

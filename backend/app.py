@@ -5,6 +5,18 @@ NUGUNA Global - Flask Application Entry Point
 import os
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+
+# 로컬 개발용: backend/.env (또는 프로젝트 루트의 .env) 가 있으면 자동 로드.
+# Vercel/운영 환경은 대시보드에서 주입한 환경변수를 그대로 사용한다.
+try:
+    from dotenv import load_dotenv
+    _here = os.path.dirname(os.path.abspath(__file__))
+    for _candidate in (os.path.join(_here, '.env'), os.path.join(_here, '..', '.env')):
+        if os.path.isfile(_candidate):
+            load_dotenv(_candidate, override=False)
+except Exception:
+    pass
+
 from config import config
 
 # Create Flask app

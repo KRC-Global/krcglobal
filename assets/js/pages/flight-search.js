@@ -37,6 +37,12 @@
         },
     };
 
+    // 프로바이더 표시 이름
+    const PROVIDER_LABELS = {
+        travelpayouts: 'Travelpayouts (Aviasales)',
+        amadeus: 'Amadeus Self-Service',
+    };
+
     // ───── 초기화 ─────
     document.addEventListener('DOMContentLoaded', () => {
         if (typeof initCommonUI === 'function') {
@@ -53,7 +59,36 @@
         // 다구간 첫 행을 미리 두 개 추가
         addMultiCityRow();
         addMultiCityRow();
+        // 활성 프로바이더 정보 비동기 로드 (배너·칩 표시용, 실패해도 페이지 동작)
+        loadProviderInfo();
     });
+
+    async function loadProviderInfo() {
+        try {
+            const resp = await apiCall('/flights/health');
+            if (!resp || !resp.success || !resp.data) return;
+            applyProviderInfo(resp.data);
+        } catch (e) {
+            // 401 은 apiCall 이 처리. 기타 실패는 조용히.
+            console.warn('[flight-search] provider info load failed', e);
+        }
+    }
+
+    function applyProviderInfo(info) {
+        const name = info.provider || 'unknown';
+        state.providerName = name;
+        state.providerConfigured = !!info.configured;
+        const label = PROVIDER_LABELS[name] || name;
+        const chip = $('#fsProviderChip');
+        if (chip) {
+            const dot = info.configured ? '🟢' : '🟠';
+            const status = info.configured ? '연동됨' : '자격증명 미설정';
+            chip.textContent = `${dot} ${label} · ${status}`;
+            chip.title = info.last_error ? `마지막 오류: ${info.last_error}` : '';
+        }
+        const nameSpan = $('#fsProviderName');
+        if (nameSpan) nameSpan.textContent = label;
+    }
 
     // ───── 유틸 ─────
     function $(sel, root = document) { return root.querySelector(sel); }
@@ -169,6 +204,8 @@
         $('#fsResultsSection').hidden = true;
         $('#fsAnywhereSection').hidden = true;
         $('#fsEmptyState').hidden = true;
+        const synth = $('#fsSynthesizedBanner');
+        if (synth) synth.hidden = true;
     }
 
     // ───── 자동완성 ─────
@@ -695,10 +732,22 @@
         });
     }
 
+    function buildExternalLink(offer) {
+        // Travelpayouts 는 OTA 리다이렉트 경로(`link`)를 'external_link' 로 전달.
+        // 절대 URL 이 아니면 aviasales 도메인 prepend, 마커 쿼리는 그대로 보존.
+        const raw = offer && offer.external_link;
+        if (!raw) return '';
+        if (/^https?:\/\//i.test(raw)) return raw;
+        // 상대경로면 aviasales.com 으로 prepend
+        if (raw.startsWith('/')) return 'https://www.aviasales.com' + raw;
+        return raw;
+    }
+
     function renderOfferCard(offer, idx) {
         const itHtml = (offer.itineraries || []).map((it) => renderItinerary(it)).join('');
         const carrier = (offer.validating_carriers && offer.validating_carriers[0]) || '';
         const carrierName = state.carriers[carrier] || carrier || '';
+        const externalUrl = buildExternalLink(offer);
         return `
             <article class="fs-offer-card" data-idx="${idx}">
                 <div class="fs-offer-itineraries">
@@ -710,7 +759,10 @@
                         <div class="total">${fmtKRW(offer.price.total)}</div>
                         <div class="per">${offer.travelers || 1}인 총액</div>
                     </div>
-                    <button type="button" class="btn-detail" data-detail="${offer.id}">상세 보기</button>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+                        <button type="button" class="btn-detail" data-detail="${offer.id}">상세 보기</button>
+                        ${externalUrl ? `<a class="btn-detail" style="background: var(--color-neutral-700); text-decoration:none; display:inline-flex; align-items:center; gap:4px;" target="_blank" rel="noopener noreferrer" href="${externalUrl}">예약 페이지 ↗</a>` : ''}
+                    </div>
                 </div>
             </article>
         `;
@@ -1074,6 +1126,9 @@
             state.results = resp.data || [];
             state.carriers = ((resp.meta || {}).dictionaries || {}).carriers || {};
             state.calendar = [];
+            // 합성 멀티시티 경고 (Travelpayouts 의 경우 백엔드가 synthesized=true 로 시그널)
+            const synthBanner = $('#fsSynthesizedBanner');
+            if (synthBanner) synthBanner.hidden = !((resp.meta || {}).synthesized);
             if (!state.results.length) {
                 $('#fsResultsSection').hidden = true;
                 $('#fsEmptyState').hidden = false;
@@ -1210,15 +1265,17 @@
             `;
         }).join('');
 
+        const externalUrl = buildExternalLink(offer);
         body.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px; flex-wrap:wrap;">
                 <div>
                     <div style="font-size:24px; font-weight:700; color: var(--color-primary-600);">${fmtKRW(offer.price.total)}</div>
                     <div style="font-size:12px; color: var(--color-neutral-500);">${offer.travelers || 1}인 총액 · ${offer.class || 'ECONOMY'}</div>
                 </div>
-                <div style="font-size:12px; color: var(--color-neutral-600);">
+                <div style="font-size:12px; color: var(--color-neutral-600); text-align:right;">
                     ${offer.last_ticketing_date ? '발권 마감 ' + offer.last_ticketing_date : ''}
                     ${offer.seats_available ? ' · 잔여 ' + offer.seats_available + '석' : ''}
+                    ${externalUrl ? `<div style="margin-top:8px;"><a class="btn-detail" style="background: var(--color-primary-500); color:#fff; text-decoration:none; padding:8px 16px; border-radius:8px; font-weight:600;" target="_blank" rel="noopener noreferrer" href="${externalUrl}">예약 페이지로 이동 ↗</a></div>` : ''}
                 </div>
             </div>
             ${sections}
