@@ -20,6 +20,7 @@
         carriers: {},                     // code → name
         selectedOrigin: null,             // {iata, name, city, ...}
         selectedDestination: null,
+        airportNames: {},                 // IATA → {iata, name, city, country, ...}
         calendar: [],                     // cheapest-dates 결과
         priceTrendChart: null,
         routeMap: null,
@@ -128,6 +129,70 @@
         const d = new Date(date.getTime());
         d.setDate(d.getDate() + n);
         return d;
+    }
+
+    // ───── 공항 이름 캐시 ─────
+    function cacheAirport(item) {
+        if (!item || !item.iata) return;
+        const code = String(item.iata).toUpperCase();
+        // 기존 정보가 더 풍부하면 유지
+        const prev = state.airportNames[code];
+        if (prev && prev.city && prev.country && (!item.country || prev.country.length >= (item.country || '').length)) return;
+        state.airportNames[code] = item;
+    }
+
+    function airportInfo(code) {
+        if (!code) return null;
+        return state.airportNames[String(code).toUpperCase()] || null;
+    }
+
+    // 결과 카드용: IATA 아래에 표시할 도시/공항명 한 줄
+    function airportSubtitle(code) {
+        const info = airportInfo(code);
+        if (!info) return '';
+        const city = info.city || '';
+        const name = info.name || '';
+        if (city && name && city !== name) return `${city} · ${name}`;
+        return city || name || '';
+    }
+
+    // 검색 결과에 등장하는 모든 IATA 중 캐시에 없는 것을 일괄 조회
+    async function enrichAirportNames(codes) {
+        const need = Array.from(new Set((codes || []).filter(Boolean).map((c) => String(c).toUpperCase())))
+            .filter((c) => !state.airportNames[c]);
+        if (!need.length) return false;
+        // 한 번에 30개 제한
+        const chunks = [];
+        for (let i = 0; i < need.length; i += 25) chunks.push(need.slice(i, i + 25));
+        let updated = false;
+        for (const chunk of chunks) {
+            try {
+                const resp = await apiCall(`/flights/airports/batch?codes=${encodeURIComponent(chunk.join(','))}`);
+                if (resp && resp.success && resp.data) {
+                    Object.entries(resp.data).forEach(([code, item]) => {
+                        cacheAirport({ ...item, iata: code });
+                    });
+                    updated = true;
+                }
+            } catch (e) {
+                console.warn('[airports/batch] failed', e);
+            }
+        }
+        return updated;
+    }
+
+    // 결과 셋에서 등장하는 모든 IATA 수집
+    function collectIatasFromOffers(offers) {
+        const set = new Set();
+        (offers || []).forEach((o) => {
+            (o.itineraries || []).forEach((it) => {
+                (it.segments || []).forEach((s) => {
+                    if (s.from) set.add(s.from);
+                    if (s.to) set.add(s.to);
+                });
+            });
+        });
+        return Array.from(set);
     }
 
     function safeToast(kind, msg) {
@@ -278,6 +343,7 @@
             input.dataset.iata = item.iata || '';
             if (role === 'origin') state.selectedOrigin = item;
             else state.selectedDestination = item;
+            cacheAirport(item);
             listEl.classList.remove('show');
         };
 
@@ -438,6 +504,14 @@
             renderCalendar();
             renderPriceTrendChart();
             renderRouteMap(params.origin, params.destination);
+            // 결과에 등장하는 IATA 일괄 풀네임 조회 → 완료되면 카드 재렌더
+            const iatas = collectIatasFromOffers(state.results).concat([params.origin, params.destination]);
+            enrichAirportNames(iatas).then((updated) => {
+                if (updated) {
+                    applyFiltersAndRender();
+                    renderRouteMap(params.origin, params.destination);
+                }
+            });
         } catch (err) {
             console.error('[search] failed', err);
             $('#fsResultsSection').hidden = true;
@@ -782,6 +856,7 @@
                 <div class="fs-itin-end">
                     <div class="time">${fmtTime(first.departure)}</div>
                     <div class="iata">${first.from || ''}</div>
+                    ${airportSubtitle(first.from) ? `<div class="airport-name">${airportSubtitle(first.from)}</div>` : ''}
                     <div class="date">${fmtDateShort(first.departure)}</div>
                 </div>
                 <div class="fs-itin-mid">
@@ -792,6 +867,7 @@
                 <div class="fs-itin-end right">
                     <div class="time">${fmtTime(last.arrival)}</div>
                     <div class="iata">${last.to || ''}</div>
+                    ${airportSubtitle(last.to) ? `<div class="airport-name">${airportSubtitle(last.to)}</div>` : ''}
                     <div class="date">${fmtDateShort(last.arrival)}</div>
                 </div>
                 <div class="fs-itin-carriers" style="grid-column:1/-1;">${carriers}</div>
@@ -953,8 +1029,13 @@
     // ───── 라우트 지도 ─────
     function renderRouteMap(originIata, destIata) {
         if (typeof L === 'undefined') return;
-        const o = state.selectedOrigin && state.selectedOrigin.iata === originIata ? state.selectedOrigin : null;
-        const d = state.selectedDestination && state.selectedDestination.iata === destIata ? state.selectedDestination : null;
+        // selectedOrigin/Destination 우선, 없으면 enrichAirportNames 캐시(좌표 포함)
+        const o = (state.selectedOrigin && state.selectedOrigin.iata === originIata && state.selectedOrigin.latitude != null)
+            ? state.selectedOrigin
+            : airportInfo(originIata);
+        const d = (state.selectedDestination && state.selectedDestination.iata === destIata && state.selectedDestination.latitude != null)
+            ? state.selectedDestination
+            : airportInfo(destIata);
         if (!o || !d || o.latitude == null || d.latitude == null) return;
 
         const oLatLng = [Number(o.latitude), Number(o.longitude)];
@@ -1061,6 +1142,7 @@
                             e.preventDefault();
                             input.value = `${item.iata} · ${item.name || item.city || ''}`;
                             input.dataset.iata = item.iata;
+                            cacheAirport(item);
                             listEl.classList.remove('show');
                         });
                         listEl.appendChild(div);
@@ -1138,6 +1220,11 @@
             applyFiltersAndRender();
             // 다구간은 캘린더/차트/지도 의미가 약하므로 리스트 위주
             $('#fsCalendarSection').hidden = true;
+            // 다구간 결과 IATA 일괄 풀네임 조회
+            const iatas = collectIatasFromOffers(state.results).concat(ods.flatMap((od) => [od.origin, od.destination]));
+            enrichAirportNames(iatas).then((updated) => {
+                if (updated) applyFiltersAndRender();
+            });
         } catch (err) {
             console.error(err);
             $('#fsResultsSection').hidden = true;
@@ -1173,6 +1260,11 @@
             if (!resp || !resp.success) throw new Error((resp && resp.message) || '추천 도시 조회 실패');
             state.anywhere = (resp.data || []).slice().sort((a, b) => a.price_total - b.price_total);
             renderAnywhere(origin);
+            // 추천 도시 IATA 풀네임 조회 → 도착하면 카드 다시 그림
+            const iatas = state.anywhere.map((d) => d.destination).concat([origin]);
+            enrichAirportNames(iatas).then((updated) => {
+                if (updated) renderAnywhere(origin);
+            });
         } catch (err) {
             console.error(err);
             safeToast('error', err.message || '추천 도시를 불러오지 못했습니다.');
@@ -1190,14 +1282,19 @@
             grid.innerHTML = '<div class="fs-empty"><span class="emoji">🌍</span><div style="font-size:14px;">예산 안에 갈 수 있는 도시를 찾지 못했어요. 예산이나 출발일을 조정해 보세요.</div></div>';
             return;
         }
-        grid.innerHTML = state.anywhere.map((d) => `
+        grid.innerHTML = state.anywhere.map((d) => {
+            const info = airportInfo(d.destination);
+            const cityLabel = info ? (info.city || info.name || d.destination) : d.destination;
+            const country = info && info.country ? info.country : '';
+            return `
             <div class="fs-anywhere-card" data-iata="${d.destination}" data-date="${d.departure_date || ''}" data-return="${d.return_date || ''}">
-                <div class="city">${d.destination}</div>
-                <div class="iata">${origin} → ${d.destination}</div>
+                <div class="city">${cityLabel}</div>
+                <div class="iata">${origin} → ${d.destination}${country ? ' · ' + country : ''}</div>
                 <div class="date-range">${d.departure_date || ''}${d.return_date ? ' ~ ' + d.return_date : ''}</div>
                 <div class="price">${fmtKRW(d.price_total)}</div>
             </div>
-        `).join('');
+            `;
+        }).join('');
         grid.querySelectorAll('.fs-anywhere-card').forEach((card) => {
             card.addEventListener('click', () => {
                 // 클릭 시 해당 도시로 정식 검색
@@ -1211,7 +1308,7 @@
                 applyTripType();
                 $('#fsDestination').value = card.dataset.iata;
                 $('#fsDestination').dataset.iata = card.dataset.iata;
-                state.selectedDestination = { iata: card.dataset.iata };
+                state.selectedDestination = airportInfo(card.dataset.iata) || { iata: card.dataset.iata };
                 if (card.dataset.date) $('#fsDeparture').value = card.dataset.date;
                 if (card.dataset.return) $('#fsReturn').value = card.dataset.return;
                 handleSearchSubmit();
@@ -1238,10 +1335,13 @@
         const title = $('#fsDetailTitle');
         title.textContent = '항공편 상세';
         const sections = (offer.itineraries || []).map((it, i) => {
-            const segs = (it.segments || []).map((s) => `
+            const segs = (it.segments || []).map((s) => {
+                const fromSub = airportSubtitle(s.from);
+                const toSub = airportSubtitle(s.to);
+                return `
                 <div class="fs-segment">
                     <div class="row">
-                        <span class="codes">${s.from || ''} → ${s.to || ''}</span>
+                        <span class="codes">${s.from || ''}${fromSub ? ` <small style="font-weight:500; color: var(--color-neutral-500);">(${fromSub})</small>` : ''} → ${s.to || ''}${toSub ? ` <small style="font-weight:500; color: var(--color-neutral-500);">(${toSub})</small>` : ''}</span>
                         <span class="meta">${s.carrier || ''}${s.flight_number ? ' ' + s.flight_number : ''} · ${s.aircraft || ''}</span>
                     </div>
                     <div class="row" style="margin-top:6px;">
@@ -1253,7 +1353,8 @@
                         ${s.carrier_name ? `<span class="meta">${s.carrier_name}</span>` : ''}
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
             return `
                 <div style="margin-bottom:16px;">
                     <div style="font-weight:700; color: var(--color-neutral-700); margin-bottom:8px;">

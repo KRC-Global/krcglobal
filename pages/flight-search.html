@@ -374,7 +374,18 @@
         .fs-itin-end { font-size: 14px; }
         .fs-itin-end .time { font-weight: 700; color: var(--color-neutral-900); font-size: 18px; }
         .fs-itin-end .iata { color: var(--color-neutral-600); font-weight: 600; }
-        .fs-itin-end .date { font-size: 11px; color: var(--color-neutral-500); }
+        .fs-itin-end .airport-name {
+            font-size: 11px;
+            color: var(--color-neutral-700);
+            margin-top: 2px;
+            line-height: 1.3;
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .fs-itin-end.right .airport-name { margin-left: auto; }
+        .fs-itin-end .date { font-size: 11px; color: var(--color-neutral-500); margin-top: 2px; }
         .fs-itin-mid { text-align: center; font-size: 11px; color: var(--color-neutral-500); }
         .fs-itin-mid .duration { font-weight: 600; color: var(--color-neutral-700); display: block; }
         .fs-itin-mid .stops { display: block; }

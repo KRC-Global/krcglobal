@@ -128,6 +128,40 @@ def airports(current_user):
     return jsonify({'success': True, 'data': result, 'meta': _meta_base({'count': len(result)})})
 
 
+@flights_bp.route('/airports/batch', methods=['GET'])
+@token_required
+def airports_batch(current_user):
+    """여러 IATA 코드를 한 번에 도시/공항명으로 풀네임 조회.
+
+    Query: codes=ICN,SHA,CDG  (콤마 구분, 최대 30개)
+    Response: { success: true, data: { ICN: {...}, SHA: {...}, ... } }
+    """
+    codes_raw = (request.args.get('codes') or '').strip()
+    if not codes_raw:
+        return jsonify({'success': True, 'data': {}, 'meta': _meta_base({'count': 0})})
+
+    codes = [c.strip().upper() for c in codes_raw.split(',') if c.strip()]
+    codes = [c for c in codes if 2 <= len(c) <= 4]
+    codes = list(dict.fromkeys(codes))[:30]  # 중복 제거 + 최대 30개
+
+    out: Dict[str, Any] = {}
+    for code in codes:
+        cache_key = f'airport-info::{code}'
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            out[code] = cached
+            continue
+        items = provider.search_airports(code, limit=5)
+        if not items:
+            continue
+        # IATA 정확 매칭 우선, 없으면 첫 번째
+        match = next((x for x in items if (x.get('iata') or '').upper() == code), items[0])
+        out[code] = match
+        _cache_set(cache_key, match)
+
+    return jsonify({'success': True, 'data': out, 'meta': _meta_base({'count': len(out)})})
+
+
 @flights_bp.route('/search', methods=['GET'])
 @token_required
 def search(current_user):

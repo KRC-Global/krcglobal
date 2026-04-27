@@ -504,6 +504,137 @@ def search_multi_city(
     }
 
 
+def _months_in_range(start: str, end: str) -> List[str]:
+    """'YYYY-MM-DD' start~end 사이 모든 월(YYYY-MM) 반환."""
+    from datetime import date
+    try:
+        sy, sm, _ = start.split('-')
+        ey, em, _ = end.split('-')
+    except ValueError:
+        return []
+    months: List[str] = []
+    y, m = int(sy), int(sm)
+    ey_i, em_i = int(ey), int(em)
+    while (y, m) <= (ey_i, em_i):
+        months.append(f'{y:04d}-{m:02d}')
+        m += 1
+        if m > 12:
+            m = 1
+            y += 1
+        if len(months) > 24:  # safety
+            break
+    return months
+
+
+def _calendar_v1(
+    base: str,
+    origin: str,
+    destination: str,
+    depart_month: str,           # 'YYYY-MM'
+    return_month: Optional[str],  # 'YYYY-MM' or None
+    currency: str,
+    non_stop: Optional[bool],
+) -> Optional[List[Dict[str, Any]]]:
+    """`/v1/prices/calendar` — 월 단위 일자별 최저가 (1차 소스)."""
+    url = f'{base}/v1/prices/calendar'
+    params: Dict[str, Any] = {
+        'origin': origin.upper(),
+        'destination': destination.upper(),
+        'depart_date': depart_month,
+        'calendar_type': 'departure_date',
+        'currency': currency.lower(),
+    }
+    if return_month:
+        params['return_date'] = return_month
+
+    data = _request('GET', url, params=params)
+    if data is None:
+        return None
+    if not data.get('success', True):
+        # v1 은 success:false 도 200 으로 줄 수 있음
+        return []
+
+    rows: List[Dict[str, Any]] = []
+    raw = data.get('data')
+    if isinstance(raw, dict):
+        # {date: {price, ...}} 형태
+        for date_key, val in raw.items():
+            if not isinstance(val, dict):
+                continue
+            if non_stop and (val.get('transfers') or 0) > 0:
+                continue
+            price = val.get('price') or val.get('value')
+            if not price:
+                continue
+            rows.append({
+                'origin': val.get('origin') or origin.upper(),
+                'destination': val.get('destination') or destination.upper(),
+                'departure_date': date_key,
+                'return_date': (val.get('return_at') or '').split('T')[0] or None,
+                'price_total': float(price),
+            })
+    elif isinstance(raw, list):
+        for val in raw:
+            if not isinstance(val, dict):
+                continue
+            if non_stop and (val.get('transfers') or val.get('number_of_changes') or 0) > 0:
+                continue
+            price = val.get('price') or val.get('value')
+            if not price:
+                continue
+            dep = val.get('depart_date') or val.get('departure_at') or ''
+            rows.append({
+                'origin': val.get('origin') or origin.upper(),
+                'destination': val.get('destination') or destination.upper(),
+                'departure_date': dep.split('T')[0] if dep else None,
+                'return_date': (val.get('return_date') or val.get('return_at') or '').split('T')[0] or None,
+                'price_total': float(price),
+            })
+    return rows
+
+
+def _prices_for_dates_fallback(
+    base: str,
+    origin: str,
+    destination: str,
+    start_date: str,
+    one_way: bool,
+    currency: str,
+    non_stop: Optional[bool],
+) -> List[Dict[str, Any]]:
+    """`/aviasales/v3/prices_for_dates` — 폴백. 단일 호출, unique 제거."""
+    url = f'{base}/aviasales/v3/prices_for_dates'
+    params: Dict[str, Any] = {
+        'origin': origin.upper(),
+        'destination': destination.upper(),
+        'departure_at': start_date[:7],  # 'YYYY-MM' 형태로 월 전체 조회
+        'currency': currency.lower(),
+        'sorting': 'price',
+        'limit': 1000,
+        'one_way': 'true' if one_way else 'false',
+    }
+    if non_stop is True:
+        params['direct'] = 'true'
+
+    data = _request('GET', url, params=params)
+    if data is None:
+        return []
+
+    rows = data.get('data') or []
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        dep = r.get('departure_at') or ''
+        ret = r.get('return_at') or ''
+        out.append({
+            'origin': r.get('origin'),
+            'destination': r.get('destination'),
+            'departure_date': dep.split('T')[0] if dep else None,
+            'return_date': ret.split('T')[0] if ret else None,
+            'price_total': float(r.get('price') or 0),
+        })
+    return out
+
+
 def search_cheapest_dates(
     origin: str,
     destination: str,
@@ -515,10 +646,14 @@ def search_cheapest_dates(
     max_price: Optional[int] = None,
     non_stop: Optional[bool] = None,
 ) -> Optional[Dict[str, Any]]:
-    """가격 캘린더용. Travelpayouts 는 prices_for_dates 로 날짜 범위 조회."""
+    """가격 캘린더 데이터.
+
+    1차: `/v1/prices/calendar` (월 단위, 일자별 최저가) — 캘린더 UI 에 최적
+    2차: `/aviasales/v3/prices_for_dates` (월 단위, sorting=price) 폴백
+    범위가 2개월에 걸치면 월별로 호출 후 머지. 동일 날짜 중복은 최저가만 유지.
+    """
     _, _, base, _ = _get_config()
 
-    # 날짜 결정: range 가 있으면 시작일을 기준으로, 없으면 departure_date 의 해당 월
     start_date = None
     end_date = None
     if departure_date_range and ',' in departure_date_range:
@@ -527,50 +662,69 @@ def search_cheapest_dates(
         end_date = e.strip()
     elif departure_date:
         start_date = departure_date
+        # 출발일 단독 — ±15일 범위로 자동 확장
+        try:
+            from datetime import datetime, timedelta
+            d0 = datetime.strptime(departure_date, '%Y-%m-%d')
+            start_date = (d0 - timedelta(days=15)).strftime('%Y-%m-%d')
+            end_date = (d0 + timedelta(days=15)).strftime('%Y-%m-%d')
+        except ValueError:
+            pass
 
     if not start_date:
         _set_error('출발일 또는 출발일 범위가 필요합니다.')
         return None
+    if not end_date:
+        end_date = start_date
 
-    url = f'{base}/aviasales/v3/prices_for_dates'
-    params: Dict[str, Any] = {
-        'origin': origin.upper(),
-        'destination': destination.upper(),
-        'departure_at': start_date,
-        'currency': currency.lower(),
-        'unique': 'true',  # 날짜별 1개씩
-        'sorting': 'price',
-        'limit': 60,
-        'one_way': 'true' if one_way else 'false',
-    }
-    if non_stop is True:
-        params['direct'] = 'true'
+    months = _months_in_range(start_date, end_date) or [start_date[:7]]
+    return_month = None
+    if not one_way and departure_date:
+        # 라운드트립 시: depart_date 의 +N일 후를 return_date 월로 사용
+        return_month = months[-1]  # 단순화
 
-    data = _request('GET', url, params=params)
-    if data is None:
-        return None
+    # ───── 1차: v1/prices/calendar ─────
+    aggregated: Dict[str, Dict[str, Any]] = {}  # date → cheapest item
+    for m in months:
+        rows = _calendar_v1(base, origin, destination, m, return_month,
+                            currency, non_stop)
+        if rows is None:
+            break  # 네트워크/인증 오류 → 폴백
+        for r in rows:
+            d = r.get('departure_date')
+            if not d:
+                continue
+            if d < start_date or d > end_date:
+                continue
+            cur = aggregated.get(d)
+            if cur is None or r['price_total'] < cur['price_total']:
+                aggregated[d] = r
 
-    rows = data.get('data') or []
-    items: List[Dict[str, Any]] = []
-    for r in rows:
-        dep = r.get('departure_at') or ''
-        ret = r.get('return_at') or ''
-        # ISO datetime → date 부분만
-        dep_date = dep.split('T')[0] if dep else None
-        ret_date = ret.split('T')[0] if ret else None
-        if end_date and dep_date and (dep_date < start_date or dep_date > end_date):
-            continue
-        price = float(r.get('price') or 0)
-        if max_price and price > int(max_price):
-            continue
-        items.append({
-            'origin': r.get('origin'),
-            'destination': r.get('destination'),
-            'departure_date': dep_date,
-            'return_date': ret_date,
-            'price_total': price,
-            'currency': currency.upper(),
-        })
+    # ───── 2차: prices_for_dates (1차가 비었거나 sparse 한 경우) ─────
+    if len(aggregated) < max(7, (len(months) * 7)):
+        for m in months:
+            month_start = f'{m}-01'
+            rows = _prices_for_dates_fallback(
+                base, origin, destination, month_start, one_way,
+                currency, non_stop)
+            for r in rows:
+                d = r.get('departure_date')
+                if not d:
+                    continue
+                if d < start_date or d > end_date:
+                    continue
+                cur = aggregated.get(d)
+                if cur is None or r['price_total'] < cur['price_total']:
+                    aggregated[d] = r
+
+    # max_price 필터
+    items = list(aggregated.values())
+    if max_price:
+        items = [x for x in items if x['price_total'] <= int(max_price)]
+    items.sort(key=lambda x: x.get('departure_date') or '')
+    for x in items:
+        x['currency'] = currency.upper()
+
     return {'items': items, 'currency': currency.upper(), 'count': len(items)}
 
 
