@@ -410,8 +410,32 @@ def search_flight_offers(
         1차: departure_at='YYYY-MM-DD' (사용자 지정 날짜)
         2차: 1차가 비었으면 departure_at='YYYY-MM' 월 단위 조회 → 사용자 날짜 ±3일 우선,
              그 다음 같은 월 내 가격 순으로 보충
+
+    추가: 라운드트립 출발-귀국 간격이 30일 초과면 Travelpayouts API 가
+    HTTP 400 ('diff between max depart and min return exceeds 30') 을 반환하므로,
+    2개 one-way 검색으로 분할해 합성한다.
     """
     _, _, base, _ = _get_config()
+
+    # ───── 30일 초과 라운드트립 가드 ─────
+    if return_date:
+        try:
+            from datetime import datetime as _dt
+            d1 = _dt.strptime(departure_date, '%Y-%m-%d')
+            d2 = _dt.strptime(return_date, '%Y-%m-%d')
+            if (d2 - d1).days > 30:
+                return search_multi_city(
+                    origin_destinations=[
+                        {'origin': origin, 'destination': destination, 'date': departure_date},
+                        {'origin': destination, 'destination': origin, 'date': return_date},
+                    ],
+                    adults=adults, children=children, infants=infants,
+                    travel_class=travel_class, currency=currency,
+                    max_results=max_results,
+                )
+        except ValueError:
+            pass
+
     one_way = not return_date
     return_month = (return_date or '')[:7] if return_date else None
 
