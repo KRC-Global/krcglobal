@@ -554,6 +554,8 @@ function initMenuForCurrentPage() {
         'gis': ['글로벌맵'],
         // 발주공고
         'bid-notices': ['발주공고'],
+        // 항공권검색
+        'flight-search': ['항공권검색'],
         // 편의기능
         'utilities': ['편의기능'],
         // 분석 도구

@@ -68,6 +68,33 @@ class Config:
     # CORS settings
     CORS_ORIGINS = ['*']
 
+    # ── 항공권검색 데이터 프로바이더 ──
+    # FLIGHT_PROVIDER 로 전환 가능: 'travelpayouts' (기본) | 'amadeus'
+    # Amadeus Self-Service 는 2026-07-17 단종 예정 → Travelpayouts 가 기본값.
+    FLIGHT_PROVIDER = os.environ.get('FLIGHT_PROVIDER', 'travelpayouts').strip().lower()
+
+    # Travelpayouts (Aviasales) Data API
+    # https://www.travelpayouts.com/developers/api  (어필리에이트 가입 → 토큰 발급)
+    TRAVELPAYOUTS_TOKEN = os.environ.get('TRAVELPAYOUTS_TOKEN', '')
+    TRAVELPAYOUTS_MARKER = os.environ.get('TRAVELPAYOUTS_MARKER', '')  # 어필리에이트 마커(선택)
+    TRAVELPAYOUTS_BASE_URL = os.environ.get(
+        'TRAVELPAYOUTS_BASE_URL',
+        'https://api.travelpayouts.com'
+    )
+    TRAVELPAYOUTS_AUTOCOMPLETE_URL = os.environ.get(
+        'TRAVELPAYOUTS_AUTOCOMPLETE_URL',
+        'https://autocomplete.travelpayouts.com'
+    )
+
+    # Amadeus Self-Service (백업용 / 폐기 예정)
+    AMADEUS_CLIENT_ID = os.environ.get('AMADEUS_CLIENT_ID', '')
+    AMADEUS_CLIENT_SECRET = os.environ.get('AMADEUS_CLIENT_SECRET', '')
+    AMADEUS_BASE_URL = os.environ.get(
+        'AMADEUS_BASE_URL',
+        'https://test.api.amadeus.com'
+    )
+    FLIGHT_DEFAULT_CURRENCY = os.environ.get('FLIGHT_DEFAULT_CURRENCY', 'KRW').upper()
+
 
 class DevelopmentConfig(Config):
     """Development configuration"""

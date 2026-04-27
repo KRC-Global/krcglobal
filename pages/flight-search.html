@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="한국농어촌공사 글로벌사업관리시스템 - 항공권검색">
+    <title>항공권검색 | 글로벌사업관리시스템</title>
+
+    <!-- KRDS Design System -->
+    <link rel="stylesheet" href="../assets/css/variables.css">
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/pages.css">
+    <link rel="stylesheet" href="../assets/lib/leaflet/leaflet.css">
+
+    <style>
+        /* ─────────────  공통 사이드바 토글  ───────────── */
+        .submenu-toggle { cursor: pointer; }
+
+        /* ─────────────  탭 / 섹션 공통  ───────────── */
+        .fs-section { margin-bottom: var(--spacing-6); }
+        .fs-card {
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            padding: var(--spacing-5);
+        }
+
+        .fs-card-title {
+            font-size: var(--font-size-base);
+            font-weight: 600;
+            color: var(--color-neutral-900);
+            margin: 0 0 var(--spacing-3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .fs-tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--color-neutral-200);
+            margin-bottom: var(--spacing-4);
+            flex-wrap: wrap;
+        }
+        .fs-tab {
+            background: none;
+            border: none;
+            padding: 10px 16px;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            color: var(--color-neutral-600);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color .15s, border-color .15s;
+        }
+        .fs-tab:hover { color: var(--color-primary-600); }
+        .fs-tab.active {
+            color: var(--color-primary-600);
+            border-bottom-color: var(--color-primary-500);
+            font-weight: 700;
+        }
+
+        /* ─────────────  검색 폼 그리드  ───────────── */
+        .fs-form {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 12px;
+            align-items: end;
+        }
+        .fs-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; position: relative; }
+        .fs-field label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--color-neutral-600);
+            letter-spacing: 0.02em;
+        }
+        .fs-input, .fs-select {
+            height: 42px;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            padding: 0 12px;
+            font-size: var(--font-size-sm);
+            background: var(--color-neutral-0);
+            color: var(--color-neutral-900);
+            outline: none;
+            box-sizing: border-box;
+            width: 100%;
+            font-family: inherit;
+        }
+        .fs-input:focus, .fs-select:focus {
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 3px rgba(26, 75, 124, 0.1);
+        }
+        .fs-input[disabled], .fs-select[disabled] {
+            background: var(--color-neutral-100);
+            color: var(--color-neutral-500);
+            cursor: not-allowed;
+        }
+
+        .fs-col-2  { grid-column: span 2; }
+        .fs-col-3  { grid-column: span 3; }
+        .fs-col-4  { grid-column: span 4; }
+        .fs-col-6  { grid-column: span 6; }
+        .fs-col-12 { grid-column: span 12; }
+
+        /* 자동완성 드롭다운 */
+        .fs-suggest {
+            position: absolute;
+            top: 100%;
+            left: 0; right: 0;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            z-index: 50;
+            max-height: 280px;
+            overflow-y: auto;
+            margin-top: 4px;
+            display: none;
+        }
+        .fs-suggest.show { display: block; }
+        .fs-suggest-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--color-neutral-100);
+            font-size: var(--font-size-sm);
+        }
+        .fs-suggest-item:last-child { border-bottom: none; }
+        .fs-suggest-item:hover, .fs-suggest-item.active {
+            background: var(--color-primary-50);
+        }
+        .fs-suggest-item .iata { font-weight: 700; color: var(--color-primary-600); margin-right: 8px; }
+        .fs-suggest-item .meta { font-size: 11px; color: var(--color-neutral-500); display: block; margin-top: 2px; }
+
+        /* 다구간 입력행 */
+        .fs-mc-row {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 12px;
+            align-items: end;
+            margin-bottom: 10px;
+        }
+        .fs-mc-row .fs-remove {
+            grid-column: span 1;
+            height: 42px;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-300);
+            color: var(--color-error-600);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+        }
+        .fs-mc-actions { margin-top: 8px; display: flex; gap: 8px; }
+
+        /* 인원/옵션 그룹 */
+        .fs-options-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+        .fs-toggle-group {
+            display: inline-flex; gap: 0;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+        .fs-toggle-group button {
+            background: var(--color-neutral-0);
+            border: none;
+            padding: 8px 14px;
+            font-size: 13px;
+            color: var(--color-neutral-700);
+            cursor: pointer;
+            border-right: 1px solid var(--color-neutral-300);
+        }
+        .fs-toggle-group button:last-child { border-right: none; }
+        .fs-toggle-group button.active {
+            background: var(--color-primary-500);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .fs-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+        /* ─────────────  결과 영역 그리드  ───────────── */
+        .fs-results {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 16px;
+        }
+        .fs-results-filters {
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-4);
+            align-self: start;
+            position: sticky;
+            top: calc(var(--header-height) + 16px);
+            max-height: calc(100vh - var(--header-height) - 32px);
+            overflow-y: auto;
+        }
+        .fs-filter-group { padding: 10px 0; border-bottom: 1px solid var(--color-neutral-100); }
+        .fs-filter-group:last-child { border-bottom: none; }
+        .fs-filter-title { font-size: 12px; font-weight: 700; color: var(--color-neutral-700); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.04em; }
+        .fs-filter-group label { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; color: var(--color-neutral-700); cursor: pointer; }
+        .fs-filter-group label:hover { color: var(--color-primary-600); }
+        .fs-filter-group input[type="range"] { width: 100%; }
+        .fs-filter-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--color-neutral-600); }
+
+        /* 결과 메인 */
+        .fs-results-main { min-width: 0; }
+        .fs-results-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+        .fs-sort-bar {
+            display: flex; gap: 4px; flex-wrap: wrap;
+            margin-bottom: 12px;
+            background: var(--color-neutral-50);
+            padding: 6px;
+            border-radius: var(--radius-md);
+        }
+        .fs-sort-btn {
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-md);
+            padding: 6px 12px;
+            font-size: 13px;
+            color: var(--color-neutral-700);
+            cursor: pointer;
+        }
+        .fs-sort-btn.active {
+            background: var(--color-primary-500);
+            color: #fff;
+            border-color: var(--color-primary-500);
+        }
+
+        .fs-result-summary {
+            font-size: 13px;
+            color: var(--color-neutral-600);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        /* 결과 카드 */
+        .fs-offer-card {
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            margin-bottom: 10px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 16px;
+            align-items: center;
+            transition: box-shadow .15s, transform .15s;
+        }
+        .fs-offer-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+        .fs-offer-itineraries { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+        .fs-itin {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 10px;
+            align-items: center;
+        }
+        .fs-itin-end { font-size: 14px; }
+        .fs-itin-end .time { font-weight: 700; color: var(--color-neutral-900); font-size: 18px; }
+        .fs-itin-end .iata { color: var(--color-neutral-600); font-weight: 600; }
+        .fs-itin-end .date { font-size: 11px; color: var(--color-neutral-500); }
+        .fs-itin-mid { text-align: center; font-size: 11px; color: var(--color-neutral-500); }
+        .fs-itin-mid .duration { font-weight: 600; color: var(--color-neutral-700); display: block; }
+        .fs-itin-mid .stops { display: block; }
+        .fs-itin-mid .line { height: 1px; background: var(--color-neutral-300); margin: 4px 0; position: relative; }
+        .fs-itin-mid .line::after { content: '✈'; position: absolute; right: -2px; top: -8px; font-size: 12px; color: var(--color-primary-500); }
+        .fs-itin-end.right { text-align: right; }
+        .fs-itin-carriers { font-size: 11px; color: var(--color-neutral-500); margin-top: 2px; }
+
+        .fs-offer-price {
+            text-align: right;
+            display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+        }
+        .fs-offer-price .total {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--color-primary-600);
+            white-space: nowrap;
+        }
+        .fs-offer-price .per { font-size: 11px; color: var(--color-neutral-500); }
+        .fs-offer-price .btn-detail {
+            background: var(--color-primary-500);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+        }
+        .fs-offer-price .btn-detail:hover { background: var(--color-primary-600); }
+
+        .fs-empty {
+            background: var(--color-neutral-50);
+            border: 1px dashed var(--color-neutral-300);
+            border-radius: var(--radius-lg);
+            padding: 60px 24px;
+            text-align: center;
+            color: var(--color-neutral-600);
+        }
+        .fs-empty .emoji { font-size: 36px; display: block; margin-bottom: 8px; }
+
+        /* 가격 캘린더 */
+        .fs-calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .fs-cal-cell {
+            aspect-ratio: 1.4;
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 8px;
+            padding: 6px;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+            background: var(--color-neutral-0);
+            transition: all .15s;
+            text-align: left;
+        }
+        .fs-cal-cell:hover { border-color: var(--color-primary-400); transform: translateY(-1px); }
+        .fs-cal-cell.empty { background: transparent; border: none; cursor: default; }
+        .fs-cal-cell.selected {
+            border-color: var(--color-primary-500);
+            box-shadow: 0 0 0 2px rgba(26, 75, 124, 0.18);
+        }
+        .fs-cal-cell .cal-date { font-weight: 600; color: var(--color-neutral-700); }
+        .fs-cal-cell .cal-price { font-weight: 700; color: var(--color-primary-600); font-size: 12px; }
+        .fs-cal-cell.cheap { background: #ecfdf3; border-color: #34d399; }
+        .fs-cal-cell.cheap .cal-price { color: #047857; }
+        .fs-cal-cell.expensive { background: #fef2f2; border-color: #fca5a5; }
+        .fs-cal-cell.expensive .cal-price { color: #b91c1c; }
+        .fs-cal-cell.no-data { background: var(--color-neutral-50); cursor: default; }
+        .fs-cal-cell.no-data .cal-price { color: var(--color-neutral-400); font-weight: 400; }
+
+        .fs-cal-headers { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; font-size: 11px; color: var(--color-neutral-500); text-align: center; font-weight: 600; }
+
+        /* 차트/지도 */
+        #fsPriceTrend { width: 100% !important; max-height: 320px; }
+        #fsRouteMap { width: 100%; height: 420px; border-radius: var(--radius-lg); border: 1px solid var(--color-neutral-200); }
+
+        /* 어디로든 결과 카드 */
+        .fs-anywhere-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        .fs-anywhere-card {
+            border: 1px solid var(--color-neutral-200);
+            border-radius: var(--radius-lg);
+            padding: 14px;
+            background: var(--color-neutral-0);
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .fs-anywhere-card:hover { border-color: var(--color-primary-400); box-shadow: var(--shadow-sm); }
+        .fs-anywhere-card .city { font-size: 16px; font-weight: 700; color: var(--color-neutral-900); }
+        .fs-anywhere-card .iata { font-size: 11px; color: var(--color-neutral-500); margin-bottom: 6px; }
+        .fs-anywhere-card .date-range { font-size: 12px; color: var(--color-neutral-600); }
+        .fs-anywhere-card .price { font-size: 18px; color: var(--color-primary-600); font-weight: 700; margin-top: 4px; }
+
+        /* 모달 */
+        .fs-modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.45);
+            display: none;
+            align-items: center; justify-content: center;
+            z-index: var(--z-modal, 300);
+            padding: 16px;
+        }
+        .fs-modal-overlay.show { display: flex; }
+        .fs-modal {
+            background: var(--color-neutral-0);
+            border-radius: var(--radius-lg);
+            max-width: 720px;
+            width: 100%;
+            max-height: 88vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.2);
+        }
+        .fs-modal-header { padding: 16px 20px; border-bottom: 1px solid var(--color-neutral-200); display: flex; justify-content: space-between; align-items: center; }
+        .fs-modal-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--color-neutral-900); }
+        .fs-modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--color-neutral-500); }
+        .fs-modal-body { padding: 20px; }
+
+        .fs-segment {
+            border-left: 3px solid var(--color-primary-500);
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            background: var(--color-neutral-50);
+            border-radius: var(--radius-md);
+        }
+        .fs-segment .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .fs-segment .codes { font-weight: 700; color: var(--color-neutral-900); }
+        .fs-segment .meta { font-size: 12px; color: var(--color-neutral-600); }
+
+        .fs-skeleton {
+            height: 110px;
+            border-radius: var(--radius-lg);
+            background: linear-gradient(90deg, var(--color-neutral-100) 25%, var(--color-neutral-50) 37%, var(--color-neutral-100) 63%);
+            background-size: 400% 100%;
+            animation: fsShimmer 1.4s ease-in-out infinite;
+            margin-bottom: 8px;
+        }
+        @keyframes fsShimmer { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+
+        .fs-info-banner {
+            background: var(--color-info-50, #ecf4fb);
+            border: 1px solid var(--color-info-200, #bcdcf3);
+            color: var(--color-info-700, #0f5891);
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        /* 반응형 */
+        @media (max-width: 1024px) {
+            .fs-results { grid-template-columns: 1fr; }
+            .fs-results-filters { position: static; max-height: none; }
+        }
+        @media (max-width: 768px) {
+            .fs-form { grid-template-columns: 1fr 1fr; }
+            .fs-col-2, .fs-col-3, .fs-col-4, .fs-col-6 { grid-column: span 1; }
+            .fs-col-12 { grid-column: span 2; }
+            .fs-mc-row { grid-template-columns: 1fr 1fr; }
+            .fs-mc-row .fs-remove { grid-column: span 2; }
+            .fs-offer-card { grid-template-columns: 1fr; }
+            .fs-offer-price { text-align: left; align-items: flex-start; }
+            .fs-cal-headers, .fs-calendar-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+            .fs-cal-cell { aspect-ratio: 1; padding: 4px; font-size: 10px; }
+        }
+    </style>
+</head>
+
+<body class="app-layout">
+    <a href="#main-content" class="skip-nav">본문 바로가기</a>
+
+    <!-- 헤더 -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="메뉴 토글" aria-expanded="false" aria-controls="sidebar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12h18M3 6h18M3 18h18" />
+                </svg>
+            </button>
+            <h1 class="app-title">
+                <a href="../dashboard.html" style="text-decoration: none;"><span style="font-size: 28px;">🌏</span></a>
+                <span style="font-size: 20px;"><span style="font-weight: 700; color: var(--color-primary-600);">글로벌</span>사업관리시스템</span>
+            </h1>
+        </div>
+        <div class="header-right">
+            <div class="user-menu">
+                <button class="user-menu-button" id="userMenuButton" aria-haspopup="true" aria-expanded="false">
+                    <div class="user-avatar" id="userAvatar">관</div>
+                    <span id="userName" style="font-size: var(--font-size-sm); color: var(--color-neutral-700);">관리자</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 4px;">
+                        <path d="M6 9l6 6 6-6" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="userDropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-avatar" id="dropdownAvatar">관</div>
+                        <div class="user-dropdown-info">
+                            <div class="user-dropdown-name" id="dropdownName">관리자</div>
+                            <div class="user-dropdown-email" id="dropdownEmail" style="font-size: 11px; color: var(--color-neutral-500); margin-top: 2px;"></div>
+                            <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
+                                <span class="user-dropdown-role" id="dropdownRole" style="font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--color-primary-100, #e0ecf5); color: var(--color-primary-700, #1A4B7C);">관리자</span>
+                                <span class="user-dropdown-dept" id="dropdownDept" style="font-size: 11px; color: var(--color-neutral-500);">글로벌사업처</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="user-dropdown-divider"></div>
+                    <a href="admin/users.html" class="user-dropdown-item" id="adminDropdownLink" style="display: none;"><span>👤</span> 사용자 관리</a>
+                    <a href="#" class="user-dropdown-item" onclick="logout(); return false;"><span>🚪</span> 로그아웃</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 사이드바 -->
+    <aside class="app-sidebar" id="sidebar">
+        <nav class="sidebar-nav" aria-label="주메뉴">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="../dashboard.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" />
+                            <rect x="14" y="3" width="7" height="7" />
+                            <rect x="14" y="14" width="7" height="7" />
+                            <rect x="3" y="14" width="7" height="7" />
+                        </svg>
+                        <span class="nav-text">대시보드</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="notices/bid-notices.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg>
+                        <span class="nav-text">발주공고</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="flight-search.html" class="nav-link active">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z" />
+                        </svg>
+                        <span class="nav-text">항공권검색</span>
+                    </a>
+                </li>
+                <li class="nav-item has-submenu">
+                    <button class="nav-link" aria-expanded="false">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+                        </svg>
+                        <span class="nav-text">사업관리</span>
+                        <svg class="nav-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18l6-6-6-6" />
+                        </svg>
+                    </button>
+                    <ul class="submenu">
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외진출지원사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="expansion/company-management.html">기업관리</a></li>
+                                <li><a href="expansion/loan-management.html">융자관리</a></li>
+                                <li class="has-submenu">
+                                    <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">정보표출 ▾</a>
+                                    <ul class="submenu-nested-level4">
+                                        <li><a href="expansion/info/loan-performance.html">융자사업 추진실적</a></li>
+                                        <li><a href="expansion/info/loan-repayment.html">융자사업 연도별 상환내역</a></li>
+                                        <li><a href="expansion/info/loan-projects.html">융자사업 관리</a></li>
+                                        <li><a href="expansion/info/company-collateral.html">기업별 담보 현황</a></li>
+                                        <li><a href="expansion/info/post-management.html">사후관리대장</a></li>
+                                        <li><a href="expansion/info/mortgage-contract.html">근저당권 설정계약서</a></li>
+                                    </ul>
+                                </li>
+                                <li><a href="expansion/expansion-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">해외기술용역 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="projects/overseas-tech.html">사업현황</a></li>
+                                <li><a href="projects/overseas-tech-bidding.html">TOR/RFP·제안서</a></li>
+                                <li><a href="projects/overseas-tech-contracts.html">계약서/최종보고서</a></li>
+                                <li><a href="projects/overseas-tech-performance.html">실적관리</a></li>
+                                <li><a href="projects/overseas-tech-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li class="has-submenu">
+                            <a href="#" class="submenu-toggle" onclick="toggleSubmenu(event)">국제협력사업 ▾</a>
+                            <ul class="submenu-nested">
+                                <li><a href="projects/international-cooperation.html">사업현황</a></li>
+                                <li><a href="projects/oda-reports.html">보고서관리</a></li>
+                                <li><a href="projects/intl-coop-board.html">기타</a></li>
+                            </ul>
+                        </li>
+                        <li><a href="admin/offices.html">해외사무소 등</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a href="budget/profitability.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span class="nav-text">예산/정산</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="gis.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                            <path d="M2 12h20" />
+                        </svg>
+                        <span class="nav-text">글로벌맵</span>
+                    </a>
+                </li>
+                <li class="nav-item" id="adminMenuUser" style="display: none;">
+                    <a href="admin/users.html" class="nav-link">
+                        <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                            <circle cx="8.5" cy="7" r="4" />
+                            <path d="M20 8v6M23 11h-6" />
+                        </svg>
+                        <span class="nav-text">사용자 관리</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- 메인 콘텐츠 -->
+    <main id="main-content" class="app-main">
+        <div class="page-header">
+            <nav class="breadcrumb" aria-label="현재 위치">
+                <ol>
+                    <li><a href="../dashboard.html">홈</a></li>
+                    <li aria-current="page">항공권검색</li>
+                </ol>
+            </nav>
+            <h2 class="page-title">✈️ 항공권검색</h2>
+            <p class="page-description">전세계 항공권을 다양한 조건으로 검색하고 가격 캘린더·경로·시뮬레이션까지 한 번에. 출처: Amadeus Self-Service.</p>
+        </div>
+
+        <!-- 검색 패널 -->
+        <section class="fs-section fs-card" aria-labelledby="searchPanelTitle">
+            <div class="fs-tabs" role="tablist" id="fsTripTabs">
+                <button class="fs-tab active" data-tab="round-trip" role="tab" aria-selected="true">왕복</button>
+                <button class="fs-tab" data-tab="one-way" role="tab" aria-selected="false">편도</button>
+                <button class="fs-tab" data-tab="multi-city" role="tab" aria-selected="false">다구간</button>
+                <button class="fs-tab" data-tab="anywhere" role="tab" aria-selected="false">어디로든</button>
+            </div>
+
+            <h3 id="searchPanelTitle" class="sr-only">항공권 검색</h3>
+
+            <!-- 단일 구간 폼 (round-trip / one-way / anywhere) -->
+            <form id="fsForm" class="fs-form" autocomplete="off" novalidate>
+                <div class="fs-field fs-col-3">
+                    <label for="fsOrigin">출발지</label>
+                    <input id="fsOrigin" type="text" class="fs-input" placeholder="도시/공항 (예: ICN)" data-suggest="origin" required>
+                    <div id="fsOriginSuggest" class="fs-suggest" role="listbox"></div>
+                </div>
+                <div class="fs-field fs-col-3">
+                    <label for="fsDestination">도착지</label>
+                    <input id="fsDestination" type="text" class="fs-input" placeholder="도시/공항 (예: CDG)" data-suggest="destination">
+                    <div id="fsDestinationSuggest" class="fs-suggest" role="listbox"></div>
+                </div>
+                <div class="fs-field fs-col-2">
+                    <label for="fsDeparture">가는 날</label>
+                    <input id="fsDeparture" type="date" class="fs-input" required>
+                </div>
+                <div class="fs-field fs-col-2" id="fsReturnField">
+                    <label for="fsReturn">오는 날</label>
+                    <input id="fsReturn" type="date" class="fs-input">
+                </div>
+                <div class="fs-field fs-col-2" id="fsBudgetField" style="display:none;">
+                    <label for="fsMaxPrice">예산 (KRW)</label>
+                    <input id="fsMaxPrice" type="number" class="fs-input" placeholder="예: 1500000" min="0" step="10000">
+                </div>
+
+                <div class="fs-options-row fs-col-12">
+                    <div>
+                        <div style="font-size:11px; font-weight:700; color: var(--color-neutral-600); margin-bottom:4px;">좌석 등급</div>
+                        <select id="fsCabin" class="fs-select" style="min-width:140px;">
+                            <option value="">전체</option>
+                            <option value="ECONOMY">이코노미</option>
+                            <option value="PREMIUM_ECONOMY">프리미엄 이코노미</option>
+                            <option value="BUSINESS">비즈니스</option>
+                            <option value="FIRST">퍼스트</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div style="font-size:11px; font-weight:700; color: var(--color-neutral-600); margin-bottom:4px;">성인</div>
+                        <select id="fsAdults" class="fs-select" style="min-width:90px;">
+                            <option>1</option><option>2</option><option>3</option><option>4</option>
+                            <option>5</option><option>6</option><option>7</option><option>8</option><option>9</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div style="font-size:11px; font-weight:700; color: var(--color-neutral-600); margin-bottom:4px;">어린이</div>
+                        <select id="fsChildren" class="fs-select" style="min-width:90px;">
+                            <option>0</option><option>1</option><option>2</option><option>3</option><option>4</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div style="font-size:11px; font-weight:700; color: var(--color-neutral-600); margin-bottom:4px;">유아</div>
+                        <select id="fsInfants" class="fs-select" style="min-width:90px;">
+                            <option>0</option><option>1</option><option>2</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div style="font-size:11px; font-weight:700; color: var(--color-neutral-600); margin-bottom:4px;">경유</div>
+                        <div class="fs-toggle-group" id="fsStopsToggle" role="radiogroup">
+                            <button type="button" data-stops="" class="active" role="radio" aria-checked="true">전체</button>
+                            <button type="button" data-stops="0" role="radio" aria-checked="false">직항만</button>
+                            <button type="button" data-stops="1" role="radio" aria-checked="false">1회 환승까지</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fs-actions fs-col-12">
+                    <button type="button" class="fs-sort-btn" id="fsResetBtn">초기화</button>
+                    <button type="submit" class="btn btn-primary" id="fsSearchBtn" style="background: var(--color-primary-500); color: #fff; border: none; padding: 10px 28px; font-weight: 700; border-radius: var(--radius-md); cursor: pointer; font-size: 14px;">
+                        🔍 항공권 검색
+                    </button>
+                </div>
+            </form>
+
+            <!-- 다구간 폼 -->
+            <div id="fsMultiCity" hidden>
+                <div id="fsMcRows"></div>
+                <div class="fs-mc-actions">
+                    <button type="button" class="fs-sort-btn" id="fsMcAddBtn">+ 구간 추가</button>
+                </div>
+                <div class="fs-options-row" style="margin-top: 16px;">
+                    <div>
+                        <div style="font-size:11px; font-weight:700; color: var(--color-neutral-600); margin-bottom:4px;">좌석 등급</div>
+                        <select id="fsMcCabin" class="fs-select" style="min-width:140px;">
+                            <option value="">전체</option>
+                            <option value="ECONOMY">이코노미</option>
+                            <option value="PREMIUM_ECONOMY">프리미엄 이코노미</option>
+                            <option value="BUSINESS">비즈니스</option>
+                            <option value="FIRST">퍼스트</option>
+                        </select>
+                    </div>
+                    <div>
+                        <div style="font-size:11px; font-weight:700; color: var(--color-neutral-600); margin-bottom:4px;">성인</div>
+                        <select id="fsMcAdults" class="fs-select" style="min-width:90px;">
+                            <option>1</option><option>2</option><option>3</option><option>4</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="fs-actions">
+                    <button type="button" class="btn btn-primary" id="fsMcSearchBtn" style="background: var(--color-primary-500); color: #fff; border: none; padding: 10px 28px; font-weight: 700; border-radius: var(--radius-md); cursor: pointer; font-size: 14px;">
+                        🔍 다구간 검색
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 가격 캘린더 -->
+        <section id="fsCalendarSection" class="fs-section fs-card" hidden>
+            <h3 class="fs-card-title">📅 가격 캘린더 <span style="font-weight: 400; font-size: 12px; color: var(--color-neutral-500); margin-left: 8px;">(±15일 최저가, 셀 클릭 시 해당 날짜로 재검색)</span></h3>
+            <div class="fs-cal-headers">
+                <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+            </div>
+            <div id="fsCalendarGrid" class="fs-calendar-grid"></div>
+            <div id="fsCalendarLoading" class="fs-info-banner" hidden>가격 캘린더 데이터를 불러오는 중...</div>
+            <div id="fsCalendarEmpty" class="fs-info-banner" hidden>이 노선의 캘린더 데이터를 제공하지 않습니다.</div>
+        </section>
+
+        <!-- 결과 영역 -->
+        <section id="fsResultsSection" class="fs-section" hidden>
+            <div class="fs-results">
+                <!-- 좌측 필터 -->
+                <aside class="fs-results-filters" aria-label="결과 필터">
+                    <div class="fs-filter-group">
+                        <div class="fs-filter-title">가격 한도</div>
+                        <div class="fs-filter-row"><span id="fsPriceMin">₩0</span><span id="fsPriceMax">₩0</span></div>
+                        <input id="fsPriceSlider" type="range" min="0" max="100" value="100" step="1">
+                        <div style="font-size:12px; color: var(--color-neutral-700); text-align:center;">최대 <span id="fsPriceCurrent">-</span></div>
+                    </div>
+                    <div class="fs-filter-group" id="fsStopsFilterGroup">
+                        <div class="fs-filter-title">환승 횟수</div>
+                        <label><input type="checkbox" data-stops="0" checked> 직항</label>
+                        <label><input type="checkbox" data-stops="1" checked> 1회 환승</label>
+                        <label><input type="checkbox" data-stops="2" checked> 2회 환승</label>
+                        <label><input type="checkbox" data-stops="3" checked> 3회 이상</label>
+                    </div>
+                    <div class="fs-filter-group" id="fsCarriersFilterGroup">
+                        <div class="fs-filter-title">항공사</div>
+                        <div id="fsCarriersList" style="max-height:180px; overflow-y:auto;">
+                            <span style="font-size:12px; color: var(--color-neutral-500);">검색 후 표시됩니다</span>
+                        </div>
+                    </div>
+                    <div class="fs-filter-group">
+                        <div class="fs-filter-title">출발 시간대 (가는 편)</div>
+                        <label><input type="checkbox" data-time="dawn" checked> 새벽 (00–06)</label>
+                        <label><input type="checkbox" data-time="morning" checked> 오전 (06–12)</label>
+                        <label><input type="checkbox" data-time="afternoon" checked> 오후 (12–18)</label>
+                        <label><input type="checkbox" data-time="evening" checked> 저녁 (18–24)</label>
+                    </div>
+                    <div class="fs-filter-group" id="fsDurationFilterGroup">
+                        <div class="fs-filter-title">총 소요시간 (시간)</div>
+                        <div class="fs-filter-row"><span id="fsDurMin">0h</span><span id="fsDurMax">0h</span></div>
+                        <input id="fsDurationSlider" type="range" min="0" max="100" value="100" step="1">
+                        <div style="font-size:12px; color: var(--color-neutral-700); text-align:center;">최대 <span id="fsDurCurrent">-</span></div>
+                    </div>
+                    <div class="fs-filter-group" id="fsStaySliderGroup" hidden>
+                        <div class="fs-filter-title">체류일수 (왕복)</div>
+                        <input id="fsStaySlider" type="range" min="1" max="30" value="7" step="1">
+                        <div style="font-size:12px; color: var(--color-neutral-700); text-align:center;"><span id="fsStayCurrent">7</span>일 ± 2일</div>
+                        <label style="margin-top:4px;"><input type="checkbox" id="fsStayEnable"> 체류일수로 필터링</label>
+                    </div>
+                </aside>
+
+                <!-- 결과 메인 -->
+                <div class="fs-results-main">
+                    <div class="fs-results-tabs" role="tablist">
+                        <button class="fs-tab active" data-view="list" role="tab">📋 리스트</button>
+                        <button class="fs-tab" data-view="chart" role="tab">📈 가격추이</button>
+                        <button class="fs-tab" data-view="map" role="tab">🗺️ 지도</button>
+                    </div>
+                    <div id="fsResultSummary" class="fs-result-summary"></div>
+                    <div id="fsSortBar" class="fs-sort-bar">
+                        <button type="button" class="fs-sort-btn active" data-sort="price">최저가</button>
+                        <button type="button" class="fs-sort-btn" data-sort="duration">최단시간</button>
+                        <button type="button" class="fs-sort-btn" data-sort="stops">환승 적은순</button>
+                        <button type="button" class="fs-sort-btn" data-sort="departure">출발시간</button>
+                    </div>
+                    <div id="fsListView">
+                        <div id="fsResultList"></div>
+                    </div>
+                    <div id="fsChartView" hidden>
+                        <canvas id="fsPriceTrend"></canvas>
+                        <p style="font-size:12px; color: var(--color-neutral-500); margin-top:8px;">캘린더 데이터의 일자별 최저가입니다. 점을 클릭하면 그 날짜로 재검색됩니다.</p>
+                    </div>
+                    <div id="fsMapView" hidden>
+                        <div id="fsRouteMap"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 어디로든 결과 -->
+        <section id="fsAnywhereSection" class="fs-section fs-card" hidden>
+            <h3 class="fs-card-title">🌍 추천 도시</h3>
+            <div id="fsAnywhereGrid" class="fs-anywhere-grid"></div>
+        </section>
+
+        <!-- 빈 상태 -->
+        <section id="fsEmptyState" class="fs-section fs-empty" hidden>
+            <span class="emoji">✈️</span>
+            <div style="font-size:16px; font-weight:600; color: var(--color-neutral-700); margin-bottom: 4px;">검색 조건에 맞는 항공편이 없습니다</div>
+            <div style="font-size:13px;">날짜를 바꾸거나 직항 제한을 풀어 보세요.</div>
+        </section>
+
+        <!-- 안내 배너 -->
+        <div class="fs-info-banner" style="margin-top:24px;">
+            <strong>💡 안내</strong> · 표시 가격은 Amadeus 캐시 데이터 기반이며 실제 예약 시점에 변동될 수 있습니다. 결과는 참고용으로 활용하시고, 최종 예약은 항공사·여행사 채널에서 진행해 주세요.
+        </div>
+    </main>
+
+    <!-- 항공편 상세 모달 -->
+    <div id="fsDetailModal" class="fs-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="fsDetailTitle">
+        <div class="fs-modal">
+            <div class="fs-modal-header">
+                <h3 id="fsDetailTitle" class="fs-modal-title">항공편 상세</h3>
+                <button type="button" class="fs-modal-close" aria-label="닫기" id="fsDetailClose">×</button>
+            </div>
+            <div class="fs-modal-body" id="fsDetailBody"></div>
+        </div>
+    </div>
+
+    <!-- Scripts (KRDS 표준 순서) -->
+    <script src="../assets/js/common.js"></script>
+    <script src="../assets/js/api.js"></script>
+    <script src="../assets/js/components/toast.js"></script>
+    <script src="../assets/lib/chart/chart.min.js"></script>
+    <script src="../assets/lib/leaflet/leaflet.js"></script>
+    <script src="../assets/js/pages/flight-search.js"></script>
+</body>
+
+</html>
