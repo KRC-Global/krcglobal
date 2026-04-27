@@ -50,6 +50,7 @@
             display: flex;
             align-items: center;
             gap: var(--spacing-3);
+            flex-wrap: wrap;
         }
 
         .back-button {
@@ -80,7 +81,7 @@
         }
 
         .gis-nav-button {
-            height: 32px;
+            min-height: 36px;
             padding: 0 var(--spacing-3);
             border: 1px solid var(--color-neutral-300);
             border-radius: var(--radius-sm);
@@ -393,6 +394,7 @@
         .gis-map {
             flex: 1;
             position: relative;
+            min-width: 0;
         }
 
         #map {
@@ -914,15 +916,90 @@
 
         /* 반응형 */
         @media (max-width: 768px) {
+            .gis-container {
+                height: 100dvh;
+            }
+
             .gis-sidebar {
                 position: absolute;
-                left: -320px;
+                left: min(-88vw, -320px);
+                width: min(88vw, 360px);
+                height: 100dvh;
                 z-index: 1500;
                 transition: left var(--transition-base);
+                box-shadow: var(--shadow-xl);
             }
 
             .gis-sidebar.open {
                 left: 0;
+            }
+
+            .sidebar-header {
+                align-items: stretch;
+                padding: var(--spacing-4);
+            }
+
+            .sidebar-header-content {
+                width: 100%;
+            }
+
+            .sidebar-title {
+                font-size: var(--font-size-xl);
+            }
+
+            .gis-header-actions {
+                width: 100%;
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .gis-nav-button {
+                min-width: 0;
+                min-height: 42px;
+                padding: 0 var(--spacing-2);
+            }
+
+            .filter-tabs {
+                padding: var(--spacing-3);
+                gap: var(--spacing-1);
+            }
+
+            .filter-tab,
+            .status-filter-btn {
+                min-height: 42px;
+                padding: var(--spacing-2);
+            }
+
+            .stats-section {
+                padding: var(--spacing-3);
+                gap: var(--spacing-2);
+            }
+
+            .stat-box {
+                padding: var(--spacing-2);
+            }
+
+            .map-controls {
+                top: 14px;
+                right: 14px;
+            }
+
+            .map-control-btn {
+                width: 44px;
+                height: 44px;
+            }
+
+            .map-legend {
+                left: 14px;
+                right: 14px;
+                bottom: 14px;
+                width: auto;
+            }
+
+            .leaflet-popup-content {
+                width: min(76vw, 300px) !important;
+                max-height: 58vh;
+                overflow-y: auto;
             }
         }
 

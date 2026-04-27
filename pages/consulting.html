@@ -5,9 +5,149 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>해외기술용역 | 글로벌사업관리시스템</title>
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="../assets/css/variables.css">
+    <link rel="stylesheet" href="../assets/css/base.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #f4f6f8;
+            color: #1f2933;
+        }
+
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 1200;
+            height: 64px;
+            padding: 0 24px;
+            background: #fff;
+            border-bottom: 1px solid #dfe3e8;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .nav-left,
+        .nav-right,
+        .nav-logo,
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-text {
+            font-size: 17px;
+            font-weight: 700;
+            color: #243b53;
+        }
+
+        .user-avatar {
+            min-width: 36px;
+            height: 36px;
+            padding: 0 10px;
+            border-radius: 999px;
+            background: #e3eef8;
+            color: #0A3D62;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .mobile-menu-toggle {
+            display: none;
+            width: 44px;
+            height: 44px;
+            border: 1px solid #dfe3e8;
+            border-radius: 8px;
+            background: #fff;
+            color: #0A3D62;
+            font-size: 22px;
+            cursor: pointer;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 64px;
+            left: 0;
+            bottom: 0;
+            z-index: 1100;
+            width: 260px;
+            padding: 20px 16px;
+            background: #fff;
+            border-right: 1px solid #dfe3e8;
+            overflow-y: auto;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            margin: 0 8px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #697386;
+        }
+
+        .nav-item {
+            min-height: 44px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            color: #334e68;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .nav-item:hover {
+            background: #f0f6fc;
+            color: #0A3D62;
+        }
+
+        .nav-item.active {
+            background: #0A3D62;
+            color: #fff;
+        }
+
+        .nav-icon {
+            width: 22px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-backdrop {
+            display: none;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            padding: 32px;
+            min-height: calc(100vh - 64px);
+        }
+
+        .page-header h1 {
+            margin: 0 0 8px;
+            font-size: 28px;
+            color: #102a43;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: #627d98;
+        }
+
         /* 해외기술용역 페이지 전용 스타일 */
         .consulting-header {
             display: flex;
@@ -19,6 +159,8 @@
         .consulting-actions {
             display: flex;
             gap: 12px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
         .filter-bar {
@@ -122,6 +264,249 @@
         .action-buttons {
             display: flex;
             gap: 8px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                padding: 24px;
+            }
+
+            .projects-table {
+                overflow-x: auto;
+            }
+
+            .projects-table table {
+                min-width: 980px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                height: auto;
+                min-height: 60px;
+                padding: 10px 14px;
+            }
+
+            .mobile-menu-toggle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            .logo-text {
+                font-size: 15px;
+            }
+
+            .nav-right .user-info {
+                display: none;
+            }
+
+            .nav-right .btn {
+                min-height: 40px;
+                padding: 8px 12px;
+            }
+
+            .sidebar {
+                top: 0;
+                width: min(84vw, 320px);
+                padding-top: 72px;
+                transform: translateX(-100%);
+                transition: transform 0.2s ease;
+            }
+
+            body.sidebar-open .sidebar {
+                transform: translateX(0);
+            }
+
+            .sidebar-backdrop {
+                position: fixed;
+                inset: 0;
+                z-index: 1050;
+                background: rgba(15, 23, 42, 0.35);
+            }
+
+            body.sidebar-open .sidebar-backdrop {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px 14px 28px;
+            }
+
+            .consulting-header {
+                align-items: stretch;
+                flex-direction: column;
+                gap: 16px;
+                margin-bottom: 20px;
+            }
+
+            .page-header h1 {
+                font-size: 24px;
+            }
+
+            .consulting-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .consulting-actions .btn,
+            .filter-actions .btn,
+            .modal-actions .btn {
+                width: 100%;
+                min-height: 44px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+
+            .stat-card {
+                padding: 16px;
+            }
+
+            .filter-bar {
+                padding: 16px;
+                margin-bottom: 18px;
+            }
+
+            .filter-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .filter-group select,
+            .filter-group input {
+                min-height: 44px;
+                font-size: 16px;
+            }
+
+            .filter-actions,
+            .selection-info,
+            .modal-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .projects-table {
+                background: transparent;
+                border-radius: 0;
+                box-shadow: none;
+                overflow: visible;
+            }
+
+            .projects-table table,
+            .projects-table thead,
+            .projects-table tbody,
+            .projects-table tr,
+            .projects-table th,
+            .projects-table td {
+                display: block;
+                width: 100%;
+                min-width: 0;
+            }
+
+            .projects-table thead {
+                display: none;
+            }
+
+            .projects-table tr {
+                margin-bottom: 12px;
+                padding: 14px;
+                background: #fff;
+                border: 1px solid #dfe3e8;
+                border-radius: 10px;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+            }
+
+            .projects-table td {
+                padding: 8px 0;
+                border-bottom: 1px solid #eef2f6;
+                display: flex;
+                justify-content: space-between;
+                gap: 16px;
+                text-align: right;
+            }
+
+            .projects-table td:last-child {
+                border-bottom: 0;
+            }
+
+            .projects-table td::before {
+                content: attr(data-label);
+                color: #697386;
+                font-size: 12px;
+                font-weight: 700;
+                text-align: left;
+                flex: 0 0 96px;
+            }
+
+            .projects-table td.checkbox-cell,
+            .projects-table td.project-title-cell,
+            .projects-table td.project-actions-cell {
+                display: block;
+                text-align: left;
+            }
+
+            .projects-table td.checkbox-cell::before,
+            .projects-table td.project-title-cell::before,
+            .projects-table td.project-actions-cell::before {
+                display: block;
+                margin-bottom: 6px;
+            }
+
+            .action-buttons {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .action-buttons .btn-sm {
+                min-height: 40px;
+            }
+
+            .pagination {
+                flex-wrap: wrap;
+                gap: 8px;
+                padding: 14px 0;
+                background: transparent;
+            }
+
+            .pagination button {
+                flex: 1;
+                min-height: 42px;
+            }
+
+            .pagination .page-info {
+                order: -1;
+                width: 100%;
+                text-align: center;
+            }
+
+            .modal {
+                align-items: flex-end;
+            }
+
+            .modal-content {
+                width: 100%;
+                max-height: 92vh;
+                border-radius: 16px 16px 0 0;
+                padding: 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .toast {
+                left: 14px;
+                right: 14px;
+                top: 74px;
+                min-width: 0;
+            }
         }
 
         .btn-sm {
@@ -498,6 +883,7 @@
     <!-- 네비게이션 바 -->
     <nav class="navbar">
         <div class="nav-left">
+            <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-label="메뉴 열기" aria-expanded="false">☰</button>
             <div class="nav-logo">
                 <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
                     <rect width="32" height="32" rx="8" fill="#0A3D62" />
@@ -514,6 +900,8 @@
             <button class="btn btn-outline" onclick="logout()">로그아웃</button>
         </div>
     </nav>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
     <!-- 사이드바 -->
     <div class="sidebar">
@@ -1069,26 +1457,26 @@
 
             const html = projects.map(project => `
                 <tr>
-                    <td class="checkbox-cell">
+                    <td class="checkbox-cell" data-label="선택">
                         <input type="checkbox" class="project-checkbox" data-project-id="${project.id}" onchange="updateSelection()">
                     </td>
-                    <td>${project.number || '-'}</td>
-                    <td>${project.contractYear || '-'}</td>
-                    <td>${project.country}</td>
-                    <td>
+                    <td data-label="번호">${project.number || '-'}</td>
+                    <td data-label="수주년도">${project.contractYear || '-'}</td>
+                    <td data-label="국가">${project.country}</td>
+                    <td class="project-title-cell" data-label="사업명">
                         <div style="font-weight: 600;">${project.titleKr}</div>
                         ${project.titleEn ? `<div style="font-size: 12px; color: #6c757d; margin-top: 4px;">${project.titleEn}</div>` : ''}
                     </td>
-                    <td>${project.projectType || '-'}</td>
-                    <td>${project.startDate || '-'}</td>
-                    <td>${project.endDate || '-'}</td>
-                    <td class="budget-amount">${project.budget ? project.budget.toLocaleString() : '-'}</td>
-                    <td>
+                    <td data-label="사업형태">${project.projectType || '-'}</td>
+                    <td data-label="착수일">${project.startDate || '-'}</td>
+                    <td data-label="준공일">${project.endDate || '-'}</td>
+                    <td class="budget-amount" data-label="예산(백만원)">${project.budget ? project.budget.toLocaleString() : '-'}</td>
+                    <td data-label="상태">
                         <span class="status-badge ${project.status === '준공' ? 'status-completed' : 'status-inprogress'}">
                             ${project.status}
                         </span>
                     </td>
-                    <td>
+                    <td class="project-actions-cell" data-label="작업">
                         <div class="action-buttons">
                             <button class="btn-sm btn-edit" onclick="editProject(${project.id})">수정</button>
                             <button class="btn-sm btn-delete" onclick="deleteProject(${project.id}, '${project.titleKr.replace(/'/g, "\\'")}')">삭제</button>
@@ -1471,6 +1859,27 @@
                 hideLoading();
                 showToast('Excel 다운로드에 실패했습니다.', 'error');
             }
+        }
+
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+        function setSidebarOpen(isOpen) {
+            document.body.classList.toggle('sidebar-open', isOpen);
+            if (mobileMenuToggle) {
+                mobileMenuToggle.setAttribute('aria-expanded', String(isOpen));
+                mobileMenuToggle.setAttribute('aria-label', isOpen ? '메뉴 닫기' : '메뉴 열기');
+            }
+        }
+
+        if (mobileMenuToggle && sidebarBackdrop) {
+            mobileMenuToggle.addEventListener('click', () => {
+                setSidebarOpen(!document.body.classList.contains('sidebar-open'));
+            });
+            sidebarBackdrop.addEventListener('click', () => setSidebarOpen(false));
+            document.querySelectorAll('.sidebar .nav-item').forEach(link => {
+                link.addEventListener('click', () => setSidebarOpen(false));
+            });
         }
     </script>
 </body>
