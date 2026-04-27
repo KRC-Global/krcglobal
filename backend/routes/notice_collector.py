@@ -25,6 +25,10 @@ AGRI_KEYWORDS = [
     'crop', 'livestock', 'rice', 'grain', 'seed', 'fisheries',
     'forestry', 'water resource', 'drainage', 'land reclamation',
     'watershed', 'aquaculture', 'paddy', 'horticulture',
+    # 수자원 인프라 / 기후변화 (2026-04 추가)
+    'climate change', 'climate adaptation',
+    'reservoir', 'dam', 'dams',
+    'rehabilitation', 'refurbishment',
 ]
 
 CONSULTING_KEYWORDS = [
@@ -39,6 +43,8 @@ CONSULTING_KEYWORDS = [
 AGRI_KEYWORDS_KO = [
     '농업', '농촌', '관개', '식량', '작물', '수산', '산림', '농지',
     '용수', '양식', '축산', '수자원', '간척', '개간',
+    # 수자원 인프라 / 기후변화 (2026-04 추가)
+    '기후변화', '저수지', '댐', '개보수',
 ]
 
 CONSULTING_KEYWORDS_KO = [
