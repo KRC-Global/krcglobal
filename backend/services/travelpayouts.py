@@ -274,18 +274,175 @@ def _build_offer_from_v3(item: Dict[str, Any], currency: str) -> Dict[str, Any]:
 
 # ────────────── 검색 함수 ──────────────
 
-def search_airports(keyword: str, limit: int = 15) -> Optional[List[Dict[str, Any]]]:
-    """공항/도시/국가 자동완성 (Travelpayouts places2, 인증 불필요).
+# 한국어 입력이 Travelpayouts 인덱스(영문 표기 위주)에서 0건이 나오는 케이스 보강 사전.
+# value 는 영문 검색어로 다시 호출할 때 사용. 추가 항목은 자유롭게 늘릴 것.
+_KO_QUERY_ALIASES: Dict[str, str] = {
+    # 한국 공항·도시
+    '인천': 'Incheon',
+    '인천공항': 'ICN',
+    '김포': 'Gimpo',
+    '김포공항': 'GMP',
+    '제주': 'Jeju',
+    '부산': 'Busan',
+    '김해': 'Busan',
+    '대구': 'Daegu',
+    '광주': 'Gwangju',
+    '청주': 'Cheongju',
+    '울산': 'Ulsan',
+    '여수': 'Yeosu',
+    '무안': 'Muan',
+    '양양': 'Yangyang',
+    '원주': 'Wonju',
+    # 일본
+    '나리타': 'Narita',
+    '하네다': 'Haneda',
+    '간사이': 'Kansai',
+    '나고야': 'Nagoya',
+    '주부': 'Centrair',
+    '후쿠오카': 'Fukuoka',
+    '삿포로': 'Sapporo',
+    '신치토세': 'Chitose',
+    '오키나와': 'Okinawa',
+    # 중국·홍콩·대만
+    '푸둥': 'Pudong',
+    '훙차오': 'Hongqiao',
+    '서우두': 'Capital',
+    '다싱': 'Daxing',
+    '광저우': 'Guangzhou',
+    '선전': 'Shenzhen',
+    '청두': 'Chengdu',
+    '톈진': 'Tianjin',
+    '시안': 'Xian',
+    '항저우': 'Hangzhou',
+    '난징': 'Nanjing',
+    '쿤밍': 'Kunming',
+    '타이베이': 'Taipei',
+    '타오위안': 'Taoyuan',
+    # 동남아
+    '하노이': 'Hanoi',
+    '호치민': 'Ho Chi Minh',
+    '다낭': 'Da Nang',
+    '냐짱': 'Nha Trang',
+    '마닐라': 'Manila',
+    '세부': 'Cebu',
+    '쿠알라룸푸르': 'Kuala Lumpur',
+    '랑카위': 'Langkawi',
+    '발리': 'Bali',
+    '자카르타': 'Jakarta',
+    '쟈카르타': 'Jakarta',
+    '치앙마이': 'Chiang Mai',
+    '푸켓': 'Phuket',
+    '수완나품': 'Suvarnabhumi',
+    '돈무앙': 'Don Mueang',
+    # 중동·서남아
+    '두바이': 'Dubai',
+    '도하': 'Doha',
+    '아부다비': 'Abu Dhabi',
+    '이스탄불': 'Istanbul',
+    '리야드': 'Riyadh',
+    '제다': 'Jeddah',
+    '테헤란': 'Tehran',
+    '뉴델리': 'New Delhi',
+    '뭄바이': 'Mumbai',
+    # 유럽
+    '런던': 'London',
+    '히드로': 'Heathrow',
+    '게트윅': 'Gatwick',
+    '암스테르담': 'Amsterdam',
+    '파리': 'Paris',
+    '샤를드골': 'Charles de Gaulle',
+    '로마': 'Rome',
+    '밀라노': 'Milan',
+    '마드리드': 'Madrid',
+    '바르셀로나': 'Barcelona',
+    '뮌헨': 'Munich',
+    '프랑크푸르트': 'Frankfurt',
+    '베를린': 'Berlin',
+    '취리히': 'Zurich',
+    '비엔나': 'Vienna',
+    '빈': 'Vienna',
+    '코펜하겐': 'Copenhagen',
+    '스톡홀름': 'Stockholm',
+    '헬싱키': 'Helsinki',
+    '프라하': 'Prague',
+    '바르샤바': 'Warsaw',
+    '리스본': 'Lisbon',
+    '아테네': 'Athens',
+    # 북미
+    '뉴욕': 'New York',
+    '로스앤젤레스': 'Los Angeles',
+    '엘에이': 'Los Angeles',
+    '샌프란시스코': 'San Francisco',
+    '시카고': 'Chicago',
+    '워싱턴': 'Washington',
+    '시애틀': 'Seattle',
+    '보스턴': 'Boston',
+    '댈러스': 'Dallas',
+    '애틀랜타': 'Atlanta',
+    '라스베이거스': 'Las Vegas',
+    '하와이': 'Honolulu',
+    '호놀룰루': 'Honolulu',
+    '밴쿠버': 'Vancouver',
+    '토론토': 'Toronto',
+    '몬트리올': 'Montreal',
+    # 오세아니아
+    '시드니': 'Sydney',
+    '멜버른': 'Melbourne',
+    '브리즈번': 'Brisbane',
+    '오클랜드': 'Auckland',
+    # 아프리카·기타
+    '카이로': 'Cairo',
+    '나이로비': 'Nairobi',
+    '아디스아바바': 'Addis Ababa',
+    '요하네스버그': 'Johannesburg',
+    '케이프타운': 'Cape Town',
+    '카사블랑카': 'Casablanca',
+    # 국가명 (Travelpayouts 인덱스가 '대한민국' 등으로만 잡혀 있는 경우)
+    '한국': 'Korea',
+    '미국': 'United States',
+    '중국': 'China',
+    '일본': 'Japan',
+    '대만': 'Taiwan',
+    '홍콩': 'Hong Kong',
+    '베트남': 'Vietnam',
+    '태국': 'Thailand',
+    '말레이시아': 'Malaysia',
+    '싱가포르': 'Singapore',
+    '인도네시아': 'Indonesia',
+    '필리핀': 'Philippines',
+    '인도': 'India',
+    '러시아': 'Russia',
+    '독일': 'Germany',
+    '프랑스': 'France',
+    '영국': 'United Kingdom',
+    '스페인': 'Spain',
+    '이탈리아': 'Italy',
+    '네덜란드': 'Netherlands',
+    '스위스': 'Switzerland',
+    '오스트리아': 'Austria',
+    '터키': 'Turkey',
+    '이집트': 'Egypt',
+    '에티오피아': 'Ethiopia',
+    '캐나다': 'Canada',
+    '멕시코': 'Mexico',
+    '브라질': 'Brazil',
+    '아르헨티나': 'Argentina',
+    '호주': 'Australia',
+    '뉴질랜드': 'New Zealand',
+    '남아공': 'South Africa',
+    '사우디': 'Saudi Arabia',
+    '아랍에미리트': 'United Arab Emirates',
+    '카타르': 'Qatar',
+    '이란': 'Iran',
+}
 
-    types[]=airport,city,country 까지 받아 결과를 한 번에 반환한다.
-    프론트는 subtype('AIRPORT'|'CITY'|'COUNTRY')으로 그룹/아이콘 표시.
-    """
-    if not keyword or len(keyword.strip()) < 1:
-        return []
+
+def _places2_call(term: str, limit: int) -> Optional[List[Dict[str, Any]]]:
+    """places2 단일 호출. None=네트워크 실패, []=정상이지만 결과 없음."""
     _, _, _, ac = _get_config()
     url = f'{ac}/places2'
     data = _request('GET', url, params={
-        'term': keyword.strip(),
+        'term': term,
         'locale': 'ko',
         'types[]': ['airport', 'city', 'country'],
     }, auth_required=False)
@@ -293,9 +450,60 @@ def search_airports(keyword: str, limit: int = 15) -> Optional[List[Dict[str, An
         return None
     if not isinstance(data, list):
         return []
+    return data[:max(1, limit)]
+
+
+def search_airports(keyword: str, limit: int = 15) -> Optional[List[Dict[str, Any]]]:
+    """공항/도시/국가 자동완성 (Travelpayouts places2, 인증 불필요).
+
+    types[]=airport,city,country 까지 받아 결과를 한 번에 반환한다.
+    프론트는 subtype('AIRPORT'|'CITY'|'COUNTRY')으로 그룹/아이콘 표시.
+
+    한국어 키워드 처리:
+    - 사전 정확 매칭(_KO_QUERY_ALIASES): API 호출 전에 영문 별칭으로 우선 호출 →
+      API 원본 결과보다 앞에 머지 (예: '인천공항' 같이 인덱스에 무관 결과만 나오는 케이스)
+    - API 가 0건일 때만 토큰 단위 별칭(예: '서울 인천' → '인천' 토큰)으로 폴백
+    """
+    if not keyword or len(keyword.strip()) < 1:
+        return []
+    term = keyword.strip()
+
+    # 1) 정확 별칭 매칭 → 영문 키워드로 우선 호출
+    alias_data: List[Dict[str, Any]] = []
+    direct_alias = _KO_QUERY_ALIASES.get(term)
+    if direct_alias:
+        alias_data = _places2_call(direct_alias, limit) or []
+
+    # 2) 원본 term 호출
+    data = _places2_call(term, limit)
+    if data is None and not alias_data:
+        return None  # 네트워크 실패
+    data = data or []
+
+    # 3) 원본 0건이고 정확 별칭도 없으면 → 부분 토큰 별칭 시도
+    if not data and not direct_alias:
+        for tok in term.replace('·', ' ').replace('-', ' ').split():
+            tok_alias = _KO_QUERY_ALIASES.get(tok)
+            if tok_alias:
+                data = _places2_call(tok_alias, limit) or []
+                break
+
+    # 4) alias 결과를 우선 + 원본 결과를 보충, (type, code) 기준 중복 제거
+    seen = set()
+    merged: List[Dict[str, Any]] = []
+    for loc in (alias_data + data):
+        kind = (loc.get('type') or '').lower()
+        code = loc.get('code')
+        if not code:
+            continue
+        key = (kind, code)
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(loc)
 
     out: List[Dict[str, Any]] = []
-    for loc in data[:limit]:
+    for loc in merged[:limit]:
         kind = (loc.get('type') or '').lower()  # 'airport' | 'city' | 'country'
         code = loc.get('code')
         if not code:
