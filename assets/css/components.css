@@ -1124,3 +1124,24 @@ body.readonly-mode .admin-only {
         left: auto !important;
     }
 }
+
+/* ─── 발주공고 수집일 뱃지 ─── */
+.collected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: 10px;
+    background: var(--color-neutral-100, #f1f3f5);
+    color: var(--color-neutral-600, #495057);
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.collected-badge.new {
+    background: var(--color-primary-100, #e7f1f9);
+    color: var(--color-primary-700, #103e69);
+    box-shadow: 0 0 0 1px var(--color-primary-300, #93b6d3) inset;
+}

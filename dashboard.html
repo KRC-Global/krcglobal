@@ -934,11 +934,12 @@
                                     <th style="text-align:left; padding:8px 12px; color: var(--color-neutral-600); font-weight:600; white-space:nowrap;">기관</th>
                                     <th style="text-align:left; padding:8px 12px; color: var(--color-neutral-600); font-weight:600;">제목</th>
                                     <th style="text-align:left; padding:8px 12px; color: var(--color-neutral-600); font-weight:600; white-space:nowrap;">국가</th>
+                                    <th style="text-align:left; padding:8px 12px; color: var(--color-neutral-600); font-weight:600; white-space:nowrap;">수집일</th>
                                     <th style="text-align:left; padding:8px 12px; color: var(--color-neutral-600); font-weight:600; white-space:nowrap;">마감일</th>
                                 </tr>
                             </thead>
                             <tbody id="bidNoticeTableBody">
-                                <tr><td colspan="4" style="text-align:center; padding:24px; color: var(--color-neutral-400);">불러오는 중...</td></tr>
+                                <tr><td colspan="5" style="text-align:center; padding:24px; color: var(--color-neutral-400);">불러오는 중...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1227,7 +1228,7 @@
                 }
 
                 if (!data.data || data.data.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color: var(--color-neutral-400);">새 발주공고가 없습니다.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color: var(--color-neutral-400);">새 발주공고가 없습니다.</td></tr>';
                     return;
                 }
 
@@ -1246,6 +1247,7 @@
                             </a>
                         </td>
                         <td style="padding:10px 12px; white-space:nowrap; color: var(--color-neutral-600);">${n.country || '-'}</td>
+                        <td style="padding:10px 12px; white-space:nowrap;">${formatCollectedBadge(n.createdAt) || '-'}</td>
                         <td style="padding:10px 12px; white-space:nowrap; color: var(--color-neutral-600);">${n.deadline || '-'}</td>
                     </tr>
                 `).join('');

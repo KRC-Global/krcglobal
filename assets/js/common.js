@@ -1116,6 +1116,38 @@ document.addEventListener('DOMContentLoaded', function () {
     applyReadonlyMode();
 });
 
+// ─── 발주공고 수집일 뱃지 헬퍼 ─────────────────────────────────────
+// 최근 2일 이내는 "🆕 오늘 / N일 전" 강조 뱃지, 그 이전은 "📥 M/D" 중립 뱃지
+function formatCollectedBadge(createdAt) {
+    if (!createdAt) return '';
+    const parts = String(createdAt).slice(0, 10).split('-');
+    if (parts.length !== 3) return '';
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (!y || !m || !d) return '';
+
+    const date = new Date(y, m - 1, d);
+    if (isNaN(date.getTime())) return '';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((today.getTime() - date.getTime()) / 86400000);
+
+    let label;
+    let isNew = false;
+    if (diffDays <= 0) { label = '오늘'; isNew = true; }
+    else if (diffDays === 1) { label = '1일 전'; isNew = true; }
+    else if (diffDays === 2) { label = '2일 전'; isNew = true; }
+    else { label = `${m}/${d}`; }
+
+    const icon = isNew ? '🆕' : '📥';
+    const cls = isNew ? 'collected-badge new' : 'collected-badge';
+    const tooltip = `수집일: ${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+    return `<span class="${cls}" title="${tooltip}">${icon} ${label}</span>`;
+}
+window.formatCollectedBadge = formatCollectedBadge;
+
 // 전역으로 사용할 수 있도록 window 객체에 할당
 window.toggleSubmenu = toggleSubmenu;
 window.openPasswordChangeModal = openPasswordChangeModal;

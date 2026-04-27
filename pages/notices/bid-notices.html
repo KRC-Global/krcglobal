@@ -1340,6 +1340,7 @@
                     <div class="list-card-head">
                         <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
                         <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
+                        ${formatCollectedBadge(n.createdAt)}
                         <span style="margin-left:auto; font-size:11px; color:var(--color-neutral-500);">
                             ${n.deadline ? '📅 ' + escapeHtml(n.deadline) : ''}
                         </span>
@@ -1424,6 +1425,7 @@
                     <div class="panel-card-head">
                         <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
                         <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
+                        ${formatCollectedBadge(n.createdAt)}
                         <span style="margin-left:auto; font-size:11px; color:var(--color-neutral-500);">
                             ${n.deadline ? `📅 ${escapeHtml(n.deadline)}` : ''}
                         </span>
