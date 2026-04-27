@@ -72,6 +72,37 @@
             color: var(--color-primary-700);
         }
 
+        .gis-header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            flex-shrink: 0;
+        }
+
+        .gis-nav-button {
+            height: 32px;
+            padding: 0 var(--spacing-3);
+            border: 1px solid var(--color-neutral-300);
+            border-radius: var(--radius-sm);
+            background: var(--color-neutral-0);
+            color: var(--color-neutral-700);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .gis-nav-button:hover {
+            background: var(--color-primary-50);
+            border-color: var(--color-primary-300);
+            color: var(--color-primary-700);
+        }
+
         .sidebar-header-content {
             flex: 1;
         }
@@ -1016,7 +1047,6 @@
         <!-- 좌측 사이드바 -->
         <div class="gis-sidebar" id="sidebar">
             <div class="sidebar-header" style="justify-content: space-between;">
-                <button class="back-button" id="backBtn" title="대시보드로 돌아가기">←</button>
                 <div class="sidebar-header-content">
                     <div class="sidebar-title">
                         <span>🌏</span>
@@ -1024,7 +1054,11 @@
                     </div>
                     <div class="sidebar-subtitle">해외사업 현황</div>
                 </div>
-                <button onclick="logout()" title="로그아웃" style="background:none;border:1px solid rgba(255,255,255,0.4);color:rgba(255,255,255,0.85);border-radius:4px;padding:4px 8px;cursor:pointer;font-size:12px;white-space:nowrap;">로그아웃</button>
+                <div class="gis-header-actions">
+                    <a href="../dashboard.html" class="gis-nav-button" id="backBtn" title="대시보드로 이동">대시보드</a>
+                    <a href="flight-search.html" class="gis-nav-button" title="항공권검색으로 이동">항공권검색</a>
+                    <button onclick="logout()" class="gis-nav-button" title="로그아웃">로그아웃</button>
+                </div>
             </div>
 
             <div class="filter-tabs">
