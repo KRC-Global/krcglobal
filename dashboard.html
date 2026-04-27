@@ -1175,36 +1175,33 @@
             // Initialize Common UI (메뉴, 테마, 사용자 정보)
             initCommonUI();
 
-            // Initialize Banner Carousel
-            await loadBannerCarousel();
-
-            // Initialize Dashboard
-            await loadDashboardData();
+            // Banner + Dashboard 데이터를 병렬 로드 (독립적이라 동시에 가져옴)
+            await Promise.all([
+                loadBannerCarousel(),
+                loadDashboardData()
+            ]);
         });
 
         async function loadDashboardData() {
-            try {
-                // 0. 발주공고 위젯
-                await loadBidNoticeWidget();
-
-                // 1. Overview Statistics
-                const overviewData = await apiCall('/dashboard/overview');
-                if (overviewData.success) {
-                    updateStats(overviewData.data);
+            const overviewTask = (async () => {
+                try {
+                    const overviewData = await apiCall('/dashboard/overview');
+                    if (overviewData.success) {
+                        updateStats(overviewData.data);
+                    }
+                } catch (error) {
+                    console.error('Failed to load overview:', error);
                 }
+            })();
 
-                // 2. Current Year Projects (2026년 사업 현황)
-                await loadCurrentYearProjects();
-
-                // 3. 사업제안 및 수주현황
-                await loadProposalStatus();
-
-                // 4. 추진사업 연도별 수익현황
-                await loadDashboardRevenueTable();
-
-            } catch (error) {
-                console.error('Failed to load dashboard data:', error);
-            }
+            // 5개 위젯이 서로 독립적이므로 병렬 호출
+            await Promise.all([
+                loadBidNoticeWidget(),
+                overviewTask,
+                loadCurrentYearProjects(),
+                loadProposalStatus(),
+                loadDashboardRevenueTable()
+            ]);
         }
 
         const SOURCE_LABELS = {
