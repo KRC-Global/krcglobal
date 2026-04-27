@@ -968,7 +968,11 @@
                 $('#fsChartView').hidden = state.tripView !== 'chart';
                 $('#fsMapView').hidden = state.tripView !== 'map';
                 if (state.tripView === 'map' && state.routeMap) {
-                    setTimeout(() => state.routeMap.invalidateSize(), 80);
+                    // 컨테이너가 비어있던 상태에서 보이게 됐으니 사이즈 재계산 후 다시 맞춤
+                    setTimeout(() => {
+                        state.routeMap.invalidateSize();
+                        fitRouteBounds();
+                    }, 80);
                 }
                 if (state.tripView === 'chart' && state.priceTrendChart) {
                     setTimeout(() => state.priceTrendChart.update(), 80);
@@ -1109,38 +1113,142 @@
     }
 
     // ───── 라우트 지도 ─────
-    function renderRouteMap(originIata, destIata) {
-        if (typeof L === 'undefined') return;
-        // selectedOrigin/Destination 우선, 없으면 enrichAirportNames 캐시(좌표 포함)
-        const o = (state.selectedOrigin && state.selectedOrigin.iata === originIata && state.selectedOrigin.latitude != null)
-            ? state.selectedOrigin
-            : airportInfo(originIata);
-        const d = (state.selectedDestination && state.selectedDestination.iata === destIata && state.selectedDestination.latitude != null)
-            ? state.selectedDestination
-            : airportInfo(destIata);
-        if (!o || !d || o.latitude == null || d.latitude == null) return;
+    function _toRad(deg) { return deg * Math.PI / 180; }
+    function _toDeg(rad) { return rad * 180 / Math.PI; }
 
-        const oLatLng = [Number(o.latitude), Number(o.longitude)];
-        const dLatLng = [Number(d.latitude), Number(d.longitude)];
+    // 두 지점 사이 대권 경로의 중간 지점 계산 (movable-type great-circle 공식)
+    function _greatCirclePoint(p1, p2, fraction) {
+        const lat1 = _toRad(p1[0]), lng1 = _toRad(p1[1]);
+        const lat2 = _toRad(p2[0]), lng2 = _toRad(p2[1]);
+        const dLat = lat2 - lat1, dLng = lng2 - lng1;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+        const delta = 2 * Math.asin(Math.min(1, Math.sqrt(a)));
+        if (delta === 0) return [p1[0], p1[1]];
+        const A = Math.sin((1 - fraction) * delta) / Math.sin(delta);
+        const B = Math.sin(fraction * delta) / Math.sin(delta);
+        const x = A * Math.cos(lat1) * Math.cos(lng1) + B * Math.cos(lat2) * Math.cos(lng2);
+        const y = A * Math.cos(lat1) * Math.sin(lng1) + B * Math.cos(lat2) * Math.sin(lng2);
+        const z = A * Math.sin(lat1) + B * Math.sin(lat2);
+        const lat = Math.atan2(z, Math.sqrt(x * x + y * y));
+        const lng = Math.atan2(y, x);
+        return [_toDeg(lat), _toDeg(lng)];
+    }
+
+    function _greatCircleArc(p1, p2, n = 64) {
+        const pts = [];
+        for (let i = 0; i <= n; i++) pts.push(_greatCirclePoint(p1, p2, i / n));
+        return pts;
+    }
+
+    // 대권 좌표 중 ±180° 자오선을 넘는 부분에서 폴리라인을 분할 → 지구를 한 바퀴 도는 라인 방지
+    function _splitAtAntimeridian(arc) {
+        const segs = [[]];
+        for (let i = 0; i < arc.length; i++) {
+            if (i > 0) {
+                const prev = arc[i - 1][1];
+                const curr = arc[i][1];
+                if (Math.abs(curr - prev) > 180) segs.push([]);
+            }
+            segs[segs.length - 1].push(arc[i]);
+        }
+        return segs.filter((s) => s.length >= 2);
+    }
+
+    function _drawGreatCircle(p1, p2, color) {
+        const arc = _greatCircleArc(p1, p2, 96);
+        _splitAtAntimeridian(arc).forEach((seg) => {
+            L.polyline(seg, { color, weight: 3, opacity: 0.9, dashArray: '6, 6' }).addTo(state.routeMap);
+        });
+    }
+
+    // 출/도착 좌표 룩업: selectedOrigin/Destination 우선, 없으면 airportNames 캐시
+    function _resolveLatLng(iata) {
+        if (!iata) return null;
+        const sel = state.selectedOrigin && state.selectedOrigin.iata === iata && state.selectedOrigin.latitude != null
+            ? state.selectedOrigin
+            : (state.selectedDestination && state.selectedDestination.iata === iata && state.selectedDestination.latitude != null
+                ? state.selectedDestination
+                : null);
+        const info = sel || airportInfo(iata);
+        if (!info || info.latitude == null) return null;
+        return { iata, name: info.name, city: info.city, latitude: Number(info.latitude), longitude: Number(info.longitude) };
+    }
+
+    function fitRouteBounds() {
+        if (!state.routeMap || !state.routeBounds) return;
+        // padding: 픽셀 단위로 일정한 여백, maxZoom: 너무 가까운 노선이 과하게 확대되는 것 방지
+        state.routeMap.fitBounds(state.routeBounds, { padding: [44, 44], maxZoom: 7, animate: false });
+    }
+
+    /**
+     * 노선 지도 렌더.
+     * @param {Array<{origin:string,destination:string}>|string} legsOrOrigin
+     *        다구간/왕복: [{origin, destination}, ...] 배열
+     *        단순 호출: 기존 호환을 위한 (originIata, destIata) 두 인자 형태
+     * @param {string=} destIata
+     */
+    function renderRouteMap(legsOrOrigin, destIata) {
+        if (typeof L === 'undefined') return;
+
+        const legs = Array.isArray(legsOrOrigin)
+            ? legsOrOrigin.filter(Boolean).map((l) => ({ origin: l.origin, destination: l.destination }))
+            : [{ origin: legsOrOrigin, destination: destIata }];
+
+        // 좌표 매핑
+        const resolved = [];
+        legs.forEach((l) => {
+            const a = _resolveLatLng(l.origin);
+            const b = _resolveLatLng(l.destination);
+            if (a && b) resolved.push({ a, b });
+        });
+        if (!resolved.length) return;
 
         if (!state.routeMap) {
-            state.routeMap = L.map('fsRouteMap', { zoomControl: true, attributionControl: true });
+            state.routeMap = L.map('fsRouteMap', {
+                zoomControl: true,
+                attributionControl: true,
+                worldCopyJump: true,
+                preferCanvas: true,
+            });
             L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                maxZoom: 8,
+                maxZoom: 12,
+                minZoom: 2,
                 attribution: '&copy; OpenStreetMap &copy; CARTO',
             }).addTo(state.routeMap);
         } else {
             state.routeMap.eachLayer((ly) => {
-                if (ly instanceof L.Marker || ly instanceof L.Polyline) state.routeMap.removeLayer(ly);
+                if (ly instanceof L.Marker || ly instanceof L.Polyline || ly instanceof L.CircleMarker) {
+                    state.routeMap.removeLayer(ly);
+                }
             });
         }
 
-        L.marker(oLatLng).addTo(state.routeMap)
-            .bindPopup(`<strong>${o.iata}</strong> ${o.name || o.city || ''}`);
-        L.marker(dLatLng).addTo(state.routeMap)
-            .bindPopup(`<strong>${d.iata}</strong> ${d.name || d.city || ''}`);
-        L.polyline([oLatLng, dLatLng], { color: '#1A4B7C', weight: 3, dashArray: '6, 6' }).addTo(state.routeMap);
-        state.routeMap.fitBounds(L.latLngBounds([oLatLng, dLatLng]).pad(0.4));
+        // 다구간일 때 leg 별로 색을 약간 변주
+        const palette = ['#1A4B7C', '#0EA5A4', '#B45309', '#7C3AED', '#DC2626', '#0891B2'];
+
+        // 마커는 IATA 단위로 한 번씩만
+        const markedIata = new Set();
+        const allPoints = [];
+
+        resolved.forEach((pair, idx) => {
+            const color = palette[idx % palette.length];
+            const aLL = [pair.a.latitude, pair.a.longitude];
+            const bLL = [pair.b.latitude, pair.b.longitude];
+            allPoints.push(aLL, bLL);
+            _drawGreatCircle(aLL, bLL, color);
+
+            [pair.a, pair.b].forEach((pt) => {
+                if (markedIata.has(pt.iata)) return;
+                markedIata.add(pt.iata);
+                L.marker([pt.latitude, pt.longitude], { title: pt.iata }).addTo(state.routeMap)
+                    .bindPopup(`<strong>${pt.iata}</strong> ${pt.name || pt.city || ''}`);
+            });
+        });
+
+        // bounds 는 마커 좌표만으로 산출 (대권 호선 정점을 포함하면 너무 넓어질 수 있음)
+        state.routeBounds = L.latLngBounds(allPoints);
+        // 컨테이너가 hidden(0×0) 일 수 있으니 약간 지연 후 호출 — 탭 보일 때도 다시 호출됨
+        setTimeout(fitRouteBounds, 60);
     }
 
     // ───── 다구간 ─────
@@ -1343,12 +1451,16 @@
             }
             initFiltersFromResults();
             applyFiltersAndRender();
-            // 다구간은 캘린더/차트/지도 의미가 약하므로 리스트 위주
+            // 다구간은 캘린더/차트는 의미가 약하므로 리스트·지도 중심
             $('#fsCalendarSection').hidden = true;
-            // 다구간 결과 IATA 일괄 풀네임 조회
+            // 다구간 결과 IATA 일괄 풀네임 조회 → 풀네임 도착하면 카드/지도 재렌더
             const iatas = collectIatasFromOffers(state.results).concat(ods.flatMap((od) => [od.origin, od.destination]));
+            renderRouteMap(ods);
             enrichAirportNames(iatas).then((updated) => {
-                if (updated) applyFiltersAndRender();
+                if (updated) {
+                    applyFiltersAndRender();
+                    renderRouteMap(ods);
+                }
             });
         } catch (err) {
             console.error(err);
