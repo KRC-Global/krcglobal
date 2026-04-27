@@ -200,6 +200,8 @@ def search(current_user):
                 'count': cached['count'],
                 'currency': cached['currency'],
                 'dictionaries': cached.get('dictionaries', {}),
+                'fallback': bool(cached.get('fallback')),
+                'requested_date': cached.get('requested_date'),
                 'cached': True,
             })
         })
@@ -222,6 +224,8 @@ def search(current_user):
             'count': result['count'],
             'currency': result['currency'],
             'dictionaries': result.get('dictionaries', {}),
+            'fallback': bool(result.get('fallback')),
+            'requested_date': result.get('requested_date'),
         })
     })
 

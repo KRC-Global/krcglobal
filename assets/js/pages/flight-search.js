@@ -271,6 +271,8 @@
         $('#fsEmptyState').hidden = true;
         const synth = $('#fsSynthesizedBanner');
         if (synth) synth.hidden = true;
+        const fb = $('#fsFallbackBanner');
+        if (fb) fb.hidden = true;
     }
 
     // ───── 자동완성 ─────
@@ -491,6 +493,19 @@
             state.results = searchResp.data || [];
             state.carriers = ((searchResp.meta || {}).dictionaries || {}).carriers || {};
             state.calendar = (calResp && calResp.success) ? (calResp.data || []) : [];
+
+            // 인근 날짜 폴백 안내
+            const fbBanner = $('#fsFallbackBanner');
+            if (fbBanner) {
+                if ((searchResp.meta || {}).fallback) {
+                    const reqDate = (searchResp.meta || {}).requested_date || params.departureDate || '';
+                    const target = $('#fsFallbackTarget');
+                    if (target) target.textContent = reqDate || '선택한 날짜';
+                    fbBanner.hidden = false;
+                } else {
+                    fbBanner.hidden = true;
+                }
+            }
 
             if (!state.results.length) {
                 $('#fsResultsSection').hidden = true;

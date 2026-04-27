@@ -311,6 +311,56 @@ def search_airports(keyword: str, limit: int = 10) -> Optional[List[Dict[str, An
     return out
 
 
+def _market_param() -> str:
+    """Travelpayouts 'market' 파라미터.
+
+    기본값을 'us' 로 둔다. 그대로 두면 API 가 'ru' 로 동작해 한국 시장 데이터가
+    빈약해지는 경향이 있음. TRAVELPAYOUTS_MARKET 으로 덮어쓸 수 있다.
+    """
+    return os.environ.get('TRAVELPAYOUTS_MARKET', 'us').strip().lower() or 'us'
+
+
+def _v3_prices_for_dates(
+    *, base: str,
+    origin: str,
+    destination: str,
+    departure_at: str,        # 'YYYY-MM-DD' 또는 'YYYY-MM'
+    return_at: Optional[str] = None,
+    one_way: bool,
+    currency: str,
+    non_stop: Optional[bool],
+    sorting: str = 'price',
+    unique: bool = False,
+    limit: int = 1000,
+) -> Optional[List[Dict[str, Any]]]:
+    """aviasales/v3/prices_for_dates 단일 호출. 결과 row 배열만 반환."""
+    url = f'{base}/aviasales/v3/prices_for_dates'
+    params: Dict[str, Any] = {
+        'origin': origin.upper(),
+        'destination': destination.upper(),
+        'departure_at': departure_at,
+        'currency': currency.lower(),
+        'market': _market_param(),
+        'unique': 'true' if unique else 'false',
+        'sorting': sorting,
+        'limit': max(1, min(int(limit), 1000)),
+        'page': 1,
+        'one_way': 'true' if one_way else 'false',
+    }
+    if return_at:
+        params['return_at'] = return_at
+    if non_stop is True:
+        params['direct'] = 'true'
+
+    data = _request('GET', url, params=params)
+    if data is None:
+        return None
+    if isinstance(data, dict) and data.get('success') is False:
+        _set_error(f"prices_for_dates success=false: {str(data)[:200]}")
+        return []
+    return (data or {}).get('data') or []
+
+
 def search_flight_offers(
     origin: str,
     destination: str,
@@ -325,39 +375,66 @@ def search_flight_offers(
     currency: str = 'KRW',
     max_results: int = 50,
 ) -> Optional[Dict[str, Any]]:
-    """편도/왕복 검색."""
+    """편도/왕복 검색.
+
+    Travelpayouts prices_for_dates 의 캐시 특성상 *정확한 날짜* 로만 조회하면
+    인기 노선이라도 0건이 자주 나온다. 따라서 두 단계로 폴백한다:
+        1차: departure_at='YYYY-MM-DD' (사용자 지정 날짜)
+        2차: 1차가 비었으면 departure_at='YYYY-MM' 월 단위 조회 → 사용자 날짜 ±3일 우선,
+             그 다음 같은 월 내 가격 순으로 보충
+    """
     _, _, base, _ = _get_config()
-    url = f'{base}/aviasales/v3/prices_for_dates'
-    params: Dict[str, Any] = {
-        'origin': origin.upper(),
-        'destination': destination.upper(),
-        'departure_at': departure_date,
-        'currency': currency.lower(),
-        'unique': 'false',
-        'sorting': 'price',
-        'limit': max(1, min(int(max_results), 1000)),
-        'page': 1,
-        'one_way': 'true' if not return_date else 'false',
-    }
-    if return_date:
-        params['return_at'] = return_date
-    if non_stop is True:
-        params['direct'] = 'true'
+    one_way = not return_date
+    return_month = (return_date or '')[:7] if return_date else None
 
-    data = _request('GET', url, params=params)
-    if data is None:
-        return None
-    if not isinstance(data, dict) or not data.get('success', True):
-        # success: false 인 경우도 있음
-        _set_error(f"Travelpayouts 응답 success=false: {str(data)[:200]}")
+    # ───── 1차: 정확 날짜 ─────
+    rows = _v3_prices_for_dates(
+        base=base, origin=origin, destination=destination,
+        departure_at=departure_date,
+        return_at=return_date,
+        one_way=one_way, currency=currency, non_stop=non_stop,
+        sorting='price', unique=False, limit=max_results,
+    )
+    if rows is None:
         return None
 
-    rows = data.get('data') or []
+    # ───── 2차: 월 단위 폴백 (1차 결과 비었을 때) ─────
+    used_fallback = False
+    if not rows:
+        used_fallback = True
+        month = departure_date[:7]
+        month_rows = _v3_prices_for_dates(
+            base=base, origin=origin, destination=destination,
+            departure_at=month,
+            return_at=return_month,
+            one_way=one_way, currency=currency, non_stop=non_stop,
+            sorting='price', unique=False, limit=1000,
+        ) or []
+
+        # 사용자가 원한 날짜 ±3일 → 가까운 순 정렬
+        try:
+            from datetime import datetime, timedelta
+            target = datetime.strptime(departure_date, '%Y-%m-%d')
+
+            def _diff(r):
+                dep = (r.get('departure_at') or '')[:10]
+                try:
+                    d = datetime.strptime(dep, '%Y-%m-%d')
+                    return abs((d - target).days)
+                except ValueError:
+                    return 999
+            month_rows.sort(key=lambda r: (_diff(r), float(r.get('price') or 0)))
+        except Exception:
+            pass
+
+        rows = month_rows[:max(1, int(max_results))]
+        if not rows:
+            _set_error(f"Travelpayouts 응답: {origin.upper()}→{destination.upper()} {departure_date} 인근 데이터 없음")
+
     offers: List[Dict[str, Any]] = []
     pax = max(1, int(adults or 1)) + max(0, int(children or 0))
     for r in rows:
         offer = _build_offer_from_v3(r, currency=currency)
-        # 인원 곱하기 (Travelpayouts 가격은 1인 기준이 일반적)
         offer['price']['total'] = round(offer['price']['total'] * pax)
         offer['price']['base'] = round(offer['price']['base'] * pax)
         offer['travelers'] = pax
@@ -382,6 +459,8 @@ def search_flight_offers(
         'currency': currency.upper(),
         'count': len(offers),
         'dictionaries': {'carriers': carriers, 'aircraft': {}},
+        'fallback': used_fallback,
+        'requested_date': departure_date,
     }
 
 
@@ -543,6 +622,7 @@ def _calendar_v1(
         'depart_date': depart_month,
         'calendar_type': 'departure_date',
         'currency': currency.lower(),
+        'market': _market_param(),
     }
     if return_month:
         params['return_date'] = return_month
@@ -609,6 +689,7 @@ def _prices_for_dates_fallback(
         'destination': destination.upper(),
         'departure_at': start_date[:7],  # 'YYYY-MM' 형태로 월 전체 조회
         'currency': currency.lower(),
+        'market': _market_param(),
         'sorting': 'price',
         'limit': 1000,
         'one_way': 'true' if one_way else 'false',
@@ -752,6 +833,7 @@ def search_inspiration(
         'limit': 30,
         'show_to_affiliates': 'true',
         'sorting': 'price',
+        'market': _market_param(),
         'one_way': 'true' if one_way else 'false',
     }
     if departure_date:
