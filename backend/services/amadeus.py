@@ -521,3 +521,15 @@ def search_inspiration(
             'links': d.get('links', {}),
         })
     return {'items': items, 'currency': currency, 'count': len(items)}
+
+
+def search_route_history(
+    origin: str,
+    destination: str,
+    currency: str = 'KRW',
+    period_type: str = 'year',
+    limit: int = 30,
+    non_stop: Optional[bool] = None,
+) -> Optional[Dict[str, Any]]:
+    """Amadeus 는 동일 의미의 단일 엔드포인트가 없어 빈 응답으로 호환만 유지."""
+    return {'items': [], 'currency': currency.upper(), 'count': 0}

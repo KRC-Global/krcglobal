@@ -1077,6 +1077,58 @@ def search_cheapest_dates(
     return {'items': items, 'currency': currency.upper(), 'count': len(items)}
 
 
+def search_route_history(
+    origin: str,
+    destination: str,
+    currency: str = 'KRW',
+    period_type: str = 'year',
+    limit: int = 30,
+    non_stop: Optional[bool] = None,
+) -> Optional[Dict[str, Any]]:
+    """비주류 노선용 폴백 조회: `/v2/prices/latest` 로 노선의 캐시된 모든 가격을 가져옴.
+
+    cheapest-dates 가 비어 있을 때 (예: ICN→BLZ 같이 한국 월간 캐시가 없는 노선)
+    1년치 캐시 중에 잡히는 임의 날짜라도 보여주기 위해 사용한다.
+    cheapest-dates 와 동일한 응답 형식({items, currency, count})을 반환한다.
+    """
+    _, _, base, _ = _get_config()
+    url = f'{base}/v2/prices/latest'
+    params: Dict[str, Any] = {
+        'currency': currency.lower(),
+        'origin': origin.upper(),
+        'destination': destination.upper(),
+        'period_type': period_type,
+        'page': 1,
+        'limit': max(1, min(int(limit), 1000)),
+        'show_to_affiliates': 'true',
+        'sorting': 'price',
+        'market': _market_param(),
+    }
+    if non_stop is True:
+        params['direct'] = 'true'
+
+    data = _request('GET', url, params=params)
+    if data is None:
+        return None
+    rows = (data or {}).get('data') or []
+    items: List[Dict[str, Any]] = []
+    for r in rows:
+        dep = r.get('depart_date') or r.get('departure_at') or ''
+        ret = r.get('return_date') or r.get('return_at') or ''
+        price = float(r.get('value') or r.get('price') or 0)
+        if not dep or not price:
+            continue
+        items.append({
+            'origin': r.get('origin') or origin.upper(),
+            'destination': r.get('destination') or destination.upper(),
+            'departure_date': dep[:10],
+            'return_date': ret[:10] or None,
+            'price_total': price,
+            'currency': currency.upper(),
+        })
+    return {'items': items, 'currency': currency.upper(), 'count': len(items)}
+
+
 def search_inspiration(
     origin: str,
     max_price: Optional[int] = None,

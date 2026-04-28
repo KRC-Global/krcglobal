@@ -95,18 +95,39 @@ def _suggest_nearby_dates(
     limit: int = 8,
 ) -> list:
     """검색 결과가 비어 있을 때 동일 노선의 가용 날짜 후보 N개 반환.
-    프로바이더의 cheapest-dates 를 호출 → 사용자 날짜에 가까운 순 + 가격 순 정렬.
+
+    1) cheapest-dates (월 단위 캐시) — 인기 노선에서 잘 잡힘
+    2) route-history (v2/prices/latest 1년치) — 비주류 노선에서 잡힐 수도 있음
+    어느 쪽이든 사용자가 원한 날짜에서 가까운 순 + 가격 순으로 정렬해 반환.
     """
+    from datetime import datetime
+
+    items: list = []
+    # 1) cheapest-dates
     try:
-        from datetime import datetime
         result = provider.search_cheapest_dates(
             origin=origin, destination=destination,
             departure_date=departure_date,
             one_way=one_way, currency=currency,
         )
+        if result and result.get('items'):
+            items.extend(result['items'])
     except Exception:
-        return []
-    if not result or not result.get('items'):
+        pass
+
+    # 2) route-history (1차가 비었으면)
+    if not items:
+        try:
+            hist = provider.search_route_history(
+                origin=origin, destination=destination,
+                currency=currency, limit=30,
+            )
+            if hist and hist.get('items'):
+                items.extend(hist['items'])
+        except Exception:
+            pass
+
+    if not items:
         return []
 
     target = None
@@ -124,10 +145,7 @@ def _suggest_nearby_dates(
         except ValueError:
             return 999
 
-    items = sorted(
-        result['items'],
-        key=lambda x: (_diff(x), float(x.get('price_total') or 0))
-    )
+    items.sort(key=lambda x: (_diff(x), float(x.get('price_total') or 0)))
     # 중복 날짜 제거
     seen = set()
     out = []

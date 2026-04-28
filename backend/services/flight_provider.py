@@ -65,6 +65,15 @@ def search_inspiration(*args, **kwargs):
     return get_provider().search_inspiration(*args, **kwargs)
 
 
+def search_route_history(*args, **kwargs):
+    """프로바이더에 search_route_history 가 없으면 빈 응답 반환 (호환)."""
+    p = get_provider()
+    fn = getattr(p, 'search_route_history', None)
+    if fn is None:
+        return {'items': [], 'currency': kwargs.get('currency', 'KRW').upper(), 'count': 0}
+    return fn(*args, **kwargs)
+
+
 # 디버그/health 라우트용
 def get_diagnostics() -> dict:
     name = get_provider_name()
