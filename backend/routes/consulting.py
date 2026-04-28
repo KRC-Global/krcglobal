@@ -804,19 +804,23 @@ def export_consulting_projects(current_user):
     wb.save(output)
     output.seek(0)
 
-    # Log activity
-    log = ActivityLog(
-        user_id=current_user.id,
-        action='export',
-        entity_type='consulting_project',
-        description=f'{current_user.name}님이 해외기술용역 프로젝트 {len(projects)}건을 Excel로 다운로드했습니다.',
-        ip_address=request.remote_addr
-    )
-    db.session.add(log)
-    db.session.commit()
-
     # Generate filename with timestamp
     filename = f"해외기술용역_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+
+    # Log activity (실패해도 파일 전송은 계속)
+    try:
+        log = ActivityLog(
+            user_id=current_user.id,
+            action='export',
+            entity_type='consulting_project',
+            description=f'{current_user.name}님이 해외기술용역 프로젝트 {len(projects)}건을 Excel로 다운로드했습니다.',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
+    except Exception as log_err:
+        print(f'[export] ActivityLog 저장 실패 (파일 전송 계속): {log_err}')
+        db.session.rollback()
 
     return send_file(
         output,

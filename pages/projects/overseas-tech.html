@@ -1266,7 +1266,12 @@
                     }
                     const response = await fetch(`${API.BASE_URL}${url}`, { headers });
                     if (!response.ok) {
-                        throw new Error('Excel 다운로드 실패');
+                        let errMsg = `서버 오류 (HTTP ${response.status})`;
+                        try {
+                            const errJson = await response.json();
+                            errMsg = errJson.message || errMsg;
+                        } catch (_) {}
+                        throw new Error(errMsg);
                     }
                     return response.blob();
                 },
