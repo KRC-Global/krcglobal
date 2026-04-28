@@ -8,9 +8,12 @@ from io import BytesIO
 try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, PatternFill
-    import pandas as pd
 except ImportError:
     Workbook = None
+
+try:
+    import pandas as pd
+except ImportError:
     pd = None
 from werkzeug.utils import secure_filename
 from models import db, ConsultingProject, ConsultingPersonnel, ActivityLog, ProfitabilityData, ProposalStatus, ProjectLifecycle, Eoi, Proposal, Contract, PerformanceRecord, TorRfp, normalize_date_dot
