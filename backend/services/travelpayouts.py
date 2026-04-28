@@ -175,6 +175,57 @@ def carrier_display_name(code: Optional[str]) -> str:
     return _CARRIER_NAMES.get(code.upper(), code.upper())
 
 
+# 항공사 IATA → 주요 허브(중심 환승 공항) 매핑.
+# Travelpayouts prices_for_dates 는 환승 횟수만 주고 경유지 공항을 알려주지 않으므로,
+# 환승 1회 인 경우 해당 항공사의 메인 허브를 '추정 경유지' 로 표기한다.
+# 환승 2회 이상은 추정 정확도가 떨어져 표기하지 않는다.
+_AIRLINE_HUBS: Dict[str, str] = {
+    # 한국
+    'KE': 'ICN', 'OZ': 'ICN',
+    # 일본
+    'JL': 'NRT', 'NH': 'HND',
+    # 중국·홍콩·대만
+    'CA': 'PEK', 'CZ': 'CAN', 'MU': 'PVG', 'HU': 'HAK',
+    'CX': 'HKG', 'KA': 'HKG', 'HX': 'HKG',
+    'BR': 'TPE', 'CI': 'TPE',
+    # 동남아
+    'SQ': 'SIN', 'MI': 'SIN', 'TR': 'SIN',
+    'TG': 'BKK', 'PG': 'BKK', 'FD': 'DMK',
+    'MH': 'KUL', 'AK': 'KUL',
+    'GA': 'CGK', 'QZ': 'CGK',
+    'VN': 'SGN', 'VJ': 'SGN',
+    'PR': 'MNL',
+    # 중동
+    'EK': 'DXB', 'EY': 'AUH', 'QR': 'DOH',
+    'TK': 'IST', 'SV': 'JED', 'WY': 'MCT',
+    # 유럽
+    'LH': 'FRA', 'LX': 'ZRH', 'OS': 'VIE',
+    'AF': 'CDG', 'KL': 'AMS',
+    'BA': 'LHR', 'VS': 'LHR',
+    'IB': 'MAD', 'AY': 'HEL', 'SK': 'CPH',
+    'AZ': 'FCO', 'LO': 'WAW', 'TP': 'LIS',
+    # 북미
+    'AA': 'DFW', 'UA': 'ORD', 'DL': 'ATL',
+    'AC': 'YYZ', 'AS': 'SEA', 'B6': 'JFK',
+    'WN': 'DAL', 'NK': 'FLL', 'F9': 'DEN',
+    'HA': 'HNL',
+    # 오세아니아
+    'QF': 'SYD', 'NZ': 'AKL', 'VA': 'BNE',
+    # 인도·중앙아
+    'AI': 'DEL', '6E': 'DEL', 'UK': 'DEL', 'SG': 'DEL',
+    'KC': 'ALA',
+    # 아프리카
+    'ET': 'ADD', 'KQ': 'NBO', 'MS': 'CAI',
+    'SA': 'JNB',
+}
+
+
+def airline_hub(code: Optional[str]) -> Optional[str]:
+    if not code:
+        return None
+    return _AIRLINE_HUBS.get(code.upper())
+
+
 def _make_segment(
     *, origin: str, destination: str,
     departure_iso: Optional[str], arrival_iso: Optional[str],
@@ -233,10 +284,16 @@ def _build_offer_from_v3(item: Dict[str, Any], currency: str) -> Dict[str, Any]:
             carrier=airline, flight_number=flight_number,
         )
     ]
+    # 환승 1회면 항공사 허브를 추정 경유지로 표기. 2회 이상은 정확도 낮아 미표기.
+    hub = airline_hub(airline) if (airline and transfers > 0) else None
+    inferred_via_out = hub if (transfers == 1 and hub and hub not in (origin, destination)) else None
+    inferred_via_back = hub if (return_transfers == 1 and hub and hub not in (origin, destination)) else None
+
     itineraries = [{
         'duration_minutes': duration_to,
         'segments': out_segs,
         'stops': transfers,
+        'inferred_via': inferred_via_out,
     }]
     if return_at:
         back_segs = [
@@ -252,6 +309,7 @@ def _build_offer_from_v3(item: Dict[str, Any], currency: str) -> Dict[str, Any]:
             'duration_minutes': duration_back,
             'segments': back_segs,
             'stops': return_transfers,
+            'inferred_via': inferred_via_back,
         })
 
     return {

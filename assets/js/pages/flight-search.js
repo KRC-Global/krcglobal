@@ -186,6 +186,7 @@
         const set = new Set();
         (offers || []).forEach((o) => {
             (o.itineraries || []).forEach((it) => {
+                if (it.inferred_via) set.add(it.inferred_via);
                 (it.segments || []).forEach((s) => {
                     if (s.from) set.add(s.from);
                     if (s.to) set.add(s.to);
@@ -963,8 +964,25 @@
         const first = segs[0];
         const last = segs[segs.length - 1];
         const stops = it.stops || 0;
+        // 경유지 표기 우선순위: 실제 segment 사이 공항 코드 → 백엔드 추정(inferred_via) → 정보 없음
+        let stopList = '';
+        if (stops > 0) {
+            const realStops = segs.slice(0, -1).map((s) => s.to).filter(Boolean);
+            if (realStops.length) {
+                stopList = realStops.map((iata) => {
+                    const sub = airportSubtitle(iata);
+                    return sub ? `${iata}(${sub.split(' · ')[0]})` : iata;
+                }).join(' · ');
+            } else if (it.inferred_via) {
+                const viaSub = airportSubtitle(it.inferred_via);
+                stopList = viaSub
+                    ? `${it.inferred_via}(${viaSub.split(' · ')[0]}) 경유 추정`
+                    : `${it.inferred_via} 경유 추정`;
+            } else {
+                stopList = '경유 공항 정보 없음';
+            }
+        }
         const stopText = stops === 0 ? '직항' : (stops === 1 ? '1회 환승' : `${stops}회 환승`);
-        const stopList = stops > 0 ? segs.slice(0, -1).map((s) => s.to).join('·') : '';
         const carriers = Array.from(new Set(segs.map((s) => state.carriers[s.carrier] || s.carrier).filter(Boolean))).join(' · ');
         return `
             <div class="fs-itin">
@@ -1626,11 +1644,27 @@
                 </div>
                 `;
             }).join('');
+            // 환승 표기: 실제 segment 사이 공항이 있으면 그것, 없으면 백엔드 추정(inferred_via)
+            let viaText = '';
+            const realStops = (it.segments || []).slice(0, -1).map((s) => s.to).filter(Boolean);
+            if (it.stops > 0) {
+                if (realStops.length) {
+                    viaText = ' · 경유 ' + realStops.map((iata) => {
+                        const sub = airportSubtitle(iata);
+                        return sub ? `${iata}(${sub.split(' · ')[0]})` : iata;
+                    }).join(' → ');
+                } else if (it.inferred_via) {
+                    const viaSub = airportSubtitle(it.inferred_via);
+                    viaText = ` · 추정 경유 ${it.inferred_via}${viaSub ? `(${viaSub.split(' · ')[0]})` : ''}`;
+                } else {
+                    viaText = ' · 경유 공항 정보 없음';
+                }
+            }
             return `
                 <div style="margin-bottom:16px;">
                     <div style="font-weight:700; color: var(--color-neutral-700); margin-bottom:8px;">
                         ${i === 0 ? '가는 편' : (i === 1 ? '오는 편' : `구간 ${i + 1}`)}
-                        — ${fmtMinutes(it.duration_minutes)} · ${it.stops === 0 ? '직항' : (it.stops + '회 환승')}
+                        — ${fmtMinutes(it.duration_minutes)} · ${it.stops === 0 ? '직항' : (it.stops + '회 환승')}${viaText}
                     </div>
                     ${segs}
                 </div>
