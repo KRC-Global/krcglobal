@@ -611,6 +611,8 @@ def delete_consulting_project(current_user, project_id):
 @token_required
 def export_consulting_projects(current_user):
     """Export consulting projects to Excel"""
+    if Workbook is None:
+        return jsonify({'success': False, 'message': 'Excel 라이브러리(openpyxl)가 설치되지 않았습니다.'}), 500
     # Get filters from query parameters
     country = request.args.get('country')
     status = request.args.get('status')
