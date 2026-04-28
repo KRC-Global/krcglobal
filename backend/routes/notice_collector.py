@@ -64,15 +64,26 @@ def _is_consulting_ko(text: str) -> bool:
 MIN_VALUE_USD = 1_000_000   # $1M
 
 
+# 영문 키워드는 단어 경계(\b) 매칭으로 false positive 방지.
+# 'dam'이 'Amsterdam'/'damage', 'rice'가 'price'에 매칭되는 문제 차단.
+# (?:s|es)? 접미사로 복수형 자동 처리 (reservoir/reservoirs, crop/crops 등).
+_AGRI_RE = re.compile(
+    r'\b(?:' + '|'.join(re.escape(kw) for kw in AGRI_KEYWORDS) + r')(?:s|es)?\b',
+    re.IGNORECASE,
+)
+_CONSULTING_RE = re.compile(
+    r'\b(?:' + '|'.join(re.escape(kw) for kw in CONSULTING_KEYWORDS) + r')(?:s|es)?\b',
+    re.IGNORECASE,
+)
+
+
 # ── 공통 유틸 ────────────────────────────────────────────────────────────────
 def _is_agri(text: str) -> bool:
-    t = text.lower()
-    return any(kw in t for kw in AGRI_KEYWORDS)
+    return bool(_AGRI_RE.search(text or ''))
 
 
 def _is_consulting(text: str) -> bool:
-    t = text.lower()
-    return any(kw in t for kw in CONSULTING_KEYWORDS)
+    return bool(_CONSULTING_RE.search(text or ''))
 
 
 def _parse_value_usd(value_str: str) -> float:
