@@ -381,6 +381,7 @@ def create_consulting_project(current_user):
             budget_usd=data.get('budgetUsd'),
             krc_budget_usd=data.get('krcBudgetUsd'),
             description=data.get('description', '').strip() if data.get('description') else None,
+            description_en=data.get('descriptionEn', '').strip() if data.get('descriptionEn') else None,
             lead_company=data.get('leadCompany', '').strip() if data.get('leadCompany') else None,
             lead_company_ratio=data.get('leadCompanyRatio'),
             jv1=data.get('jv1', '').strip() if data.get('jv1') else None,
@@ -521,6 +522,8 @@ def update_consulting_project(current_user, project_id):
             project.krc_budget_usd = data['krcBudgetUsd'] if data['krcBudgetUsd'] else None
         if 'description' in data:
             project.description = data['description'].strip() if data['description'] else None
+        if 'descriptionEn' in data:
+            project.description_en = data['descriptionEn'].strip() if data['descriptionEn'] else None
         if 'leadCompany' in data:
             project.lead_company = data['leadCompany'].strip() if data['leadCompany'] else None
         if 'leadCompanyRatio' in data:

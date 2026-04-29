@@ -1873,12 +1873,22 @@
                         </div>
                         <div>
                             <label style="display: block; margin-bottom: 4px; font-weight: 600;">
-                                사업 개요
+                                국문 사업개요
                                 <span style="font-size: 12px; color: #6c757d; font-weight: 400; margin-left: 8px;">(최대 3,000자)</span>
                             </label>
-                            <textarea id="projectDescription" name="description" maxlength="3000" rows="6" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical; line-height: 1.6;" placeholder="사업의 개요를 입력하세요..."></textarea>
+                            <textarea id="projectDescription" name="description" maxlength="3000" rows="6" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical; line-height: 1.6;" placeholder="사업의 국문 개요를 입력하세요..."></textarea>
                             <div style="text-align: right; font-size: 12px; color: #6c757d; margin-top: 4px;">
                                 <span id="descriptionCounter">0</span> / 3,000자
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600;">
+                                영문 사업개요
+                                <span style="font-size: 12px; color: #6c757d; font-weight: 400; margin-left: 8px;">(최대 3,000자)</span>
+                            </label>
+                            <textarea id="projectDescriptionEn" name="descriptionEn" maxlength="3000" rows="6" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical; line-height: 1.6;" placeholder="사업의 영문 개요를 입력하세요..."></textarea>
+                            <div style="text-align: right; font-size: 12px; color: #6c757d; margin-top: 4px;">
+                                <span id="descriptionEnCounter">0</span> / 3,000자
                             </div>
                         </div>
                         <div style="border-top: 1px solid #e9ecef; padding-top: 12px; margin-top: 8px;">
@@ -1948,6 +1958,13 @@
                         descriptionCounter.textContent = this.value.length;
                     });
                 }
+                const descriptionEnTextarea = document.getElementById('projectDescriptionEn');
+                const descriptionEnCounter = document.getElementById('descriptionEnCounter');
+                if (descriptionEnTextarea && descriptionEnCounter) {
+                    descriptionEnTextarea.addEventListener('input', function () {
+                        descriptionEnCounter.textContent = this.value.length;
+                    });
+                }
             }, 100);
         }
 
@@ -1981,7 +1998,7 @@
                     const modal = new Modal();
                     modal.open(
                         `<div style="display: grid; gap: 16px;">
-                            <div class="pd-g3" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                            <div class="pd-g4" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
                                 <div>
                                     <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">수주년도</label>
                                     <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.contractYear || '-'}</div>
@@ -1991,13 +2008,13 @@
                                     <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.status || '-'}</div>
                                 </div>
                                 <div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국가</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.country || '-'}</div>
+                                </div>
+                                <div>
                                     <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">사업형태</label>
                                     <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${createTypeBadgesHTML(project)}</div>
                                 </div>
-                            </div>
-                            <div>
-                                <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국가</label>
-                                <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.country || '-'}</div>
                             </div>
                             <div>
                                 <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국문사업명</label>
@@ -2017,9 +2034,23 @@
                                     ${pipelineHtml}
                                 </div>
                             </div>
-                            <div>
-                                <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">착수일</label>
-                                <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.startDate || '-'}</div>
+                            <div class="pd-g4" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
+                                <div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">착수일</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.startDate || '-'}</div>
+                                </div>
+                                <div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">종료일</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.endDate || '-'}</div>
+                                </div>
+                                <div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">위도</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.latitude || '-'}</div>
+                                </div>
+                                <div>
+                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">경도</label>
+                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.longitude || '-'}</div>
+                                </div>
                             </div>
                             <div class="pd-g4" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
                                 <div>
@@ -2039,11 +2070,7 @@
                                     <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcShareRatio ? (project.krcShareRatio * 100).toFixed(1) + '%' : '-'}</div>
                                 </div>
                             </div>
-                            <div>
-                                <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">상태</label>
-                                <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.status || '-'}</div>
-                            </div>
-                            <div class="pd-g2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div class="pd-g4" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px;">
                                 <div>
                                     <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">발주처</label>
                                     <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.client || '-'}</div>
@@ -2052,8 +2079,6 @@
                                     <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">재원</label>
                                     <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.fundingSource || '-'}</div>
                                 </div>
-                            </div>
-                            <div class="pd-g2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                                 <div>
                                     <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">전체용역비 (US$ 백만)</label>
                                     <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.budgetUsd ? Number(project.budgetUsd).toFixed(2) : '-'}</div>
@@ -2061,16 +2086,6 @@
                                 <div>
                                     <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">공사지분 용역비 (US$)</label>
                                     <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.krcBudgetUsd ? Number(project.krcBudgetUsd).toFixed(2) : '-'}</div>
-                                </div>
-                            </div>
-                            <div class="pd-g2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                                <div>
-                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">위도</label>
-                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.latitude || '-'}</div>
-                                </div>
-                                <div>
-                                    <label class="pd-label" style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">경도</label>
-                                    <div class="pd-val" style="padding: 8px; background: #f8f9fa; border-radius: 4px;">${project.longitude || '-'}</div>
                                 </div>
                             </div>
                             <div style="border-top: 1px solid #e9ecef; padding-top: 12px;">
@@ -2103,8 +2118,12 @@
                                 })()}
                             </div>
                             <div>
-                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">사업 개요</label>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">국문 사업개요</label>
                                 <div style="padding: 12px; background: #f8f9fa; border-radius: 4px; white-space: pre-wrap; min-height: 80px; line-height: 1.6;">${project.description || '-'}</div>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 4px; font-weight: 600; color: #6c757d;">영문 사업개요</label>
+                                <div style="padding: 12px; background: #f8f9fa; border-radius: 4px; white-space: pre-wrap; min-height: 80px; line-height: 1.6;">${project.descriptionEn || '-'}</div>
                             </div>
                         </div>`,
                         '프로젝트 상세정보',
@@ -2264,12 +2283,22 @@
                                 </div>
                                 <div>
                                     <label style="display: block; margin-bottom: 4px; font-weight: 600;">
-                                        사업 개요
+                                        국문 사업개요
                                         <span style="font-size: 12px; color: #6c757d; font-weight: 400; margin-left: 8px;">(최대 3,000자)</span>
                                     </label>
-                                    <textarea id="projectDescription" name="description" maxlength="3000" rows="6" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical; line-height: 1.6;" placeholder="사업의 개요를 입력하세요...">${project.description || ''}</textarea>
+                                    <textarea id="projectDescription" name="description" maxlength="3000" rows="6" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical; line-height: 1.6;" placeholder="사업의 국문 개요를 입력하세요...">${project.description || ''}</textarea>
                                     <div style="text-align: right; font-size: 12px; color: #6c757d; margin-top: 4px;">
                                         <span id="descriptionCounter">${(project.description || '').length}</span> / 3,000자
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 600;">
+                                        영문 사업개요
+                                        <span style="font-size: 12px; color: #6c757d; font-weight: 400; margin-left: 8px;">(최대 3,000자)</span>
+                                    </label>
+                                    <textarea id="projectDescriptionEn" name="descriptionEn" maxlength="3000" rows="6" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; resize: vertical; line-height: 1.6;" placeholder="사업의 영문 개요를 입력하세요...">${project.descriptionEn || ''}</textarea>
+                                    <div style="text-align: right; font-size: 12px; color: #6c757d; margin-top: 4px;">
+                                        <span id="descriptionEnCounter">${(project.descriptionEn || '').length}</span> / 3,000자
                                     </div>
                                 </div>
                                 <div style="border-top: 1px solid #e9ecef; padding-top: 12px; margin-top: 8px;">
@@ -2338,6 +2367,13 @@
                         if (descriptionTextarea && descriptionCounter) {
                             descriptionTextarea.addEventListener('input', function () {
                                 descriptionCounter.textContent = this.value.length;
+                            });
+                        }
+                        const descriptionEnTextarea = document.getElementById('projectDescriptionEn');
+                        const descriptionEnCounter = document.getElementById('descriptionEnCounter');
+                        if (descriptionEnTextarea && descriptionEnCounter) {
+                            descriptionEnTextarea.addEventListener('input', function () {
+                                descriptionEnCounter.textContent = this.value.length;
                             });
                         }
                         // (라이프사이클 단계가 고정이므로 사업형태 체크박스 연동 불필요)

@@ -487,7 +487,8 @@ class ConsultingProject(db.Model):
     krc_share_ratio = db.Column(db.Numeric(5, 4))  # 공사지분율
     client = db.Column(db.String(200))  # 발주처
     funding_source = db.Column(db.String(200))  # 재원
-    description = db.Column(db.Text)  # 사업 개요
+    description = db.Column(db.Text)  # 사업 개요 (국문)
+    description_en = db.Column(db.Text)  # 사업 개요 (영문)
 
     # US$ 백만 단위 용역비
     budget_usd = db.Column(db.Numeric(15, 2))  # 전체용역비(US$ 백만)
@@ -565,6 +566,7 @@ class ConsultingProject(db.Model):
             'budgetUsd': float(self.budget_usd) if self.budget_usd else None,
             'krcBudgetUsd': float(self.krc_budget_usd) if self.krc_budget_usd else None,
             'description': self.description,
+            'descriptionEn': self.description_en,
             'leadCompany': self.lead_company,
             'leadCompanyRatio': float(self.lead_company_ratio) if self.lead_company_ratio else None,
             'jv1': self.jv1,
