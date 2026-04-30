@@ -1001,6 +1001,15 @@
                     <tr class="wb-detail-row" hidden><td class="label">프로젝트ID</td><td id="detailProjectId"></td></tr>
                     <tr class="wb-detail-row" hidden><td class="label">본문 발췌</td><td id="detailExcerpt" style="white-space:pre-wrap; font-size:12px; color:#555; max-height:220px; overflow-y:auto;"></td></tr>
                     <tr><td class="label">원문 URL</td><td id="detailUrl"></td></tr>
+                    <!-- ddkkbot 작업 결과 -->
+                    <tr id="detailSlidesRow" hidden>
+                        <td class="label">슬라이드</td>
+                        <td id="detailSlides"></td>
+                    </tr>
+                    <tr id="detailInfographicRow" hidden>
+                        <td class="label">인포그래픽</td>
+                        <td id="detailInfographic"></td>
+                    </tr>
                     <tr><td class="label">수신일</td><td id="detailCreatedAt"></td></tr>
                     <tr>
                         <td class="label">상태 변경</td>
@@ -1391,6 +1400,8 @@
                         ${n.country ? `<span>${flagImg}${escapeHtml(n.country)}</span>` : ''}
                         ${n.contractValue ? `<span><span class="lbl">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}
                         ${n.sourceUrl ? `<a href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--color-primary-600);font-weight:600;text-decoration:none;">↗ 원문</a>` : ''}
+                        ${n.slidesUrl ? `<span title="슬라이드 완료" style="font-size:13px;">📊</span>` : ''}
+                        ${n.infographicUrl ? `<span title="인포그래픽 완료" style="font-size:13px;">🖼️</span>` : ''}
                     </div>
                 </div>`;
             }).join('');
@@ -1595,8 +1606,11 @@
         }
 
         // ── 상세 모달 ────────────────────────────────────────────────────────────
+        let currentInfographicUrl = null;
+
         function openDetail(notice) {
             currentNoticeId = notice.id;
+            currentInfographicUrl = notice.infographicUrl || null;
             document.getElementById('detailTitle').textContent = notice.title;
             document.getElementById('detailSource').innerHTML = `<span class="source-badge">${SOURCE_LABELS[notice.source] || notice.source}</span>`;
             document.getElementById('detailCountry').textContent       = notice.country || '-';
@@ -1624,7 +1638,45 @@
                 if (val) { el.textContent = val; row.hidden = false; }
                 else { row.hidden = true; }
             }
+            // 슬라이드
+            const slidesRow = document.getElementById('detailSlidesRow');
+            const slidesEl  = document.getElementById('detailSlides');
+            if (notice.slidesUrl) {
+                const isExternal = notice.slidesUrl.startsWith('http');
+                slidesEl.innerHTML = `<a href="${escapeHtml(notice.slidesUrl)}" target="_blank" rel="noopener"
+                    style="display:inline-flex;align-items:center;gap:6px;color:var(--color-primary-600);font-weight:600;">
+                    📊 슬라이드 보기 →</a>`;
+                slidesRow.hidden = false;
+            } else {
+                slidesRow.hidden = true;
+            }
+
+            // 인포그래픽
+            const infoRow = document.getElementById('detailInfographicRow');
+            const infoEl  = document.getElementById('detailInfographic');
+            if (notice.infographicUrl) {
+                infoEl.innerHTML = `<button class="btn btn-sm" onclick="viewInfographic()"
+                    style="font-size:12px;padding:4px 12px;">🖼️ 인포그래픽 보기</button>`;
+                infoRow.hidden = false;
+            } else {
+                infoRow.hidden = true;
+            }
+
             document.getElementById('detailModal').classList.add('show');
+        }
+
+        async function viewInfographic() {
+            if (!currentInfographicUrl) return;
+            try {
+                const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+                const apiUrl = currentInfographicUrl.startsWith('http')
+                    ? currentInfographicUrl
+                    : `${API_BASE_URL.replace('/api', '')}${currentInfographicUrl}`;
+                const res = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) { Toast.error('인포그래픽 로드 실패'); return; }
+                const blob = await res.blob();
+                window.open(URL.createObjectURL(blob), '_blank');
+            } catch (e) { Toast.error('인포그래픽 로드 오류: ' + e.message); }
         }
 
         function closeDetailModal() {
