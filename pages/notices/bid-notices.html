@@ -409,6 +409,17 @@
             font-size: 13px; font-weight: 600;
             color: var(--color-neutral-700);
         }
+        /* 버튼 인라인 스피너 */
+        .btn-spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.4);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: mapSpin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
 
         /* 발주처 토글 컨트롤 (지도 위) */
         .source-toggle-panel {
@@ -898,9 +909,9 @@
                             <tr>
                                 <th style="width:160px;">실행 시각</th>
                                 <th style="width:80px;">트리거</th>
-                                <th style="width:70px;">발견</th>
                                 <th style="width:70px;">신규 저장</th>
-                                <th style="width:70px;">기존 중복</th>
+                                <th style="width:70px;">소스 발견</th>
+                                <th style="width:70px;">중복 제외</th>
                                 <th>소스별 발견 건수</th>
                             </tr>
                         </thead>
@@ -913,7 +924,9 @@
 
             <!-- 수집 버튼 (관리자) -->
             <div style="display:flex; justify-content:flex-end;">
-                <button id="collectBtn" class="btn btn-primary" onclick="triggerCollect()" style="display:none;">🔄 지금 수집</button>
+                <button id="collectBtn" class="btn btn-primary" onclick="triggerCollect()" style="display:none;">
+                    <span class="btn-spinner" id="collectSpinner" style="display:none;"></span><span id="collectBtnText">🔄 지금 수집</span>
+                </button>
             </div>
             </div>
             <!-- /상단 고정 영역 -->
@@ -923,7 +936,9 @@
                 <button class="view-tab active" data-view="map" onclick="switchView('map')">🗺️ 지도</button>
                 <button class="view-tab" data-view="list" onclick="switchView('list')">📋 리스트</button>
                 <span class="view-tab-stats">
-                    <b id="feedTotalCount">0</b>건 · <b id="mapCountryCount">0</b>개국
+                    <b id="feedTotalCount">0</b>건
+                    <span id="feedArchivedHint" style="font-size:12px; color:var(--color-neutral-400); margin-left:4px;"></span>
+                    · <b id="mapCountryCount">0</b>개국
                     <span id="feedFilterHint" style="font-size:12px; color:var(--color-neutral-500); margin-left:8px;"></span>
                 </span>
             </div>
@@ -1160,6 +1175,7 @@
         let noticeMap = null;
         let markersLayer = null;
         let allNotices = [];
+        let noticeById = {};   // id → notice 조회 맵 (onclick 대신 data-notice-id 방식용)
         let groupedByCountry = {};
         let currentNoticeId = null;
         let activeSources = new Set(); // 현재 켜진 발주처
@@ -1241,6 +1257,8 @@
         }
 
         // ── 공고 전체 로드 ───────────────────────────────────────────────────────
+        let dbActiveTotal = 0;  // 아카이브 제외 DB 전체 건수
+
         async function loadAllNotices() {
             showLoading();
             const params = new URLSearchParams({ page: 1, perPage: 2000 });
@@ -1249,6 +1267,19 @@
                 const data = await apiCall(`/webhook/notices?${params}`);
                 if (!data.success) return;
                 allNotices = data.data || [];
+                noticeById = Object.fromEntries(allNotices.map(n => [n.id, n]));
+                dbActiveTotal = data.total || allNotices.length;
+
+                // 아카이브 포함 전체 건수 (별도 요청)
+                const allData = await apiCall(`/webhook/notices?${new URLSearchParams({ page: 1, perPage: 1, archived: 'all' })}`);
+                const dbGrandTotal = allData.total || dbActiveTotal;
+                const archivedCount = dbGrandTotal - dbActiveTotal;
+                const hintEl = document.getElementById('feedArchivedHint');
+                if (hintEl) {
+                    hintEl.textContent = archivedCount > 0
+                        ? `(아카이브 ${archivedCount}건 제외)`
+                        : '';
+                }
 
                 buildSourceToggles();
                 applySourceFilter();
@@ -1344,7 +1375,7 @@
                 const no = filteredNotices.length - idx;
                 const iso = COUNTRY_ISO[normalizeCountry(n.country)] || COUNTRY_ISO[n.country] || '';
                 const flagImg = iso ? `<img src="/assets/images/flags/${iso}.svg" style="width:16px;height:16px;border-radius:50%;vertical-align:-2px;" onerror="this.outerHTML='🌍'"> ` : '';
-                return `<div class="list-card" onclick='openDetail(${JSON.stringify(n).replace(/'/g,"&#39;")})'>
+                return `<div class="list-card" data-notice-id="${n.id}" style="cursor:pointer;">
                     <div class="list-card-head">
                         <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
                         <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
@@ -1429,7 +1460,7 @@
                 : '🌍';
 
             document.getElementById('panelNoticeList').innerHTML = notices.map(n => `
-                <div class="panel-card" onclick='openDetail(${JSON.stringify(n).replace(/'/g, "&#39;")})'>
+                <div class="panel-card" data-notice-id="${n.id}" style="cursor:pointer;">
                     <div class="panel-card-head">
                         <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
                         <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
@@ -1456,25 +1487,50 @@
 
         // ── 수동 수집 트리거 ─────────────────────────────────────────────────────
         async function triggerCollect() {
-            const btn = document.getElementById('collectBtn');
-            const origText = btn.textContent;
-            btn.disabled = true; btn.textContent = '수집 중...';
+            const btn      = document.getElementById('collectBtn');
+            const spinner  = document.getElementById('collectSpinner');
+            const btnText  = document.getElementById('collectBtnText');
+
+            btn.disabled = true;
+            spinner.style.display = 'inline-block';
+            btnText.textContent = '수집 중… (1~2분 소요)';
+
+            Toast.info('발주공고 수집을 시작합니다. 7개 소스를 병렬 조회 중입니다 (약 1~2분 소요).');
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 180000); // 3분 타임아웃
             try {
                 const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
                 const res = await fetch(`${API_BASE_URL}/notices/collect?trigger=manual`, {
-                    method: 'POST', headers: { 'Authorization': `Bearer ${token}` },
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    signal: controller.signal,
                 });
+                clearTimeout(timeout);
                 const ct = res.headers.get('content-type') || '';
                 if (!ct.includes('application/json')) throw new Error(`서버 오류 (HTTP ${res.status})`);
                 const data = await res.json();
                 if (data.success) {
                     const bySource = Object.entries(data.by_source || {}).map(([k,v])=>`${k}: ${v}건`).join(', ');
-                    Toast.success(`수집 완료 — 신규 ${data.created}건 저장${bySource ? ` (${bySource})` : ''}`);
+                    const pipelineMsg = data.pipeline && data.pipeline.enqueued
+                        ? ` | 작업 큐 ${data.pipeline.enqueued}건 등록됨`
+                        : '';
+                    Toast.success(`수집 완료 — 신규 ${data.created}건 저장${bySource ? ` (${bySource})` : ''}${pipelineMsg}`);
                     await loadAllNotices();
                     await loadScrapingStatus();
                 } else { Toast.error(data.message || '수집 실패'); }
-            } catch (e) { Toast.error('수집 오류: ' + e.message); }
-            finally { btn.disabled = false; btn.textContent = origText; }
+            } catch (e) {
+                clearTimeout(timeout);
+                if (e.name === 'AbortError') {
+                    Toast.error('수집 응답 시간 초과 (3분). 서버에서 수집은 계속 진행 중일 수 있습니다. 잠시 후 새로고침해 주세요.');
+                } else {
+                    Toast.error('수집 오류: ' + e.message);
+                }
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+                btnText.textContent = '🔄 지금 수집';
+            }
         }
 
         // ── 수집 상태 카드 ───────────────────────────────────────────────────────
@@ -1503,7 +1559,9 @@
                 trigEl.textContent = r.trigger === 'manual' ? '수동' : '자동';
                 trigEl.className = 'trigger-pill' + (r.trigger === 'manual' ? ' manual' : '');
                 document.getElementById('statusTotals').innerHTML =
-                    `이번 실행 발견 <b>${r.totalFound}</b>건 · 신규 저장 <b>${r.totalCreated}</b>건 · 기존 중복 ${r.totalSkipped}건`;
+                    `신규 저장 <b>${r.totalCreated}</b>건`
+                    + ` <span style="color:var(--color-neutral-500);font-weight:400;font-size:12px;">`
+                    + `(소스 발견 ${r.totalFound}건 중 중복 ${r.totalSkipped}건 제외)</span>`;
                 document.getElementById('statusChips').innerHTML = (r.sources || []).map(renderSourceChip).join('') || '<span class="status-meta">소스 없음</span>';
                 const err = document.getElementById('statusSendError');
                 if (r.sendError) { err.textContent = '⚠️ GBMS 전송 실패: ' + r.sendError; err.hidden = false; }
@@ -1524,7 +1582,7 @@
                 tbody.innerHTML = res.data.map(r => {
                     const chips = (r.sources || []).map(renderSourceChip).join(' ');
                     const trig = r.trigger === 'manual' ? '<span class="trigger-pill manual">수동</span>' : '<span class="trigger-pill">자동</span>';
-                    return `<tr><td class="run-at">${formatRunAt(r.runAt)}</td><td>${trig}</td><td>${r.totalFound}</td><td><b>${r.totalCreated}</b></td><td>${r.totalSkipped}</td><td style="text-align:left;">${chips}</td></tr>`;
+                    return `<tr><td class="run-at">${formatRunAt(r.runAt)}</td><td>${trig}</td><td><b>${r.totalCreated}</b></td><td>${r.totalFound}</td><td>${r.totalSkipped}</td><td style="text-align:left;">${chips}</td></tr>`;
                 }).join('');
             } catch (e) { tbody.innerHTML = '<tr><td colspan="6" style="padding:14px; color:#dc3545;">이력 로드 실패</td></tr>'; }
         }
@@ -1600,7 +1658,18 @@
         }
 
         document.addEventListener('click', function(e) {
-            if (e.target === document.getElementById('detailModal')) closeDetailModal();
+            // 모달 배경 클릭 시 닫기
+            if (e.target === document.getElementById('detailModal')) {
+                closeDetailModal();
+                return;
+            }
+            // 리스트 카드 & 사이드패널 카드 클릭 — data-notice-id 로 lookup
+            // (onclick에 JSON 직접 삽입하면 <> 등 특수문자 포함 공고에서 파싱 오류 발생)
+            const card = e.target.closest('[data-notice-id]');
+            if (card) {
+                const notice = noticeById[card.dataset.noticeId];
+                if (notice) openDetail(notice);
+            }
         });
     </script>
 </body>
