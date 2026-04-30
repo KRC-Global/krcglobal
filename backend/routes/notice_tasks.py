@@ -453,11 +453,17 @@ def fail_task(tid: int):
     })
 
 
-# ── 6. 공고 단건 조회 — 로그인 사용자·워커 모두 허용
-# UI 팝업이 열릴 때 최신 데이터(번역·슬라이드·인포그래픽)를 즉시 반영하는 용도
+# ── 6. 공고 단건 조회 — 로그인 사용자(UI 팝업)·워커(krc_worker) 모두 허용
 @notice_tasks_bp.route('/<int:nid>', methods=['GET'])
-@token_required
-def get_notice(current_user, nid: int):
+def get_notice(nid: int):
+    # worker 인증 먼저 시도, 실패 시 JWT 인증
+    ok, _ = _check_worker_auth()
+    if not ok:
+        from routes.auth import verify_token
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header[7:] if auth_header.startswith('Bearer ') else ''
+        if not token or not verify_token(token):
+            return jsonify({'success': False, 'message': '인증 실패'}), 401
     notice = BidNotice.query.get(nid)
     if not notice:
         return jsonify({'success': False, 'message': '발주공고를 찾을 수 없습니다.'}), 404
