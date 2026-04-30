@@ -2009,28 +2009,55 @@ def _dedupe_existing_notices() -> int:
 
 
 # ── 엔드포인트 ───────────────────────────────────────────────────────────────
-def _check_collect_auth() -> bool:
-    """COLLECT_SECRET 환경변수로 인증 확인
-    - Vercel Cron: Authorization: Bearer $CRON_SECRET (환경변수와 동일)
-    - 수동 호출: 같은 헤더 전송
-    - 개발환경(secret 미설정): 통과
+def _check_collect_auth() -> tuple[bool, str]:
+    """수집 엔드포인트 인증 — 두 경로 중 하나라도 통과하면 허용.
+
+    - 자동 cron (Vercel 등): Authorization: Bearer $CRON_SECRET
+    - 수동 관리자: Authorization: Bearer <JWT>, 토큰의 사용자 role == 'admin'
+    - 개발환경 (CRON_SECRET 미설정): 무조건 통과 (auth_mode='dev')
+
+    환경변수는 CRON_SECRET 우선, 없으면 COLLECT_SECRET fallback (Vercel 표준에 맞춤).
+
+    Returns:
+        (통과 여부, 인증 모드 문자열) — 모드는 'cron' / 'admin' / 'dev' / 'denied'
     """
-    secret = os.environ.get('COLLECT_SECRET', '')
-    if not secret:
-        return True  # 개발 환경
-    auth = request.headers.get('Authorization', '')
-    return auth == f'Bearer {secret}'
+    cron_secret = os.environ.get('CRON_SECRET') or os.environ.get('COLLECT_SECRET', '')
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header[7:] if auth_header.startswith('Bearer ') else ''
+
+    # 1. CRON_SECRET 매칭 — 자동 실행 경로
+    if cron_secret and token and token == cron_secret:
+        return True, 'cron'
+
+    # 2. JWT 검증 + admin role — 관리자 수동 실행 경로
+    if token:
+        try:
+            from routes.auth import verify_token
+            user = verify_token(token)
+            if user and getattr(user, 'role', None) == 'admin':
+                return True, 'admin'
+        except Exception as e:
+            print(f'[collect-auth] JWT 검증 예외: {e}')
+
+    # 3. 개발 환경 — secret 미설정 시 무조건 통과 (기존 동작 유지)
+    if not cron_secret:
+        return True, 'dev'
+
+    return False, 'denied'
 
 
-@collector_bp.route('/collect', methods=['POST'])
+@collector_bp.route('/collect', methods=['GET', 'POST'])
 def collect_notices():
     """
     발주공고 수집 트리거
-    - Vercel Cron이 매일 UTC 01:00에 자동 호출
-    - 관리자가 프론트엔드 버튼으로 수동 호출
-    인증: Authorization: Bearer <COLLECT_SECRET>
+    - 자동 cron (Vercel 등): GET, Authorization: Bearer $CRON_SECRET
+    - 관리자 수동 실행: POST, Authorization: Bearer <JWT> (role=admin)
+
+    GET/POST 모두 허용 — Vercel Cron은 GET만 보내고, 프론트는 POST 사용.
+    trigger query param: 프론트 'manual' / cron 미지정 → 기본 'scheduled'
     """
-    if not _check_collect_auth():
+    ok, _auth_mode = _check_collect_auth()
+    if not ok:
         return jsonify({'success': False, 'message': '인증 실패'}), 401
 
     try:
@@ -2267,9 +2294,10 @@ def _translate_pending(limit: int = 30) -> dict:
 def translate_pending_endpoint():
     """미번역 공고 백필 — 수동/스케줄 호출.
     쿼리: ?limit=N (기본 30, 최대 100)
-    인증: COLLECT_SECRET (collect 와 동일).
+    인증: collect 와 동일 (CRON_SECRET 또는 admin JWT).
     """
-    if not _check_collect_auth():
+    ok, _ = _check_collect_auth()
+    if not ok:
         return jsonify({'success': False, 'message': '인증 실패'}), 401
     try:
         limit = int(request.args.get('limit', 30))
@@ -2283,9 +2311,10 @@ def translate_pending_endpoint():
 def enrich_notices_endpoint():
     """ADB/AfDB 상세 페이지 보강 — 수동 백필.
     쿼리: ?limit=N (기본 15, 최대 50)
-    인증: COLLECT_SECRET.
+    인증: collect 와 동일 (CRON_SECRET 또는 admin JWT).
     """
-    if not _check_collect_auth():
+    ok, _ = _check_collect_auth()
+    if not ok:
         return jsonify({'success': False, 'message': '인증 실패'}), 401
     try:
         limit = int(request.args.get('limit', 15))
@@ -2298,10 +2327,11 @@ def enrich_notices_endpoint():
 @collector_bp.route('/cleanup', methods=['POST'])
 def cleanup_notices():
     """오래된·마감된 공고 수동 정리 엔드포인트.
-    인증은 collect 와 동일(COLLECT_SECRET) — 관리자 전용.
+    인증은 collect 와 동일 (CRON_SECRET 또는 admin JWT).
     쿼리 파라미터 ?days=N 으로 기준일 조정 가능 (기본 60일).
     """
-    if not _check_collect_auth():
+    ok, _ = _check_collect_auth()
+    if not ok:
         return jsonify({'success': False, 'message': '인증 실패'}), 401
 
     try:
