@@ -319,7 +319,8 @@ def _complete_infographic(task: NoticeTask, notice: BidNotice, body: dict,
         }
         return True, None
 
-    # JSON 모드 — 외부 이미지 URL 등록
+    # JSON 모드 — R2 key 또는 외부 URL 등록
+    r2_key = (result or {}).get('r2_key') or (result or {}).get('r2Key')
     fields = body.get('fields_to_update') or body.get('fieldsToUpdate') or {}
     candidate_url = (
         (result or {}).get('infographic_url')
@@ -330,14 +331,15 @@ def _complete_infographic(task: NoticeTask, notice: BidNotice, body: dict,
     )
     if not candidate_url or not isinstance(candidate_url, str):
         return False, "infographic_url 이 비어있거나 문자열이 아닙니다."
-    if not (candidate_url.startswith('http://') or candidate_url.startswith('https://')):
-        return False, 'infographic_url 은 http(s) 절대 URL 이어야 합니다.'
+    # /api/... 내부 경로 또는 http(s) 외부 URL 모두 허용
+    if not (candidate_url.startswith('/') or candidate_url.startswith('http')):
+        return False, 'infographic_url 은 /api/... 경로 또는 http(s) URL 이어야 합니다.'
 
-    notice.infographic_url = candidate_url[:500]
-    notice.infographic_path = None
+    notice.infographic_url  = candidate_url[:500]
+    notice.infographic_path = r2_key[:500] if r2_key else None  # R2 key 저장
     task.result = {
         **(result or {}),
-        'mode': 'link',
+        'mode': 'r2' if r2_key else 'link',
         'infographic_url': notice.infographic_url,
     }
     return True, None
@@ -591,6 +593,16 @@ def download_infographic(current_user, nid: int):
         return jsonify({'success': False, 'message': '인포그래픽 파일이 없습니다.'}), 404
 
     target = notice.infographic_path
+
+    # R2 key 방식 (Vercel 배포 — 로컬 절대경로가 아닌 경우)
+    if not target.startswith('/'):
+        try:
+            from utils.r2_storage import stream_from_r2
+            return stream_from_r2(target, content_type='image/png', inline=True)
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'R2 로드 실패: {e}'}), 500
+
+    # 로컬 파일 방식 (개발 환경 fallback)
     expected_dir = _infographic_dir()
     if not os.path.commonpath(
             [os.path.abspath(target), os.path.abspath(expected_dir)]
