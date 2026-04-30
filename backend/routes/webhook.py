@@ -148,10 +148,19 @@ def latest_scraping_run(current_user):
 @webhook_bp.route('/notices/<int:notice_id>', methods=['DELETE'])
 @admin_required
 def delete_notice(current_user, notice_id):
-    """발주공고 삭제 (관리자 전용)"""
+    """발주공고 삭제 (관리자 전용) — R2 인포그래픽도 함께 삭제"""
     notice = BidNotice.query.get(notice_id)
     if not notice:
         return jsonify({'success': False, 'message': '공고를 찾을 수 없습니다.'}), 404
+
+    # R2 인포그래픽 삭제 (path가 R2 key인 경우)
+    r2_key = notice.infographic_path
+    if r2_key and not r2_key.startswith('/'):
+        try:
+            from utils.r2_storage import delete_file
+            delete_file(r2_key)
+        except Exception as e:
+            print(f'[delete_notice] R2 삭제 실패 (계속 진행): {e}')
 
     db.session.delete(notice)
     db.session.commit()

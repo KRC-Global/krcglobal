@@ -1002,10 +1002,6 @@
                     <tr class="wb-detail-row" hidden><td class="label">본문 발췌</td><td id="detailExcerpt" style="white-space:pre-wrap; font-size:12px; color:#555; max-height:220px; overflow-y:auto;"></td></tr>
                     <tr><td class="label">원문 URL</td><td id="detailUrl"></td></tr>
                     <!-- ddkkbot 작업 결과 -->
-                    <tr id="detailSlidesRow" hidden>
-                        <td class="label">슬라이드</td>
-                        <td id="detailSlides"></td>
-                    </tr>
                     <tr id="detailInfographicRow" hidden>
                         <td class="label">인포그래픽</td>
                         <td id="detailInfographic"></td>
@@ -1412,7 +1408,6 @@
                         ${n.country ? `<span>${flagImg}${escapeHtml(n.country)}</span>` : ''}
                         ${n.contractValue ? `<span><span class="lbl">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}
                         ${n.sourceUrl ? `<a href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--color-primary-600);font-weight:600;text-decoration:none;">↗ 원문</a>` : ''}
-                        ${n.slidesUrl ? `<span title="슬라이드 완료" style="font-size:13px;">📊</span>` : ''}
                         ${n.infographicUrl ? `<span title="인포그래픽 완료" style="font-size:13px;">🖼️</span>` : ''}
                     </div>
                 </div>`;
@@ -1657,19 +1652,6 @@
                 if (val) { el.textContent = val; row.hidden = false; }
                 else { row.hidden = true; }
             }
-            // 슬라이드
-            const slidesRow = document.getElementById('detailSlidesRow');
-            const slidesEl  = document.getElementById('detailSlides');
-            if (notice.slidesUrl) {
-                const isExternal = notice.slidesUrl.startsWith('http');
-                slidesEl.innerHTML = `<a href="${escapeHtml(notice.slidesUrl)}" target="_blank" rel="noopener"
-                    style="display:inline-flex;align-items:center;gap:6px;color:var(--color-primary-600);font-weight:600;">
-                    📊 슬라이드 보기 →</a>`;
-                slidesRow.hidden = false;
-            } else {
-                slidesRow.hidden = true;
-            }
-
             // 인포그래픽
             const infoRow = document.getElementById('detailInfographicRow');
             const infoEl  = document.getElementById('detailInfographic');

@@ -1660,7 +1660,6 @@ class BidNotice(db.Model):
             'sourceUrl': self.source_url,
             'status': self.status,
             'summaryKo': self.summary_ko,
-            'slidesUrl': self.slides_url,
             'infographicUrl': self.infographic_url,
             'lastTaskAt': self.last_task_at.isoformat() if self.last_task_at else None,
             'createdAt': self.created_at.strftime('%Y-%m-%d') if self.created_at else None,

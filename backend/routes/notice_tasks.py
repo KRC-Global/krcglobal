@@ -4,10 +4,10 @@
 흐름
 ----
 1) /api/notices/collect 가 신규 BidNotice 를 INSERT 하면 services.notice_pipeline.
-   post_collect_hook() 이 NoticeTask(translate, slides) 를 enqueue 한다.
+   post_collect_hook() 이 NoticeTask(translate, infographic) 를 enqueue 한다.
 2) ddkkbot 워커가 GET /api/notices/tasks?status=pending 으로 큐를 폴링.
 3) POST /api/notices/tasks/<id>/claim 으로 작업을 잡고 (status=claimed),
-4) translate 면 JSON 결과(title_ko 등)를, slides 면 multipart PPT 를
+4) translate 면 JSON 결과(title_ko 등)를, infographic 은 R2 key + API 경로를
    POST /api/notices/tasks/<id>/complete 로 업로드.
 5) 실패 시 POST /api/notices/tasks/<id>/fail. attempts 가 max_attempts 미만이면
    pending 으로 되돌리고, 한도 도달 시 failed 로 종료.
@@ -77,20 +77,12 @@ def worker_required(f):
 
 
 # ── 헬퍼 ─────────────────────────────────────────────────────────────────────
-ALLOWED_TASK_TYPES = {'translate', 'slides', 'infographic', 'summary', 'review'}
+ALLOWED_TASK_TYPES = {'translate', 'infographic', 'summary', 'review'}
 ALLOWED_TRANSLATE_FIELDS = {'title_ko', 'text_excerpt_ko', 'summary_ko'}
-ALLOWED_SLIDES_EXTENSIONS = {'pptx', 'pdf'}
 ALLOWED_INFOGRAPHIC_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 # 수동 재큐잉 시 task_type → priority 매핑
-TASK_PRIORITY = {'translate': 0, 'infographic': 5, 'slides': 10}
-
-
-def _slides_dir() -> str:
-    upload_root = current_app.config.get('UPLOAD_FOLDER') or 'uploads'
-    path = os.path.join(upload_root, 'slides')
-    os.makedirs(path, exist_ok=True)
-    return path
+TASK_PRIORITY = {'translate': 0, 'infographic': 5}
 
 
 def _infographic_dir() -> str:
@@ -98,13 +90,6 @@ def _infographic_dir() -> str:
     path = os.path.join(upload_root, 'infographics')
     os.makedirs(path, exist_ok=True)
     return path
-
-
-def _safe_ext(filename: str) -> str | None:
-    if '.' not in filename:
-        return None
-    ext = filename.rsplit('.', 1)[-1].lower()
-    return ext if ext in ALLOWED_SLIDES_EXTENSIONS else None
 
 
 def _safe_infographic_ext(filename: str) -> str | None:
@@ -217,70 +202,6 @@ def _complete_translate(task: NoticeTask, notice: BidNotice, body: dict, result:
     return True, None
 
 
-def _complete_slides(task: NoticeTask, notice: BidNotice, body: dict,
-                     result: dict, multipart: bool):
-    """슬라이드 작업 완료 처리 — 두 가지 모드.
-
-    1) multipart 모드: 'file' 필드로 PPTX/PDF 파일 업로드 → slides_path 저장
-       slides_url 은 우리 시스템 다운로드 경로(/api/notices/<id>/slides) 로 자동 설정.
-
-    2) JSON 모드 (1차 권장 — NotebookLM Google Slides 링크 첨부):
-       result.slides_url (또는 fields_to_update.slides_url) 의 외부 URL 을
-       그대로 BidNotice.slides_url 에 저장. 파일은 없음.
-    """
-    if multipart:
-        if 'file' not in request.files:
-            return False, "multipart 의 'file' 필드가 필요합니다."
-        f = request.files['file']
-        if not f or not f.filename:
-            return False, '빈 파일입니다.'
-
-        ext = _safe_ext(f.filename)
-        if not ext:
-            return False, (f'허용되지 않은 확장자입니다 '
-                           f'(허용: {", ".join(ALLOWED_SLIDES_EXTENSIONS)}).')
-
-        safe_name = secure_filename(f.filename) or f'slides.{ext}'
-        target_name = f'{notice.id}_{safe_name}'
-        target_dir = _slides_dir()
-        target_path = os.path.join(target_dir, target_name)
-        f.save(target_path)
-
-        notice.slides_path = target_path
-        notice.slides_url = f'/api/notices/{notice.id}/slides'
-
-        task.result = {
-            **(result or {}),
-            'mode': 'file',
-            'filename': target_name,
-            'size': os.path.getsize(target_path),
-        }
-        return True, None
-
-    # JSON 모드 — 외부 슬라이드 URL 등록
-    fields = body.get('fields_to_update') or body.get('fieldsToUpdate') or {}
-    candidate_url = (
-        (result or {}).get('slides_url')
-        or (result or {}).get('slidesUrl')
-        or (result or {}).get('url')
-        or (fields or {}).get('slides_url')
-        or (fields or {}).get('slidesUrl')
-    )
-    if not candidate_url or not isinstance(candidate_url, str):
-        return False, "slides_url 이 비어있거나 문자열이 아닙니다."
-    if not (candidate_url.startswith('http://') or candidate_url.startswith('https://')):
-        return False, 'slides_url 은 http(s) 절대 URL 이어야 합니다.'
-
-    notice.slides_url = candidate_url[:500]
-    notice.slides_path = None  # 외부 링크 모드에서는 로컬 파일 없음
-    task.result = {
-        **(result or {}),
-        'mode': 'link',
-        'slides_url': notice.slides_url,
-    }
-    return True, None
-
-
 def _complete_infographic(task: NoticeTask, notice: BidNotice, body: dict,
                            result: dict, multipart: bool):
     """인포그래픽 작업 완료 처리.
@@ -378,8 +299,6 @@ def complete_task(tid: int):
 
     if task.task_type == 'translate':
         ok, err = _complete_translate(task, notice, body, result)
-    elif task.task_type == 'slides':
-        ok, err = _complete_slides(task, notice, body, result, is_multipart)
     elif task.task_type == 'infographic':
         ok, err = _complete_infographic(task, notice, body, result, is_multipart)
     elif task.task_type in ('summary', 'review'):
@@ -564,27 +483,7 @@ def patch_task(current_user, tid: int):
     return jsonify({'success': True, 'data': task.to_dict()})
 
 
-# ── 9. 슬라이드 다운로드 ─────────────────────────────────────────────────────
-@notice_tasks_bp.route('/<int:nid>/slides', methods=['GET'])
-@token_required
-def download_slides(current_user, nid: int):
-    notice = BidNotice.query.get(nid)
-    if not notice or not notice.slides_path:
-        return jsonify({'success': False, 'message': '슬라이드 파일이 없습니다.'}), 404
-
-    # 절대경로 직접 검증 — 다른 경로로 leak 방지를 위해 slides 디렉토리 prefix 확인
-    target = notice.slides_path
-    expected_dir = _slides_dir()
-    if not os.path.commonpath([os.path.abspath(target), os.path.abspath(expected_dir)]) == os.path.abspath(expected_dir):
-        return jsonify({'success': False, 'message': '잘못된 파일 경로입니다.'}), 400
-    if not os.path.isfile(target):
-        return jsonify({'success': False, 'message': '파일을 찾을 수 없습니다.'}), 404
-
-    return send_file(target, as_attachment=True,
-                     download_name=os.path.basename(target))
-
-
-# ── 10. 인포그래픽 다운로드 ──────────────────────────────────────────────────
+# ── 9. 인포그래픽 다운로드 ──────────────────────────────────────────────────
 @notice_tasks_bp.route('/<int:nid>/infographic', methods=['GET'])
 @token_required
 def download_infographic(current_user, nid: int):
