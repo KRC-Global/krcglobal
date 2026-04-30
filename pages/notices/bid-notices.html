@@ -1686,11 +1686,15 @@
 
         async function viewInfographic() {
             if (!currentInfographicUrl) return;
+            // 외부 URL(NotebookLM 등)은 바로 새 탭으로 열기
+            if (currentInfographicUrl.startsWith('http')) {
+                window.open(currentInfographicUrl, '_blank');
+                return;
+            }
+            // 내부 API URL(/api/notices/<id>/infographic)은 Authorization 헤더로 fetch
             try {
                 const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
-                const apiUrl = currentInfographicUrl.startsWith('http')
-                    ? currentInfographicUrl
-                    : `${API_BASE_URL.replace('/api', '')}${currentInfographicUrl}`;
+                const apiUrl = `${API_BASE_URL.replace('/api', '')}${currentInfographicUrl}`;
                 const res = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!res.ok) { Toast.error('인포그래픽 로드 실패'); return; }
                 const blob = await res.blob();
