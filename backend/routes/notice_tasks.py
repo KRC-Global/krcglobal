@@ -453,10 +453,11 @@ def fail_task(tid: int):
     })
 
 
-# ── 6. 공고 단건 조회 (워커가 nlm 으로 슬라이드 만들 때 본문/번역 가져가는 용도) ─
+# ── 6. 공고 단건 조회 — 로그인 사용자·워커 모두 허용
+# UI 팝업이 열릴 때 최신 데이터(번역·슬라이드·인포그래픽)를 즉시 반영하는 용도
 @notice_tasks_bp.route('/<int:nid>', methods=['GET'])
-@worker_required
-def get_notice(nid: int):
+@token_required
+def get_notice(current_user, nid: int):
     notice = BidNotice.query.get(nid)
     if not notice:
         return jsonify({'success': False, 'message': '발주공고를 찾을 수 없습니다.'}), 404
