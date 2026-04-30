@@ -20,16 +20,29 @@ LIST_FRESHNESS_DAYS = 60
 @webhook_bp.route('/notices', methods=['GET'])
 @token_required
 def list_notices(current_user):
-    """발주공고 목록 조회 (필터 + 페이지네이션)"""
+    """발주공고 목록 조회 (필터 + 페이지네이션)
+
+    아카이브 처리:
+      - 기본: 활성 공고만 반환 (archived_at IS NULL)
+      - ?archived=only : 아카이브된 공고만
+      - ?archived=all  : 활성+아카이브 모두
+    """
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('perPage', 20, type=int), 2000)
     source = request.args.get('source', '')
     country = request.args.get('country', '')
     status = request.args.get('status', '')
     search = request.args.get('search', '')
+    archived = request.args.get('archived', '').strip().lower()  # '', 'only', 'all'
 
     cutoff_dt = datetime.utcnow() - timedelta(days=LIST_FRESHNESS_DAYS)
     query = BidNotice.query.filter(BidNotice.created_at >= cutoff_dt)
+
+    # 아카이브 필터 — 기본은 활성만
+    if archived == 'only':
+        query = query.filter(BidNotice.archived_at.isnot(None))
+    elif archived != 'all':
+        query = query.filter(BidNotice.archived_at.is_(None))
 
     if source:
         query = query.filter(BidNotice.source == source)
@@ -56,13 +69,16 @@ def list_notices(current_user):
 @webhook_bp.route('/notices/summary', methods=['GET'])
 @token_required
 def notices_summary(current_user):
-    """대시보드용 — new 상태 공고 최신 N건 + 총 new 건수"""
+    """대시보드용 — new 상태 활성 공고 최신 N건 + 총 활성 new 건수.
+    아카이브된 공고는 항상 제외 (대시보드는 활성만).
+    """
     limit = min(request.args.get('limit', 5, type=int), 20)
 
     cutoff_dt = datetime.utcnow() - timedelta(days=LIST_FRESHNESS_DAYS)
     base = BidNotice.query.filter(
         BidNotice.status == 'new',
         BidNotice.created_at >= cutoff_dt,
+        BidNotice.archived_at.is_(None),
     )
     new_count = base.count()
     recent = (base

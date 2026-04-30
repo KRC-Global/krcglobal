@@ -178,6 +178,10 @@ def _is_stale_pub(pub_date_str: str, days: int = 60) -> bool:
 # 수집 공통 최근성 컷오프 — 게시 후 이 기간 지나면 "과거 사업"으로 간주하고 제외
 DEFAULT_FRESHNESS_DAYS = 60
 
+# 아카이브 보존 기간 — archived_at 이후 이 기간 지나면 hard-delete
+# (별도 cleanup 단계에서 처리. 1년 = 365일 기본.)
+ARCHIVE_RETENTION_DAYS = 365
+
 
 def _is_stale_date(date_str: str, days: int = DEFAULT_FRESHNESS_DAYS) -> bool:
     """범용 날짜 문자열(ISO, YYYY-MM-DD, YYYY.MM.DD, 'Month DD, YYYY' 등) 기준
@@ -497,31 +501,41 @@ def _normalize_country(country: str) -> str:
 
 
 _existing_fingerprints_cache = None  # 수집 배치 시작 시 1회 빌드, 매 건마다 재사용
+_new_notices_in_run: list = []        # 이번 수집에서 신규 INSERT 된 BidNotice 객체
 
 
 def _build_fingerprint_cache():
-    """DB 의 기존 BidNotice 를 (title_norm, country_norm) set 으로 빌드.
-    _save_notice 에서 매 건마다 query.all() 하지 않도록 1회만 호출."""
+    """DB 의 기존 BidNotice 를 dict 로 빌드 (활성+아카이브 모두 포함).
+    _save_notice 에서 매 건마다 query.all() 하지 않도록 1회만 호출.
+
+    캐시 구조 (값은 BidNotice 객체 — 재활성화 시 직접 수정 가능):
+      - fp_to_notice: {(title_norm, country_norm): BidNotice}
+      - url_to_notice: {source_url: BidNotice}
+    """
     global _existing_fingerprints_cache
-    cache = set()
-    url_set = set()
+    fp_to_notice = {}
+    url_to_notice = {}
     for n in BidNotice.query.all():
         if n.source_url:
-            url_set.add(n.source_url)
+            url_to_notice[n.source_url] = n
         tn = _normalize_title(n.title or '')
         cn = _normalize_country(n.country or '')
         if tn:
-            cache.add((tn, cn))
-    _existing_fingerprints_cache = (cache, url_set)
+            fp_to_notice[(tn, cn)] = n
+    _existing_fingerprints_cache = (fp_to_notice, url_to_notice)
 
 
 def _save_notice(source, title, country, client, sector,
                  contract_value, deadline, source_url, raw_data) -> bool:
-    """중복 확인 후 BidNotice 저장. 신규면 True.
+    """BidNotice 저장 — 신규 INSERT 또는 아카이브된 기존 레코드 재활성화.
 
-    중복 판정은 인메모리 캐시 기반 (DB 전체 스캔 매번 안 함):
-      1) source_url 캐시 일치
-      2) (정규화 title, 정규화 country) 캐시 일치
+    Returns:
+        True: 신규 INSERT 또는 재활성화 (활성 카운트 +1)
+        False: 이미 활성 상태로 존재 (skip)
+
+    중복 판정은 인메모리 캐시 기반:
+      1) source_url 일치
+      2) (정규화 title, 정규화 country) 일치
     """
     global _existing_fingerprints_cache
     if not source_url or not title:
@@ -533,20 +547,41 @@ def _save_notice(source, title, country, client, sector,
 
     fp_cache, url_cache = _existing_fingerprints_cache
 
-    # 1단계: source_url 일치
-    if source_url in url_cache:
-        return False
-
-    # 2단계: (title_norm, country_norm) 일치
     norm_new = _normalize_title(title)
     country_norm_new = _normalize_country(country or '')
-    if norm_new and (norm_new, country_norm_new) in fp_cache:
+
+    # 기존 레코드 매칭 — 키 존재 여부로 판단 (값이 None일 수 있음: 같은 배치 내 신규)
+    existing = None
+    if source_url in url_cache:
+        existing = url_cache[source_url]
+    elif norm_new and (norm_new, country_norm_new) in fp_cache:
+        existing = fp_cache[(norm_new, country_norm_new)]
+    else:
+        # 캐시 미스 → 신규로 처리 (아래로 진행)
+        pass
+
+    # 키는 있는데 값이 None인 경우 = 같은 배치에서 이미 INSERT 함 → skip
+    if source_url in url_cache or (norm_new and (norm_new, country_norm_new) in fp_cache):
+        if existing is None:
+            return False
+        # 아카이브된 레코드면 재활성화 + 최신 정보로 갱신
+        if existing.archived_at is not None:
+            existing.archived_at = None
+            existing.archive_reason = None
+            if deadline:
+                existing.deadline = deadline[:50]
+            if contract_value:
+                existing.contract_value = contract_value[:100]
+            if raw_data:
+                existing.raw_data = raw_data
+            return True
+        # 이미 활성 — skip
         return False
 
-    # 저장 + 캐시 업데이트 (같은 배치 내 후속 건의 중복 체크에 반영)
-    url_cache.add(source_url)
+    # 신규 INSERT — 캐시에 placeholder(None) 등록해 같은 배치 후속 건 차단
+    url_cache[source_url] = None
     if norm_new:
-        fp_cache.add((norm_new, country_norm_new))
+        fp_cache[(norm_new, country_norm_new)] = None
 
     n = BidNotice(
         source=source,
@@ -561,6 +596,9 @@ def _save_notice(source, title, country, client, sector,
         raw_data=raw_data,
     )
     db.session.add(n)
+    # post_collect_hook 가 신규 ID 리스트를 받을 수 있도록 모듈 레벨 리스트에 누적.
+    # _do_collect 가 commit 직전에 리셋해두므로 매 수집 run 마다 깨끗한 상태.
+    _new_notices_in_run.append(n)
     return True
 
 
@@ -1840,23 +1878,25 @@ def _effective_posted_date(notice) -> datetime:
 
 
 def _sync_db_to_latest(fetched_urls_by_source: dict, errors: dict) -> dict:
-    """최신 수집 결과에 없는 DB 레코드 삭제 — DB 를 수집기 출력과 동기화.
+    """최신 수집 결과에 없는 DB 레코드를 아카이브 — DB 를 수집기 출력과 동기화.
 
     각 source 별로:
       - 해당 source 가 이번 run 에서 에러 없이 동작했고 (errors 에 없음)
       - 1건 이상 fetch 했으면 (0건 = 소스 일시 장애 가능성 → 보호)
-      → DB 의 해당 source 레코드 중 fetched_urls 에 없는 것을 DELETE.
+      → DB 의 해당 source 활성 레코드 중 fetched_urls 에 없는 것을
+        archived_at=NOW, archive_reason='source_removed' 로 아카이브.
 
     안전장치:
       - 에러 소스 보호 (예: ADB WAF 실패 → 기존 ADB 레코드 유지)
       - 0건 소스 보호 (예: KOICA 현재 공고 0건 → 기존 KOICA 레코드 유지)
       - 에러+0건 소스는 synced_sources 에 포함 안 됨
 
-    Returns: {deleted, synced_sources, skipped_sources}
+    Returns: {archived, synced_sources, skipped_sources}
     """
-    deleted = 0
+    archived = 0
     synced = []
     skipped = []
+    now = datetime.utcnow()
 
     for src, urls in fetched_urls_by_source.items():
         if src in errors:
@@ -1866,106 +1906,130 @@ def _sync_db_to_latest(fetched_urls_by_source: dict, errors: dict) -> dict:
             skipped.append(f'{src}(0건)')
             continue
 
-        # 이 source 의 DB 레코드 중 이번 run 에서 fetch 안 된 것 삭제
-        db_records = BidNotice.query.filter_by(source=src).all()
-        to_delete = [n.id for n in db_records if n.source_url not in urls]
+        # 이 source 의 활성 레코드 중 이번 run 에서 fetch 안 된 것을 아카이브
+        active_records = (BidNotice.query
+                          .filter_by(source=src)
+                          .filter(BidNotice.archived_at.is_(None))
+                          .all())
+        to_archive = [n for n in active_records if n.source_url not in urls]
 
-        if to_delete:
+        if to_archive:
             try:
-                cnt = (BidNotice.query
-                       .filter(BidNotice.id.in_(to_delete))
-                       .delete(synchronize_session=False))
+                for n in to_archive:
+                    n.archived_at = now
+                    n.archive_reason = 'source_removed'
                 db.session.commit()
-                deleted += cnt
-                print(f'[sync] {src}: {cnt}건 삭제 (DB {len(db_records)} → {len(db_records)-cnt})')
+                cnt = len(to_archive)
+                archived += cnt
+                print(f'[sync] {src}: {cnt}건 아카이브 (활성 {len(active_records)} → {len(active_records)-cnt})')
             except Exception as e:
                 db.session.rollback()
-                print(f'[sync] {src} 삭제 실패: {e}')
+                print(f'[sync] {src} 아카이브 실패: {e}')
                 skipped.append(f'{src}(db error)')
                 continue
         synced.append(src)
 
     return {
-        'deleted': deleted,
+        'archived': archived,
         'synced_sources': synced,
         'skipped_sources': skipped,
     }
 
 
 def _cleanup_stale_notices(days: int = DEFAULT_FRESHNESS_DAYS) -> dict:
-    """DB 에 저장된 BidNotice 중 '과거 사업'에 해당하는 것 삭제.
+    """DB 에 저장된 활성 BidNotice 중 '과거 사업'에 해당하는 것을 아카이브.
+    아카이브된 지 ARCHIVE_RETENTION_DAYS 이상 경과한 레코드는 hard-delete.
 
-    기준 (OR 로 하나라도 해당하면 삭제):
-      1) created_at 이 현재로부터 `days` 일 이상 지난 레코드
-      2) raw_data 내부 게시일(noticedate/pubDate/posted 등)이 `days` 일 이상 지난 레코드
-      3) deadline 필드가 파싱 가능한 날짜이면서 오늘(UTC) 이전인 레코드
+    아카이브 기준 (OR 로 하나라도 해당):
+      1) created_at 이 현재로부터 `days` 일 이상 지난 레코드 → aged_out
+      2) raw_data 내부 게시일이 `days` 일 이상 지난 레코드 → aged_out
+      3) deadline 필드가 파싱 가능하고 오늘(UTC) 이전인 레코드 → deadline_passed
+
+    중복 레코드(_dedupe)는 보존 의미 없으므로 기존대로 hard-delete.
 
     Returns:
-        dict: {deleted_by_age, deleted_by_posted, deleted_by_deadline, total}
+        dict: {archived_by_age, archived_by_posted, archived_by_deadline,
+               purged_old_archives, deleted_duplicates, total, cutoff_days,
+               retention_days}
     """
     from datetime import timedelta
 
     cutoff_dt = datetime.utcnow() - timedelta(days=days)
+    retention_cutoff = datetime.utcnow() - timedelta(days=ARCHIVE_RETENTION_DAYS)
+    now = datetime.utcnow()
 
-    all_notices = BidNotice.query.all()
-    stale_age_ids = set()
-    stale_posted_ids = set()
-    stale_deadline_ids = set()
+    # 1) 활성 레코드만 검사 — 이미 아카이브된 건 재처리 안 함
+    active_notices = (BidNotice.query
+                      .filter(BidNotice.archived_at.is_(None))
+                      .all())
 
-    for n in all_notices:
-        # 1) created_at 기준
-        if n.created_at and n.created_at < cutoff_dt:
-            stale_age_ids.add(n.id)
+    to_archive = []  # [(notice, reason), ...]
+    for n in active_notices:
+        # 우선순위: deadline_passed > aged_out (게시일 기준이 더 명확하므로 마감 먼저 검사)
+        if n.deadline and _is_deadline_passed(n.deadline):
+            to_archive.append((n, 'deadline_passed'))
             continue
-        # 2) raw_data 게시일 기준
+        if n.created_at and n.created_at < cutoff_dt:
+            to_archive.append((n, 'aged_out'))
+            continue
         posted_dt = _effective_posted_date(n)
         if posted_dt < cutoff_dt:
-            stale_posted_ids.add(n.id)
-            continue
-        # 3) deadline 기준
-        if n.deadline and _is_deadline_passed(n.deadline):
-            stale_deadline_ids.add(n.id)
+            to_archive.append((n, 'aged_out'))
 
-    deleted_age = 0
-    deleted_posted = 0
-    deleted_deadline = 0
+    archived_by_deadline = 0
+    archived_by_age = 0
+    archived_by_posted = 0  # aged_out 중 created_at 미해당이면 posted 기준
     try:
-        if stale_age_ids:
-            deleted_age = (BidNotice.query
-                           .filter(BidNotice.id.in_(stale_age_ids))
-                           .delete(synchronize_session=False))
-        if stale_posted_ids:
-            deleted_posted = (BidNotice.query
-                              .filter(BidNotice.id.in_(stale_posted_ids))
-                              .delete(synchronize_session=False))
-        if stale_deadline_ids:
-            deleted_deadline = (BidNotice.query
-                                .filter(BidNotice.id.in_(stale_deadline_ids))
-                                .delete(synchronize_session=False))
+        for n, reason in to_archive:
+            n.archived_at = now
+            n.archive_reason = reason
+            if reason == 'deadline_passed':
+                archived_by_deadline += 1
+            elif n.created_at and n.created_at < cutoff_dt:
+                archived_by_age += 1
+            else:
+                archived_by_posted += 1
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        print(f'[cleanup] DB 삭제 실패: {e}')
-        return {'deleted_by_age': 0, 'deleted_by_posted': 0,
-                'deleted_by_deadline': 0, 'total': 0, 'error': str(e)}
+        print(f'[cleanup] 아카이브 실패: {e}')
+        return {
+            'archived_by_age': 0, 'archived_by_posted': 0,
+            'archived_by_deadline': 0, 'purged_old_archives': 0,
+            'deleted_duplicates': 0, 'total': 0, 'error': str(e),
+        }
 
-    total = deleted_age + deleted_posted + deleted_deadline
+    # 2) ARCHIVE_RETENTION_DAYS 초과 아카이브는 hard-delete
+    purged = 0
+    try:
+        purged = (BidNotice.query
+                  .filter(BidNotice.archived_at.isnot(None))
+                  .filter(BidNotice.archived_at < retention_cutoff)
+                  .delete(synchronize_session=False))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f'[cleanup] 보존기간 만료 hard-delete 실패: {e}')
 
-    # 추가 — 중복 레코드 제거 (기준: source + 정규화 title + country 가 같으면
-    # 최신 created_at 하나만 남기고 나머지 삭제)
+    archived_total = archived_by_age + archived_by_posted + archived_by_deadline
+
+    # 3) 중복 레코드 hard-delete (보존 의미 없음)
     deleted_dup = _dedupe_existing_notices()
 
-    total += deleted_dup
+    total = archived_total + purged + deleted_dup
     if total:
-        print(f'[cleanup] 삭제: age={deleted_age} + posted={deleted_posted} '
-              f'+ deadline={deleted_deadline} + duplicates={deleted_dup} = {total}')
+        print(f'[cleanup] 아카이브: age={archived_by_age} + posted={archived_by_posted} '
+              f'+ deadline={archived_by_deadline} | hard-delete: '
+              f'purged={purged} + duplicates={deleted_dup} = total {total}')
     return {
-        'deleted_by_age': deleted_age,
-        'deleted_by_posted': deleted_posted,
-        'deleted_by_deadline': deleted_deadline,
+        'archived_by_age': archived_by_age,
+        'archived_by_posted': archived_by_posted,
+        'archived_by_deadline': archived_by_deadline,
+        'purged_old_archives': purged,
         'deleted_duplicates': deleted_dup,
         'total': total,
         'cutoff_days': days,
+        'retention_days': ARCHIVE_RETENTION_DAYS,
     }
 
 
@@ -2071,8 +2135,9 @@ def collect_notices():
 
 def _do_collect():
     """collect_notices 의 실제 작업 — 예외 시 호출자가 500 응답 처리."""
-    global _existing_fingerprints_cache
+    global _existing_fingerprints_cache, _new_notices_in_run
     _existing_fingerprints_cache = None  # 매 수집 run 마다 캐시 리셋
+    _new_notices_in_run = []             # 신규 BidNotice 캡처 리스트도 리셋
 
     all_items, errors = _run_all_collectors()
 
@@ -2165,6 +2230,16 @@ def _do_collect():
     # 나머지는 다음 cron 또는 /translate 엔드포인트로 백필
     translate_result = _translate_pending(limit=30)
 
+    # ddkkbot 작업 큐잉 + Discord 알림 (실패해도 수집 결과를 깨지 않음)
+    pipeline_result = {'enqueued': 0, 'notified': 0}
+    try:
+        new_ids = [n.id for n in _new_notices_in_run if getattr(n, 'id', None)]
+        if new_ids:
+            from services.notice_pipeline import post_collect_hook
+            pipeline_result = post_collect_hook(new_ids)
+    except Exception as e:
+        print(f'[collect] post_collect_hook 예외 (수집은 성공): {e}')
+
     return jsonify({
         'success': True,
         'created': created,
@@ -2176,6 +2251,7 @@ def _do_collect():
         'cleanup': cleanup_result,
         'enrich': enrich_result,
         'translate': translate_result,
+        'pipeline': pipeline_result,
         'collected_at': datetime.utcnow().isoformat() + 'Z',
     })
 
