@@ -63,6 +63,15 @@ def _run_migrations():
     이미 존재하면 에러를 무시 (idempotent)."""
     migrations = [
         "ALTER TABLE bid_notices ADD COLUMN title_ko VARCHAR(500)",
+        # PR1 (ddkkbot 작업 큐) — bid_notices 결과 누적 컬럼
+        "ALTER TABLE bid_notices ADD COLUMN summary_ko TEXT",
+        "ALTER TABLE bid_notices ADD COLUMN slides_path VARCHAR(500)",
+        "ALTER TABLE bid_notices ADD COLUMN slides_url VARCHAR(500)",
+        "ALTER TABLE bid_notices ADD COLUMN last_task_at TIMESTAMP",
+        "ALTER TABLE bid_notices ADD COLUMN infographic_path VARCHAR(500)",
+        "ALTER TABLE bid_notices ADD COLUMN infographic_url VARCHAR(500)",
+        # 해외기술용역 영문 사업개요 (5916e04)
+        "ALTER TABLE consulting_projects ADD COLUMN description_en TEXT",
     ]
     with db.engine.connect() as conn:
         for sql in migrations:
@@ -99,6 +108,7 @@ from routes.banners import banners_bp
 from routes.cn_analysis import cn_bp
 from routes.webhook import webhook_bp
 from routes.notice_collector import collector_bp
+from routes.notice_tasks import notice_tasks_bp
 from routes.flights import flights_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -126,6 +136,9 @@ app.register_blueprint(banners_bp, url_prefix='/api/banners')
 app.register_blueprint(cn_bp, url_prefix='/api/cn')
 app.register_blueprint(webhook_bp, url_prefix='/api/webhook')
 app.register_blueprint(collector_bp, url_prefix='/api/notices')
+# notice_tasks_bp 는 자체 라우트에 /tasks, /<id>/tasks, /<id>/slides 등을 정의하므로
+# url_prefix 는 /api/notices 로 같이 둔다 (collector_bp 와 경로 충돌 없음).
+app.register_blueprint(notice_tasks_bp, url_prefix='/api/notices')
 app.register_blueprint(flights_bp, url_prefix='/api/flights')
 
 

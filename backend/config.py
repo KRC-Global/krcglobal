@@ -95,6 +95,16 @@ class Config:
     )
     FLIGHT_DEFAULT_CURRENCY = os.environ.get('FLIGHT_DEFAULT_CURRENCY', 'KRW').upper()
 
+    # ── ddkkbot 작업 큐 / Discord 알림 ──
+    # 발주공고 자동 수집 후 신규 공고를 Discord 채널에 알리고, ddkkbot 워커가
+    # /api/notices/tasks 에서 작업을 가져가 처리한 뒤 결과를 다시 PUT 한다.
+    # 환경변수 미설정 시 알림은 no-op (NullNotifier) — 큐잉/API 자체는 그대로 동작.
+    DISCORD_NOTICE_WEBHOOK_URL = os.environ.get('DISCORD_NOTICE_WEBHOOK_URL', '').strip()
+    # 워커(ddkkbot)용 인증 시크릿 — 미설정 시 admin JWT 만 허용.
+    WORKER_SECRET = os.environ.get('WORKER_SECRET', '').strip()
+    # Discord 메시지에 시스템 상세 페이지 링크를 만들 때 쓰는 베이스 URL.
+    SITE_BASE_URL = os.environ.get('SITE_BASE_URL', '').rstrip('/')
+
 
 class DevelopmentConfig(Config):
     """Development configuration"""

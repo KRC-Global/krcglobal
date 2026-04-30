@@ -1625,7 +1625,19 @@ class BidNotice(db.Model):
     source_url     = db.Column(db.String(500), nullable=False, unique=True)  # 중복 방지
     status         = db.Column(db.String(20),  default='new', index=True)    # new / reviewed / applied / closed
     raw_data       = db.Column(db.JSON)                                      # 봇이 보낸 원본 전체
+
+    # ddkkbot 작업 결과 저장 (PR1 신규)
+    summary_ko     = db.Column(db.Text)                                      # 한국어 요약 (1차 미사용, 컬럼만 확보)
+    slides_path       = db.Column(db.String(500))                            # backend/uploads/slides/<id>_<safe>.pptx
+    slides_url        = db.Column(db.String(500))                            # 다운로드 경로 또는 NotebookLM 공유 URL
+    infographic_path  = db.Column(db.String(500))                            # backend/uploads/infographics/<id>_<safe>.png
+    infographic_url   = db.Column(db.String(500))                            # 다운로드 API 경로 또는 외부 URL
+    last_task_at      = db.Column(db.DateTime)                               # 마지막 작업 완료 시각
+
     created_at     = db.Column(db.DateTime, default=datetime.utcnow)
+    # 아카이브 — NULL 이면 활성, 값 있으면 비활성. ARCHIVE_RETENTION_DAYS 경과 시 hard-delete.
+    archived_at    = db.Column(db.DateTime, index=True)
+    archive_reason = db.Column(db.String(30))                                # deadline_passed / aged_out / source_removed
 
     def to_dict(self):
         details = None
@@ -1647,7 +1659,13 @@ class BidNotice(db.Model):
             'deadline': self.deadline,
             'sourceUrl': self.source_url,
             'status': self.status,
+            'summaryKo': self.summary_ko,
+            'slidesUrl': self.slides_url,
+            'infographicUrl': self.infographic_url,
+            'lastTaskAt': self.last_task_at.isoformat() if self.last_task_at else None,
             'createdAt': self.created_at.strftime('%Y-%m-%d') if self.created_at else None,
+            'archivedAt': self.archived_at.isoformat() if self.archived_at else None,
+            'archiveReason': self.archive_reason,
             'details': details,
         }
 
@@ -1675,6 +1693,56 @@ class ScrapingRun(db.Model):
             'sendError': self.send_error,
             'sources': self.sources or [],
             'trigger': self.trigger,
+        }
+
+
+class NoticeTask(db.Model):
+    """발주공고 작업 큐 — ddkkbot 워커가 가져가서 처리하는 단위 작업.
+
+    수집 직후 신규 BidNotice 마다 task_type='translate' / 'slides' 가 enqueue 되고,
+    워커가 claim → complete/fail 사이클로 소화한다.
+    """
+    __tablename__ = 'notice_tasks'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    notice_id    = db.Column(db.Integer, db.ForeignKey('bid_notices.id'), nullable=False, index=True)
+    task_type    = db.Column(db.String(30), nullable=False, index=True)   # translate | slides | summary | review
+    status       = db.Column(db.String(20), nullable=False, default='pending', index=True)
+                  # pending → claimed → done | failed
+    priority     = db.Column(db.Integer, default=0, index=True)            # 작을수록 먼저
+    attempts     = db.Column(db.Integer, default=0)
+    max_attempts = db.Column(db.Integer, default=3)
+    worker_id    = db.Column(db.String(100))           # ddkkbot 인스턴스 식별자
+    claimed_at   = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    error        = db.Column(db.Text)
+    payload      = db.Column(db.JSON)                  # 작업 입력 (예: 번역 대상 필드 list)
+    result       = db.Column(db.JSON)                  # 결과 메타 (예: 슬라이드 파일명)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('notice_id', 'task_type', name='uq_notice_task_type'),
+        db.Index('ix_notice_tasks_status_priority', 'status', 'priority'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'noticeId': self.notice_id,
+            'taskType': self.task_type,
+            'status': self.status,
+            'priority': self.priority,
+            'attempts': self.attempts,
+            'maxAttempts': self.max_attempts,
+            'workerId': self.worker_id,
+            'error': self.error,
+            'payload': self.payload,
+            'result': self.result,
+            'claimedAt': self.claimed_at.isoformat() if self.claimed_at else None,
+            'completedAt': self.completed_at.isoformat() if self.completed_at else None,
+            'createdAt': self.created_at.isoformat() if self.created_at else None,
+            'updatedAt': self.updated_at.isoformat() if self.updated_at else None,
         }
 
 
