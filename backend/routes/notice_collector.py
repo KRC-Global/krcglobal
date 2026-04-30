@@ -2225,11 +2225,6 @@ def _do_collect():
     # ADB/AfDB 상세 페이지 보강 — 마감일·금액·발주처 추출
     enrich_result = _enrich_pending_notices(limit=15)
 
-    # 한국어 번역 — title_ko 비어있는 건만 일괄 처리
-    # Vercel Lambda 60s 제약 고려해 1회당 최대 30건만 처리,
-    # 나머지는 다음 cron 또는 /translate 엔드포인트로 백필
-    translate_result = _translate_pending(limit=30)
-
     # ddkkbot 작업 큐잉 + Discord 알림 (실패해도 수집 결과를 깨지 않음)
     pipeline_result = {'enqueued': 0, 'notified': 0}
     try:
@@ -2250,7 +2245,6 @@ def _do_collect():
         'sync': sync_result,
         'cleanup': cleanup_result,
         'enrich': enrich_result,
-        'translate': translate_result,
         'pipeline': pipeline_result,
         'collected_at': datetime.utcnow().isoformat() + 'Z',
     })
