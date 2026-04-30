@@ -26,7 +26,7 @@ from services.notifier import get_notifier
 DEFAULT_TASKS: tuple[tuple[str, int], ...] = (
     ('translate',   0),
     ('infographic', 5),
-    ('slides',      10),
+    # slides 제외 — NotebookLM 파일 export 미지원
 )
 
 
