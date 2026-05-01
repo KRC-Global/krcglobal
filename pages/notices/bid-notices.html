@@ -355,6 +355,209 @@
         .notice-list-container.active { display: block; }
         .notice-map-container.hidden-view { display: none; }
 
+        .list-carousel-shell {
+            --slide-width: min(1080px, calc(100vw - 340px));
+            position: relative;
+            padding-bottom: 10px;
+        }
+        .list-carousel-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin: 2px 0 10px;
+        }
+        .list-carousel-summary {
+            min-width: 0;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            color: var(--color-neutral-600);
+            font-size: 12px;
+        }
+        .list-carousel-summary strong {
+            color: var(--color-neutral-900);
+            font-size: 14px;
+        }
+        .list-carousel-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .list-carousel-counter {
+            min-width: 58px;
+            text-align: center;
+            color: var(--color-neutral-600);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .list-nav-btn {
+            width: 36px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--color-neutral-300);
+            border-radius: 8px;
+            background: var(--color-neutral-0);
+            color: var(--color-neutral-800);
+            font-size: 24px;
+            line-height: 1;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+        }
+        .list-nav-btn:hover:not(:disabled) {
+            border-color: var(--color-primary-400);
+            color: var(--color-primary-600);
+            box-shadow: var(--shadow-sm);
+        }
+        .list-nav-btn:disabled {
+            opacity: 0.35;
+            cursor: default;
+        }
+        .list-carousel {
+            display: flex;
+            gap: 18px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            padding: 4px max(24px, calc((100% - var(--slide-width)) / 2)) 16px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-neutral-300) transparent;
+            -webkit-overflow-scrolling: touch;
+        }
+        .list-carousel::-webkit-scrollbar { height: 8px; }
+        .list-carousel::-webkit-scrollbar-thumb {
+            background: var(--color-neutral-300);
+            border-radius: 999px;
+        }
+        .list-slide {
+            flex: 0 0 var(--slide-width);
+            min-width: 0;
+            scroll-snap-align: center;
+            background: var(--color-neutral-0);
+            border: 1px solid var(--color-neutral-200);
+            border-radius: 8px;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: auto auto;
+            transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+        }
+        .list-slide:hover {
+            border-color: var(--color-primary-300);
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+            transform: translateY(-1px);
+        }
+        .list-slide:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, 0.22);
+            outline-offset: 2px;
+        }
+        .list-slide-media {
+            min-height: clamp(360px, 60vh, 720px);
+            background:
+                linear-gradient(135deg, rgba(14, 165, 233, 0.08), rgba(16, 185, 129, 0.06)),
+                var(--color-neutral-50);
+            border-bottom: 1px solid var(--color-neutral-200);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .infographic-frame {
+            width: 100%;
+            height: 100%;
+            min-height: clamp(360px, 60vh, 720px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            color: var(--color-neutral-500);
+            font-size: 13px;
+            text-align: center;
+        }
+        .infographic-frame img {
+            width: 100%;
+            height: 100%;
+            max-height: calc(60vh + 60px);
+            object-fit: contain;
+            display: block;
+        }
+        .infographic-placeholder {
+            width: min(460px, calc(100% - 28px));
+            min-height: 220px;
+            border: 1px dashed var(--color-neutral-300);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.74);
+        }
+        .infographic-placeholder strong {
+            color: var(--color-neutral-800);
+            font-size: 15px;
+        }
+        .infographic-placeholder span {
+            color: var(--color-neutral-500);
+            line-height: 1.45;
+        }
+        .list-slide-info {
+            padding: 16px 18px 18px;
+            display: grid;
+            gap: 10px;
+        }
+        .list-slide-meta {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+        .list-slide-deadline {
+            margin-left: auto;
+            color: var(--color-neutral-600);
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .list-slide-title {
+            margin: 0;
+            color: var(--color-neutral-900);
+            font-size: 16px;
+            line-height: 1.45;
+            font-weight: 700;
+        }
+        .list-slide:hover .list-slide-title { color: var(--color-primary-600); }
+        .list-slide-original {
+            margin: -3px 0 0;
+            color: var(--color-neutral-500);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .list-slide-foot {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            color: var(--color-neutral-600);
+            font-size: 12px;
+        }
+        .list-slide-foot .lbl {
+            color: var(--color-neutral-500);
+            margin-right: 3px;
+        }
+        .list-slide-foot a {
+            color: var(--color-primary-600);
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .list-slide-foot a:hover { text-decoration: underline; }
+
         .list-card {
             background: var(--color-neutral-0);
             border: 1px solid var(--color-neutral-200);
@@ -474,8 +677,42 @@
                 padding: 6px 8px; gap: 4px;
             }
             .source-toggle { font-size: 10px; padding: 3px 7px; }
-            .list-card { padding: 10px 12px; }
-            .list-card-title { font-size: 13px; }
+            .list-carousel-shell {
+                --slide-width: calc(100vw - 34px);
+            }
+            .list-carousel-toolbar {
+                align-items: flex-start;
+                margin-top: 0;
+            }
+            .list-carousel-summary {
+                display: block;
+                line-height: 1.5;
+            }
+            .list-carousel-controls { gap: 6px; }
+            .list-nav-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 22px;
+            }
+            .list-carousel {
+                gap: 12px;
+                padding: 2px 12px 14px;
+            }
+            .list-slide-media,
+            .infographic-frame {
+                min-height: clamp(320px, 56vh, 560px);
+            }
+            .infographic-frame { padding: 10px; }
+            .infographic-frame img { max-height: calc(56vh + 44px); }
+            .list-slide-info {
+                padding: 13px 14px 15px;
+                gap: 8px;
+            }
+            .list-slide-title { font-size: 14px; }
+            .list-slide-deadline {
+                width: 100%;
+                margin-left: 0;
+            }
             .page-header { margin-bottom: var(--spacing-2) !important; }
         }
 
@@ -1361,6 +1598,12 @@
 
         // ── 뷰 탭 전환 ──────────────────────────────────────────────────────────
         let currentView = 'map';
+        let listCarouselIndex = 0;
+        let listCarouselScrollTimer = null;
+        let listCarouselPointerMoved = false;
+        let listCarouselPointerStart = null;
+        let infographicObserver = null;
+        const infographicPreviewCache = new Map();
 
         function switchView(view) {
             currentView = view;
@@ -1388,30 +1631,223 @@
                 container.innerHTML = '<div style="text-align:center; padding:60px 20px; color:var(--color-neutral-500);">공고가 없습니다.</div>';
                 return;
             }
-            container.innerHTML = filteredNotices.map((n, idx) => {
+            listCarouselIndex = Math.min(listCarouselIndex, filteredNotices.length - 1);
+            const slides = filteredNotices.map((n, idx) => {
                 const no = filteredNotices.length - idx;
                 const iso = COUNTRY_ISO[normalizeCountry(n.country)] || COUNTRY_ISO[n.country] || '';
                 const flagImg = iso ? `<img src="/assets/images/flags/${iso}.svg" style="width:16px;height:16px;border-radius:50%;vertical-align:-2px;" onerror="this.outerHTML='🌍'"> ` : '';
-                return `<div class="list-card" data-notice-id="${n.id}" style="cursor:pointer;">
-                    <div class="list-card-head">
-                        <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
-                        <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
-                        ${formatCollectedBadge(n.createdAt)}
-                        <span style="margin-left:auto; font-size:11px; color:var(--color-neutral-500);">
-                            ${n.deadline ? '📅 ' + escapeHtml(n.deadline) : ''}
-                        </span>
+                const displayTitle = n.titleKo || n.title || '제목 없음';
+                const infographicFrame = n.infographicUrl
+                    ? `<div class="infographic-frame" data-infographic-id="${n.id}" data-infographic-src="${escapeHtml(n.infographicUrl)}" data-infographic-title="${escapeHtml(displayTitle)}">
+                            <div class="infographic-placeholder">
+                                <strong>인포그래픽을 불러오는 중</strong>
+                                <span>사업 요약 이미지를 준비하고 있습니다.</span>
+                            </div>
+                        </div>`
+                    : `<div class="infographic-frame">
+                            <div class="infographic-placeholder">
+                                <strong>인포그래픽 준비 전</strong>
+                                <span>작업 결과가 등록되면 이 영역에 표시됩니다.</span>
+                            </div>
+                        </div>`;
+                return `<article class="list-slide" data-notice-id="${n.id}" tabindex="0" aria-label="${escapeHtml(displayTitle)}">
+                    <div class="list-slide-media">
+                        ${infographicFrame}
                     </div>
-                    <div class="list-card-title">${escapeHtml(n.titleKo || n.title)}</div>
-                    ${n.titleKo && n.titleKo !== n.title ? `<div class="list-card-original">${escapeHtml(n.title)}</div>` : ''}
-                    <div class="list-card-foot">
-                        <span><span class="lbl">No.</span>${no}</span>
-                        ${n.country ? `<span>${flagImg}${escapeHtml(n.country)}</span>` : ''}
-                        ${n.contractValue ? `<span><span class="lbl">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}
-                        ${n.sourceUrl ? `<a href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--color-primary-600);font-weight:600;text-decoration:none;">↗ 원문</a>` : ''}
-                        ${n.infographicUrl ? `<span title="인포그래픽 완료" style="font-size:13px;">🖼️</span>` : ''}
+                    <div class="list-slide-info">
+                        <div class="list-slide-meta">
+                            <span class="source-badge">${SOURCE_LABELS[n.source] || n.source}</span>
+                            <span class="status-badge ${n.status}">${STATUS_LABELS[n.status] || n.status}</span>
+                            ${formatCollectedBadge(n.createdAt)}
+                            ${n.deadline ? `<span class="list-slide-deadline">마감 ${escapeHtml(n.deadline)}</span>` : ''}
+                        </div>
+                        <h3 class="list-slide-title">${escapeHtml(displayTitle)}</h3>
+                        ${n.titleKo && n.titleKo !== n.title ? `<p class="list-slide-original">${escapeHtml(n.title)}</p>` : ''}
+                        <div class="list-slide-foot">
+                            <span><span class="lbl">No.</span>${no}</span>
+                            ${n.country ? `<span>${flagImg}${escapeHtml(n.country)}</span>` : ''}
+                            ${n.client ? `<span><span class="lbl">발주처</span>${escapeHtml(n.client)}</span>` : ''}
+                            ${n.contractValue ? `<span><span class="lbl">규모</span>${escapeHtml(n.contractValue)}</span>` : ''}
+                            ${n.sourceUrl ? `<a href="${escapeHtml(n.sourceUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">원문 보기</a>` : ''}
+                            ${n.infographicUrl ? `<span title="인포그래픽 완료">인포그래픽</span>` : ''}
+                        </div>
                     </div>
-                </div>`;
+                </article>`;
             }).join('');
+            container.innerHTML = `<div class="list-carousel-shell">
+                <div class="list-carousel-toolbar">
+                    <div class="list-carousel-summary">
+                        <strong>인포그래픽 목록</strong>
+                        <span>최근 수집 공고 ${filteredNotices.length}건</span>
+                    </div>
+                    <div class="list-carousel-controls">
+                        <button type="button" class="list-nav-btn" id="listCarouselPrev" onclick="moveListCarousel(-1)" title="이전 사업" aria-label="이전 사업">‹</button>
+                        <span class="list-carousel-counter" id="listCarouselCounter"></span>
+                        <button type="button" class="list-nav-btn" id="listCarouselNext" onclick="moveListCarousel(1)" title="다음 사업" aria-label="다음 사업">›</button>
+                    </div>
+                </div>
+                <div class="list-carousel" id="noticeCarousel" tabindex="0" aria-label="발주공고 인포그래픽 목록">
+                    ${slides}
+                </div>
+            </div>`;
+            requestAnimationFrame(() => {
+                setupListCarousel();
+                scrollListCarouselTo(listCarouselIndex, false);
+            });
+        }
+
+        function setupListCarousel() {
+            const carousel = document.getElementById('noticeCarousel');
+            if (!carousel) return;
+            carousel.addEventListener('scroll', handleListCarouselScroll, { passive: true });
+            carousel.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') { e.preventDefault(); moveListCarousel(-1); }
+                if (e.key === 'ArrowRight') { e.preventDefault(); moveListCarousel(1); }
+                if (e.key === 'Enter' || e.key === ' ') {
+                    const slide = e.target.closest('.list-slide');
+                    if (!slide) return;
+                    const notice = noticeById[slide.dataset.noticeId];
+                    if (notice) {
+                        e.preventDefault();
+                        openDetail(notice);
+                    }
+                }
+            });
+            carousel.addEventListener('pointerdown', (e) => {
+                listCarouselPointerMoved = false;
+                listCarouselPointerStart = { x: e.clientX, y: e.clientY };
+            }, { passive: true });
+            carousel.addEventListener('pointermove', (e) => {
+                if (!listCarouselPointerStart) return;
+                const dx = Math.abs(e.clientX - listCarouselPointerStart.x);
+                const dy = Math.abs(e.clientY - listCarouselPointerStart.y);
+                if (dx > 8 || dy > 8) listCarouselPointerMoved = true;
+            }, { passive: true });
+            carousel.addEventListener('pointerup', () => {
+                listCarouselPointerStart = null;
+            }, { passive: true });
+            carousel.addEventListener('click', (e) => {
+                if (!listCarouselPointerMoved) return;
+                e.preventDefault();
+                e.stopPropagation();
+                listCarouselPointerMoved = false;
+            }, true);
+            setupInfographicObserver(carousel);
+            updateListCarouselState();
+        }
+
+        function handleListCarouselScroll() {
+            clearTimeout(listCarouselScrollTimer);
+            listCarouselScrollTimer = setTimeout(() => {
+                listCarouselIndex = getClosestListSlideIndex();
+                updateListCarouselState();
+            }, 80);
+        }
+
+        function getClosestListSlideIndex() {
+            const carousel = document.getElementById('noticeCarousel');
+            if (!carousel) return 0;
+            const slides = [...carousel.querySelectorAll('.list-slide')];
+            if (!slides.length) return 0;
+            const carouselCenter = carousel.scrollLeft + carousel.clientWidth / 2;
+            let closestIndex = 0;
+            let closestDistance = Infinity;
+            slides.forEach((slide, idx) => {
+                const slideCenter = slide.offsetLeft + slide.offsetWidth / 2;
+                const distance = Math.abs(slideCenter - carouselCenter);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestIndex = idx;
+                }
+            });
+            return closestIndex;
+        }
+
+        function moveListCarousel(direction) {
+            const total = filteredNotices.length;
+            const nextIndex = Math.max(0, Math.min(total - 1, listCarouselIndex + direction));
+            scrollListCarouselTo(nextIndex, true);
+        }
+
+        function scrollListCarouselTo(index, smooth = true) {
+            const carousel = document.getElementById('noticeCarousel');
+            if (!carousel) return;
+            const slides = carousel.querySelectorAll('.list-slide');
+            if (!slides.length) return;
+            listCarouselIndex = Math.max(0, Math.min(slides.length - 1, index));
+            const target = slides[listCarouselIndex];
+            const left = target.offsetLeft - (carousel.clientWidth - target.offsetWidth) / 2;
+            carousel.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
+            updateListCarouselState();
+        }
+
+        function updateListCarouselState() {
+            const total = filteredNotices.length;
+            const counter = document.getElementById('listCarouselCounter');
+            const prev = document.getElementById('listCarouselPrev');
+            const next = document.getElementById('listCarouselNext');
+            if (counter) counter.textContent = total ? `${listCarouselIndex + 1} / ${total}` : '0 / 0';
+            if (prev) prev.disabled = listCarouselIndex <= 0;
+            if (next) next.disabled = listCarouselIndex >= total - 1;
+        }
+
+        function setupInfographicObserver(carousel) {
+            if (infographicObserver) infographicObserver.disconnect();
+            const frames = carousel.querySelectorAll('.infographic-frame[data-infographic-src]');
+            if (!frames.length) return;
+            if (!('IntersectionObserver' in window)) {
+                frames.forEach(loadInfographicFrame);
+                return;
+            }
+            infographicObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (!entry.isIntersecting) return;
+                    infographicObserver.unobserve(entry.target);
+                    loadInfographicFrame(entry.target);
+                });
+            }, { root: carousel, rootMargin: '260px' });
+            frames.forEach(frame => infographicObserver.observe(frame));
+        }
+
+        async function loadInfographicFrame(frame) {
+            const src = frame.dataset.infographicSrc;
+            if (!src || frame.dataset.loading === '1') return;
+            frame.dataset.loading = '1';
+            try {
+                const previewSrc = await resolveInfographicPreviewSrc(src);
+                renderInfographicImage(frame, previewSrc);
+            } catch (e) {
+                renderInfographicFallback(frame);
+            }
+        }
+
+        async function resolveInfographicPreviewSrc(src) {
+            if (/^https?:\/\//i.test(src)) return src;
+            if (infographicPreviewCache.has(src)) return infographicPreviewCache.get(src);
+            const token = localStorage.getItem('gbms_token') || sessionStorage.getItem('gbms_token');
+            const apiUrl = src.startsWith('/api')
+                ? `${API_BASE_URL.replace('/api', '')}${src}`
+                : `${API_BASE_URL}${src.startsWith('/') ? src : '/' + src}`;
+            const res = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) throw new Error('preview fetch failed');
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            infographicPreviewCache.set(src, objectUrl);
+            return objectUrl;
+        }
+
+        function renderInfographicImage(frame, src) {
+            const title = frame.dataset.infographicTitle || '인포그래픽';
+            frame.innerHTML = `<img src="${escapeHtml(src)}" alt="${escapeHtml(title)} 인포그래픽" loading="lazy">`;
+            const img = frame.querySelector('img');
+            img.addEventListener('error', () => renderInfographicFallback(frame), { once: true });
+        }
+
+        function renderInfographicFallback(frame) {
+            frame.innerHTML = `<div class="infographic-placeholder">
+                <strong>미리보기를 표시할 수 없습니다</strong>
+                <span>이미지 표시를 지원하지 않는 인포그래픽 URL입니다.</span>
+            </div>`;
         }
 
         function groupNoticesByCountry(notices) {
