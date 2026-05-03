@@ -374,7 +374,34 @@ def fail_task(tid: int):
     })
 
 
-# ── 6. 공고 단건 조회 — 로그인 사용자(UI 팝업)·워커(krc_worker) 모두 허용
+# ── 6. 실패 태스크 재시도 (워커 전용) ───────────────────────────────────────
+@notice_tasks_bp.route('/tasks/<int:tid>/retry', methods=['POST'])
+@worker_required
+def retry_task(tid: int):
+    """failed 상태 태스크를 pending으로 초기화해 재시도 허용."""
+    task = NoticeTask.query.get(tid)
+    if not task:
+        return jsonify({'success': False, 'message': '작업을 찾을 수 없습니다.'}), 404
+
+    if task.status != 'failed':
+        return jsonify({'success': False, 'message': f'failed 상태가 아닙니다 (현재: {task.status})'}), 400
+
+    task.status = 'pending'
+    task.attempts = 0
+    task.claimed_at = None
+    task.completed_at = None
+    task.error = None
+    task.worker_id = None
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'retry 처리 중 오류: {e}'}), 500
+
+    return jsonify({'success': True, 'message': 'pending으로 재설정되었습니다.', 'data': task.to_dict()})
+
+
+# ── 7. 공고 단건 조회 — 로그인 사용자(UI 팝업)·워커(krc_worker) 모두 허용
 @notice_tasks_bp.route('/<int:nid>', methods=['GET'])
 def get_notice(nid: int):
     # worker 인증 먼저 시도, 실패 시 JWT 인증
