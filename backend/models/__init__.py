@@ -508,6 +508,16 @@ class ConsultingProject(db.Model):
     jv5 = db.Column(db.String(200))  # JV5
     jv5_ratio = db.Column(db.Numeric(5, 4))  # JV5 지분율
 
+    # PDS 보조 정보 (Project Data Sheet 양식 누락 항목, 사용자 편집 가능)
+    pds_location_within_country = db.Column(db.Text)         # Location within country
+    pds_client_address          = db.Column(db.Text)         # 발주처 Address
+    pds_total_staff_months      = db.Column(db.String(80))   # Total staff-months
+    pds_associated_staff_months = db.Column(db.String(80))   # Associated Consultants staff-months
+    pds_senior_staff            = db.Column(db.Text)         # Senior professional staff & functions
+    pds_narrative_description_en = db.Column(db.Text)        # Narrative description of Project (PDS 전용 영문)
+    pds_services_description_en = db.Column(db.Text)         # Description of actual services (영문)
+    pds_extracted_at            = db.Column(db.DateTime)     # 마지막 자동 추출 시각
+
     # 메타 정보
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -581,7 +591,16 @@ class ConsultingProject(db.Model):
             'jv5Ratio': float(self.jv5_ratio) if self.jv5_ratio else None,
             'createdAt': self.created_at.isoformat() if self.created_at else None,
             'updatedAt': self.updated_at.isoformat() if self.updated_at else None,
-            'createdBy': self.creator.name if self.creator else None
+            'createdBy': self.creator.name if self.creator else None,
+            # PDS 전용 보조 필드
+            'pdsLocationWithinCountry': self.pds_location_within_country,
+            'pdsClientAddress': self.pds_client_address,
+            'pdsTotalStaffMonths': self.pds_total_staff_months,
+            'pdsAssociatedStaffMonths': self.pds_associated_staff_months,
+            'pdsSeniorStaff': self.pds_senior_staff,
+            'pdsNarrativeDescriptionEn': self.pds_narrative_description_en,
+            'pdsServicesDescriptionEn': self.pds_services_description_en,
+            'pdsExtractedAt': self.pds_extracted_at.isoformat() if self.pds_extracted_at else None,
         }
 
 

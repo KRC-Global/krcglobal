@@ -72,6 +72,15 @@ def _run_migrations():
         "ALTER TABLE bid_notices ADD COLUMN infographic_url VARCHAR(500)",
         # 해외기술용역 영문 사업개요 (5916e04)
         "ALTER TABLE consulting_projects ADD COLUMN description_en TEXT",
+        # PDS(Project Data Sheet) 보조 필드 — 해외기술용역 사업현황 PDS 기능
+        "ALTER TABLE consulting_projects ADD COLUMN pds_location_within_country TEXT",
+        "ALTER TABLE consulting_projects ADD COLUMN pds_client_address TEXT",
+        "ALTER TABLE consulting_projects ADD COLUMN pds_total_staff_months VARCHAR(80)",
+        "ALTER TABLE consulting_projects ADD COLUMN pds_associated_staff_months VARCHAR(80)",
+        "ALTER TABLE consulting_projects ADD COLUMN pds_senior_staff TEXT",
+        "ALTER TABLE consulting_projects ADD COLUMN pds_narrative_description_en TEXT",
+        "ALTER TABLE consulting_projects ADD COLUMN pds_services_description_en TEXT",
+        "ALTER TABLE consulting_projects ADD COLUMN pds_extracted_at TIMESTAMP",
     ]
     with db.engine.connect() as conn:
         for sql in migrations:
@@ -101,6 +110,7 @@ from routes.performance import performance_bp
 from routes.oda_reports import oda_reports_bp
 from routes.contracts import contracts_bp
 from routes.tor_rfp import tor_rfp_bp
+from routes.pds import pds_bp
 from routes.utilities import utilities_bp
 from routes.bidding import bidding_bp
 from routes.board import board_bp
@@ -129,6 +139,7 @@ app.register_blueprint(performance_bp, url_prefix='/api/performance')
 app.register_blueprint(oda_reports_bp, url_prefix='/api/oda-reports')
 app.register_blueprint(contracts_bp, url_prefix='/api/contracts')
 app.register_blueprint(tor_rfp_bp, url_prefix='/api/tor-rfp')
+app.register_blueprint(pds_bp, url_prefix='/api/consulting')
 app.register_blueprint(utilities_bp, url_prefix='/api/utilities')
 app.register_blueprint(bidding_bp, url_prefix='/api/bidding')
 app.register_blueprint(board_bp, url_prefix='/api/board')

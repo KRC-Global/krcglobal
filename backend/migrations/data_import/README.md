@@ -74,9 +74,24 @@ python backend\migrations\data_import\00_r2_list_backup.py > backend\migrations\
 | 3 | `10_export_sqlite.py` | `_migration_src/gbms.db` | `exports/*.jsonl` | read-only (SQLite만 읽음) |
 | 4 | `15_build_user_map.py` | `exports/users.jsonl` + Supabase users | `manifests/user_map.json` | read-only |
 | 5 | `20_import_to_supabase.py` | `exports/*.jsonl`, `manifests/user_map.json` | Supabase INSERT + `manifests/id_mapping.json` + `reports/conflicts_report.csv` | **DB 변경** |
+| 5.5 | `25_sync_null_fields.py` | `exports/*.jsonl`, `manifests/id_mapping.json` | Supabase UPDATE — SKIPped 행의 NULL PDS/파일 필드만 보강 | **DB 변경** (보강) |
 | 6 | `30_upload_files_to_r2.py` | `_migration_src/uploads/`, `manifests/id_mapping.json` | R2 PUT + `manifests/uploaded_manifest.jsonl` + Supabase UPDATE | **R2 + DB 변경** |
 | 7 | `40_verify.py` | (외부망 DB + R2) | `reports/migration_report.md` | read-only |
 | ⛔ | `99_rollback_r2.py` | `manifests/uploaded_manifest.jsonl` | R2 DELETE + DB UPDATE → NULL | **롤백 전용** |
+
+### Stage 5.5 (25_sync_null_fields.py) 의 역할
+
+20_import 의 SKIP 정책은 외부망 기존 행을 보존하지만, 그 행에 내부망 사용자가 **나중에 추가한 PDS 보조 필드나 새 첨부 PDF** 는 자동 반영되지 않는다.
+25_sync 는 외부망 행이 NULL/빈 값일 때만 내부망 export 값을 채워 넣고, 이미 채워진 셀은 절대 덮어쓰지 않는다.
+
+```powershell
+python backend\migrations\data_import\25_sync_null_fields.py --dry-run
+python backend\migrations\data_import\25_sync_null_fields.py
+# PDS만 보강하려면
+python backend\migrations\data_import\25_sync_null_fields.py --only pds
+# 첨부 파일만 보강하려면 (이후 30_upload 가 R2로 업로드)
+python backend\migrations\data_import\25_sync_null_fields.py --only files
+```
 
 각 스크립트는 `--help` 로 옵션 확인 가능. 대부분 `--dry-run` 지원.
 
