@@ -56,6 +56,24 @@ study/
 migration/
 scripts/
 
+# Data migration intermediates (절대 커밋 금지)
+_migration_src/
+backend/migrations/data_import/exports/
+backend/migrations/data_import/manifests/
+backend/migrations/data_import/reports/
+*.jsonl
+id_mapping*.json
+user_map*.json
+uploaded_manifest*.jsonl
+failed_uploads*.csv
+conflicts_report*.csv
+insert_report*.csv
+schema_diff*.md
+migration_report*.md
+backup_*.sql
+r2_objects_before*.txt
+r2_objects_after*.txt
+
 # Screenshots and test images (exclude root-level only)
 /*.png
 
