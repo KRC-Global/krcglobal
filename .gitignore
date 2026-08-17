@@ -12,6 +12,7 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+*.kakao-relay.env
 venv/
 .venv/
 
@@ -55,6 +56,10 @@ leaflet_files/
 study/
 migration/
 scripts/
+!backend/scripts/
+!backend/scripts/kakao_relay.py
+!backend/scripts/install_kakao_relay_launch_agent.py
+!backend/scripts/KAKAO_RELAY.md
 
 # Data migration intermediates (절대 커밋 금지)
 _migration_src/
@@ -86,6 +91,7 @@ r2_objects_after*.txt
 
 # Test/debug scripts
 test_*.py
+!backend/tests/test_kakao_delivery.py
 migrate_*.py
 add_*.py
 

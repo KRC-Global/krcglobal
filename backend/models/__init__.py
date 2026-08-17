@@ -1764,6 +1764,69 @@ class NoticeTask(db.Model):
         }
 
 
+class KakaoDelivery(db.Model):
+    """Mac 카카오톡 릴레이 전송 큐.
+
+    이미지와 링크를 별도 단계로 저장해 링크 전송만 실패했을 때 이미지가
+    중복 발송되지 않도록 한다. kind='image' 완료 후 kind='link'가 생성된다.
+    """
+    __tablename__ = 'kakao_deliveries'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    notice_id    = db.Column(
+        db.Integer,
+        db.ForeignKey('bid_notices.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    kind         = db.Column(db.String(20), nullable=False, index=True)  # image | link
+    status       = db.Column(db.String(20), nullable=False, default='pending', index=True)
+    attempts     = db.Column(db.Integer, nullable=False, default=0)
+    max_attempts = db.Column(db.Integer, nullable=False, default=3)
+    worker_id    = db.Column(db.String(100))
+    claimed_at   = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    error        = db.Column(db.Text)
+    result       = db.Column(db.JSON)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    notice = db.relationship('BidNotice', lazy='joined')
+
+    __table_args__ = (
+        db.UniqueConstraint('notice_id', 'kind', name='uq_kakao_delivery_notice_kind'),
+        db.Index('ix_kakao_deliveries_status_created', 'status', 'created_at'),
+    )
+
+    def to_dict(self, include_notice=False):
+        data = {
+            'id': self.id,
+            'noticeId': self.notice_id,
+            'kind': self.kind,
+            'status': self.status,
+            'attempts': self.attempts,
+            'maxAttempts': self.max_attempts,
+            'workerId': self.worker_id,
+            'error': self.error,
+            'result': self.result,
+            'claimedAt': self.claimed_at.isoformat() if self.claimed_at else None,
+            'completedAt': self.completed_at.isoformat() if self.completed_at else None,
+            'createdAt': self.created_at.isoformat() if self.created_at else None,
+            'updatedAt': self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if include_notice and self.notice:
+            data['notice'] = {
+                'id': self.notice.id,
+                'title': self.notice.title,
+                'titleKo': self.notice.title_ko,
+                'sourceUrl': self.notice.source_url,
+                'infographicUrl': self.notice.infographic_url,
+                'hasInfographic': bool(self.notice.infographic_path or self.notice.infographic_url),
+                'imageDownloadPath': f'/api/notices/{self.notice.id}/infographic',
+            }
+        return data
+
+
 # Import expansion models
 from models.expansion import (
     Company, Loan, LoanPerformance, LoanRepayment,

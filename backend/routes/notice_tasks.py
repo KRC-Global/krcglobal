@@ -31,9 +31,13 @@ from flask import Blueprint, request, jsonify, send_file, current_app
 from sqlalchemy import asc
 from werkzeug.utils import secure_filename
 
-from models import db, BidNotice, NoticeTask
+from models import db, BidNotice, NoticeTask, KakaoDelivery
 from routes.auth import token_required, admin_required, verify_token
-from services.notice_pipeline import notify_task_done, notify_task_failed
+from services.notice_pipeline import (
+    enqueue_kakao_image_delivery,
+    notify_task_done,
+    notify_task_failed,
+)
 
 
 notice_tasks_bp = Blueprint('notice_tasks', __name__)
@@ -317,6 +321,10 @@ def complete_task(tid: int):
     task.error = None
     notice.last_task_at = now
 
+    # 이미지가 DB/R2에 기록되는 트랜잭션과 카카오 전송 큐 생성을 함께 묶는다.
+    if task.task_type == 'infographic':
+        enqueue_kakao_image_delivery(notice.id)
+
     try:
         db.session.commit()
     except Exception as e:
@@ -412,7 +420,7 @@ def get_notice(nid: int):
         token = auth_header[7:] if auth_header.startswith('Bearer ') else ''
         if not token or not verify_token(token):
             return jsonify({'success': False, 'message': '인증 실패'}), 401
-    notice = BidNotice.query.get(nid)
+    notice = db.session.get(BidNotice, nid)
     if not notice:
         return jsonify({'success': False, 'message': '발주공고를 찾을 수 없습니다.'}), 404
     return jsonify({'success': True, 'data': notice.to_dict()})
@@ -512,8 +520,15 @@ def patch_task(current_user, tid: int):
 
 # ── 9. 인포그래픽 다운로드 ──────────────────────────────────────────────────
 @notice_tasks_bp.route('/<int:nid>/infographic', methods=['GET'])
-@token_required
-def download_infographic(current_user, nid: int):
+def download_infographic(nid: int):
+    # Mac 릴레이의 WORKER_SECRET 또는 로그인 사용자의 JWT를 허용한다.
+    ok, _ = _check_worker_auth()
+    if not ok:
+        auth_header = request.headers.get('Authorization', '')
+        token = auth_header[7:] if auth_header.startswith('Bearer ') else ''
+        if not token or not verify_token(token):
+            return jsonify({'success': False, 'message': '인증 실패'}), 401
+
     notice = BidNotice.query.get(nid)
     if not notice or not notice.infographic_path:
         return jsonify({'success': False, 'message': '인포그래픽 파일이 없습니다.'}), 404
@@ -539,3 +554,145 @@ def download_infographic(current_user, nid: int):
 
     return send_file(target, as_attachment=False,
                      download_name=os.path.basename(target))
+
+
+# ── 10. Mac 카카오톡 릴레이 전용 큐 ─────────────────────────────────────────
+KAKAO_DELIVERY_KINDS = {'image', 'link'}
+
+
+@notice_tasks_bp.route('/kakao-deliveries', methods=['GET'])
+@worker_required
+def list_kakao_deliveries():
+    status = (request.args.get('status') or 'pending').strip()
+    kind = (request.args.get('kind') or '').strip()
+    worker_id = (request.args.get('worker_id') or request.args.get('workerId') or '').strip()
+    try:
+        limit = max(1, min(100, int(request.args.get('limit', 10))))
+    except (TypeError, ValueError):
+        limit = 10
+
+    if status not in ('pending', 'claimed', 'done', 'failed'):
+        return jsonify({'success': False, 'message': f'허용되지 않은 status: {status}'}), 400
+    if kind and kind not in KAKAO_DELIVERY_KINDS:
+        return jsonify({'success': False, 'message': f'허용되지 않은 kind: {kind}'}), 400
+
+    query = KakaoDelivery.query.filter_by(status=status)
+    if kind:
+        query = query.filter_by(kind=kind)
+    if worker_id:
+        query = query.filter_by(worker_id=worker_id)
+    rows = query.order_by(asc(KakaoDelivery.created_at)).limit(limit).all()
+    return jsonify({
+        'success': True,
+        'data': [row.to_dict(include_notice=True) for row in rows],
+        'count': len(rows),
+    })
+
+
+@notice_tasks_bp.route('/kakao-deliveries/<int:did>/claim', methods=['POST'])
+@worker_required
+def claim_kakao_delivery(did: int):
+    body = request.get_json(silent=True) or {}
+    worker_id = (body.get('worker_id') or body.get('workerId') or '')[:100]
+    delivery = db.session.get(KakaoDelivery, did)
+    if not delivery:
+        return jsonify({'success': False, 'message': '카카오 전송 작업을 찾을 수 없습니다.'}), 404
+    if delivery.status != 'pending':
+        return jsonify({
+            'success': False,
+            'message': f'pending 상태가 아닙니다 (현재: {delivery.status})',
+            'data': delivery.to_dict(include_notice=True),
+        }), 409
+
+    delivery.status = 'claimed'
+    delivery.worker_id = worker_id or delivery.worker_id
+    delivery.claimed_at = datetime.utcnow()
+    delivery.attempts = (delivery.attempts or 0) + 1
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'claim 실패: {e}'}), 500
+    return jsonify({'success': True, 'data': delivery.to_dict(include_notice=True)})
+
+
+@notice_tasks_bp.route('/kakao-deliveries/<int:did>/complete', methods=['POST'])
+@worker_required
+def complete_kakao_delivery(did: int):
+    delivery = db.session.get(KakaoDelivery, did)
+    if not delivery:
+        return jsonify({'success': False, 'message': '카카오 전송 작업을 찾을 수 없습니다.'}), 404
+    # 네트워크 응답 유실 후 로컬 영수증으로 재호출하는 경우를 안전하게 허용한다.
+    if delivery.status == 'done':
+        return jsonify({'success': True, 'data': delivery.to_dict(include_notice=True)})
+    if delivery.status != 'claimed':
+        return jsonify({
+            'success': False,
+            'message': f'claimed 상태가 아닙니다 (현재: {delivery.status})',
+        }), 409
+
+    body = request.get_json(silent=True) or {}
+    result = body.get('result') or {}
+    delivery.status = 'done'
+    delivery.completed_at = datetime.utcnow()
+    delivery.error = None
+    delivery.result = result if isinstance(result, dict) else {}
+
+    # 이미지 성공 후 링크만 별도 큐잉하여 링크 재시도 시 이미지 중복을 방지한다.
+    if delivery.kind == 'image':
+        link = KakaoDelivery.query.filter_by(
+            notice_id=delivery.notice_id,
+            kind='link',
+        ).first()
+        if not link:
+            db.session.add(KakaoDelivery(
+                notice_id=delivery.notice_id,
+                kind='link',
+                status='pending',
+            ))
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'완료 처리 중 오류: {e}'}), 500
+    return jsonify({'success': True, 'data': delivery.to_dict(include_notice=True)})
+
+
+@notice_tasks_bp.route('/kakao-deliveries/<int:did>/fail', methods=['POST'])
+@worker_required
+def fail_kakao_delivery(did: int):
+    body = request.get_json(silent=True) or {}
+    error = str(body.get('error') or '')[:2000]
+    retryable = body.get('retryable', True) is not False
+    delivery = db.session.get(KakaoDelivery, did)
+    if not delivery:
+        return jsonify({'success': False, 'message': '카카오 전송 작업을 찾을 수 없습니다.'}), 404
+    if delivery.status == 'done':
+        return jsonify({'success': False, 'message': '이미 완료된 작업은 실패 처리할 수 없습니다.'}), 409
+    if delivery.status == 'failed':
+        return jsonify({
+            'success': True,
+            'data': delivery.to_dict(include_notice=True),
+            'requeued': False,
+        })
+
+    delivery.error = error
+    requeued = retryable and (delivery.attempts or 0) < (delivery.max_attempts or 3)
+    if requeued:
+        delivery.status = 'pending'
+        delivery.claimed_at = None
+    else:
+        delivery.status = 'failed'
+        delivery.completed_at = datetime.utcnow()
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'실패 처리 중 오류: {e}'}), 500
+    return jsonify({
+        'success': True,
+        'data': delivery.to_dict(include_notice=True),
+        'requeued': requeued,
+    })

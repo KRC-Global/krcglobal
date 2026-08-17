@@ -105,6 +105,13 @@ class Config:
     # Discord 메시지에 시스템 상세 페이지 링크를 만들 때 쓰는 베이스 URL.
     SITE_BASE_URL = os.environ.get('SITE_BASE_URL', '').rstrip('/')
 
+    # ── Mac 카카오톡 릴레이 ──
+    # true 일 때 인포그래픽 완료 직후 kakao_deliveries 큐에 이미지 전송을 등록한다.
+    # 실제 카카오톡 조작은 항상 켜진 Mac의 scripts/kakao_relay.py 가 담당한다.
+    KAKAO_RELAY_ENABLED = os.environ.get(
+        'KAKAO_RELAY_ENABLED', 'true'
+    ).strip().lower() in ('1', 'true', 'yes', 'on')
+
 
 class DevelopmentConfig(Config):
     """Development configuration"""

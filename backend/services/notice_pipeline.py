@@ -15,7 +15,9 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from models import db, BidNotice, NoticeTask
+from flask import current_app
+
+from models import db, BidNotice, NoticeTask, KakaoDelivery
 from services.notifier import get_notifier
 
 
@@ -28,6 +30,31 @@ DEFAULT_TASKS: tuple[tuple[str, int], ...] = (
     ('infographic', 5),
     # slides 제외 — NotebookLM 파일 export 미지원
 )
+
+
+def enqueue_kakao_image_delivery(notice_id: int) -> KakaoDelivery | None:
+    """인포그래픽 완료 공고의 첫 카카오 전송 단계(image)를 idempotent하게 등록.
+
+    호출자가 가진 트랜잭션에 포함되도록 commit 하지 않는다. 운영에서
+    KAKAO_RELAY_ENABLED가 꺼져 있으면 아무 작업도 만들지 않는다.
+    """
+    if not current_app.config.get('KAKAO_RELAY_ENABLED', False):
+        return None
+
+    existing = KakaoDelivery.query.filter_by(
+        notice_id=notice_id,
+        kind='image',
+    ).first()
+    if existing:
+        return existing
+
+    delivery = KakaoDelivery(
+        notice_id=notice_id,
+        kind='image',
+        status='pending',
+    )
+    db.session.add(delivery)
+    return delivery
 
 
 # ── 큐잉 ──────────────────────────────────────────────────────────────────────
