@@ -429,7 +429,9 @@ class KmsgClient:
             return False
 
     def _resolve_exact_room(self) -> str:
-        result = self._run(['chats', '--json', '--limit', '100'], timeout=30)
+        result = self._run([
+            'chats', '--json', '--limit', '100', '--keep-window',
+        ], timeout=30)
         payload = json.loads(result.stdout)
         matches = [
             chat for chat in (payload.get('chats') or [])
@@ -686,6 +688,11 @@ def main() -> int:
             LOG.info('카카오톡 및 대상 채팅방 사전 점검 완료')
             instance_lock.close()
             return 0
+
+        if kmsg.ready():
+            LOG.info('카카오톡 및 대상 채팅방 시작 점검 완료')
+        else:
+            LOG.warning('카카오톡 시작 점검 실패: 다음 작업 처리 전에 다시 확인합니다.')
 
         signal.signal(signal.SIGTERM, _handle_signal)
         signal.signal(signal.SIGINT, _handle_signal)
