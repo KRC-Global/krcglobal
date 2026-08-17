@@ -19,6 +19,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -67,6 +68,8 @@ class RelayConfig:
     receipt_dir: Path
     dry_run: bool
     once: bool
+    local_db: bool
+    min_notice_id: int
 
     @classmethod
     def from_env(cls, *, once: bool = False) -> 'RelayConfig':
@@ -96,8 +99,16 @@ class RelayConfig:
         try:
             poll_seconds = max(5.0, float(os.environ.get('KAKAO_RELAY_POLL_SECONDS', '30')))
             request_timeout = max(5.0, float(os.environ.get('KAKAO_RELAY_HTTP_TIMEOUT', '30')))
+            min_notice_id = max(0, int(os.environ.get('KAKAO_RELAY_MIN_NOTICE_ID', '0')))
         except ValueError as exc:
-            raise RuntimeError('폴링/HTTP timeout 설정은 숫자여야 합니다.') from exc
+            raise RuntimeError('폴링/HTTP timeout/최소 공고 ID 설정은 숫자여야 합니다.') from exc
+
+        local_db = _truthy(os.environ.get('KAKAO_RELAY_USE_LOCAL_DB'))
+        if local_db and min_notice_id < 1:
+            raise RuntimeError(
+                '로컬 DB 모드에서는 기존 공고 재전송 방지를 위해 '
+                'KAKAO_RELAY_MIN_NOTICE_ID가 필요합니다.'
+            )
 
         default_receipts = (
             Path.home() / 'Library' / 'Application Support' /
@@ -117,6 +128,8 @@ class RelayConfig:
             receipt_dir=receipt_dir,
             dry_run=_truthy(os.environ.get('KAKAO_RELAY_DRY_RUN')),
             once=once or _truthy(os.environ.get('KAKAO_RELAY_ONCE')),
+            local_db=local_db,
+            min_notice_id=min_notice_id,
         )
 
 
@@ -203,6 +216,193 @@ class RelayAPI:
                 raise RuntimeError('다운로드한 인포그래픽이 비어 있습니다.')
         finally:
             response.close()
+
+
+class LocalDBRelayAPI:
+    """운영 배포 없이 공용 Supabase/R2를 직접 사용하는 Mac 전용 큐.
+
+    설치 시점의 마지막 공고 ID보다 큰 공고만 큐에 넣어 기존 공고가 한꺼번에
+    재전송되는 것을 막는다. 큐 상태 자체는 공용 DB에 남아 프로세스 재시작에도
+    이미지/링크 단계의 중복 방지가 유지된다.
+    """
+
+    def __init__(self, config: RelayConfig):
+        self.config = config
+        backend_dir = Path(__file__).resolve().parents[1]
+        if str(backend_dir) not in sys.path:
+            sys.path.insert(0, str(backend_dir))
+        from app import app as flask_app
+        from models import BidNotice, KakaoDelivery, db
+
+        self.app = flask_app
+        self.BidNotice = BidNotice
+        self.KakaoDelivery = KakaoDelivery
+        self.db = db
+        with self.app.app_context():
+            self.db.create_all()
+
+    def _sync_new_notices(self) -> None:
+        from sqlalchemy import or_
+
+        with self.app.app_context():
+            candidates = (
+                self.BidNotice.query
+                .filter(self.BidNotice.id > self.config.min_notice_id)
+                .filter(self.BidNotice.source_url.isnot(None))
+                .filter(or_(
+                    self.BidNotice.infographic_path.isnot(None),
+                    self.BidNotice.infographic_url.isnot(None),
+                ))
+                .order_by(self.BidNotice.id.asc())
+                .limit(100)
+                .all()
+            )
+            created = 0
+            for notice in candidates:
+                exists = self.KakaoDelivery.query.filter_by(
+                    notice_id=notice.id, kind='image',
+                ).first()
+                if exists:
+                    continue
+                self.db.session.add(self.KakaoDelivery(
+                    notice_id=notice.id,
+                    kind='image',
+                    status='pending',
+                    max_attempts=3,
+                ))
+                created += 1
+            if created:
+                self.db.session.commit()
+                LOG.info('신규 인포그래픽 로컬 큐 등록: %s건', created)
+
+    def list(self, status: str, *, worker_id: str | None = None, limit: int = 10) -> list[dict]:
+        if status == 'pending':
+            self._sync_new_notices()
+        with self.app.app_context():
+            query = self.KakaoDelivery.query.filter_by(status=status)
+            if worker_id:
+                query = query.filter_by(worker_id=worker_id)
+            rows = query.order_by(self.KakaoDelivery.created_at.asc()).limit(limit).all()
+            return [row.to_dict(include_notice=True) for row in rows]
+
+    def claim(self, delivery_id: int) -> dict:
+        with self.app.app_context():
+            delivery = self.db.session.get(self.KakaoDelivery, delivery_id)
+            if not delivery or delivery.status != 'pending':
+                state = delivery.status if delivery else 'missing'
+                raise RuntimeError(f'pending 상태가 아닌 카카오 작업입니다: {state}')
+            delivery.status = 'claimed'
+            delivery.worker_id = self.config.worker_id
+            delivery.claimed_at = datetime.utcnow()
+            delivery.attempts = (delivery.attempts or 0) + 1
+            self.db.session.commit()
+            return delivery.to_dict(include_notice=True)
+
+    def complete(self, delivery_id: int, result: dict) -> None:
+        with self.app.app_context():
+            delivery = self.db.session.get(self.KakaoDelivery, delivery_id)
+            if not delivery:
+                raise RuntimeError('카카오 전송 작업을 찾을 수 없습니다.')
+            if delivery.status == 'done':
+                return
+            if delivery.status != 'claimed':
+                raise RuntimeError(f'claimed 상태가 아닌 카카오 작업입니다: {delivery.status}')
+            delivery.status = 'done'
+            delivery.completed_at = datetime.utcnow()
+            delivery.error = None
+            delivery.result = result
+            if delivery.kind == 'image':
+                link = self.KakaoDelivery.query.filter_by(
+                    notice_id=delivery.notice_id, kind='link',
+                ).first()
+                if not link:
+                    self.db.session.add(self.KakaoDelivery(
+                        notice_id=delivery.notice_id,
+                        kind='link',
+                        status='pending',
+                        max_attempts=3,
+                    ))
+            self.db.session.commit()
+
+    def fail(self, delivery_id: int, error: str, *, retryable: bool) -> None:
+        with self.app.app_context():
+            delivery = self.db.session.get(self.KakaoDelivery, delivery_id)
+            if not delivery:
+                raise RuntimeError('카카오 전송 작업을 찾을 수 없습니다.')
+            if delivery.status == 'done':
+                raise RuntimeError('이미 완료된 작업은 실패 처리할 수 없습니다.')
+            delivery.error = error[:2000]
+            if retryable and (delivery.attempts or 0) < (delivery.max_attempts or 3):
+                delivery.status = 'pending'
+                delivery.claimed_at = None
+            else:
+                delivery.status = 'failed'
+                delivery.completed_at = datetime.utcnow()
+            self.db.session.commit()
+
+    def download_image(self, notice: dict, destination: Path) -> None:
+        notice_id = int(notice.get('id') or 0)
+        with self.app.app_context():
+            row = self.db.session.get(self.BidNotice, notice_id)
+            if not row:
+                raise RuntimeError('인포그래픽 공고를 찾을 수 없습니다.')
+            stored_path = (row.infographic_path or '').strip()
+            external_url = (row.infographic_url or '').strip()
+
+            if stored_path and not stored_path.startswith('/'):
+                from utils.r2_storage import download_file
+
+                obj = download_file(stored_path)
+                body = obj['Body']
+                try:
+                    self._write_stream(body, destination)
+                finally:
+                    body.close()
+                return
+
+            if stored_path and Path(stored_path).is_file():
+                with Path(stored_path).open('rb') as source:
+                    self._write_stream(source, destination)
+                return
+
+        if urlparse(external_url).scheme not in {'http', 'https'}:
+            raise RuntimeError('다운로드 가능한 인포그래픽 경로가 없습니다.')
+        response = requests.get(
+            external_url,
+            timeout=self.config.request_timeout,
+            stream=True,
+            headers={'User-Agent': f'krcglobal-kakao-relay/{self.config.worker_id}'},
+        )
+        response.raise_for_status()
+        try:
+            with destination.open('wb') as output:
+                total = 0
+                for chunk in response.iter_content(chunk_size=128 * 1024):
+                    if not chunk:
+                        continue
+                    output.write(chunk)
+                    total += len(chunk)
+                    if total > MAX_IMAGE_BYTES:
+                        raise RuntimeError('인포그래픽이 허용 크기(25MB)를 초과했습니다.')
+                if total == 0:
+                    raise RuntimeError('다운로드한 인포그래픽이 비어 있습니다.')
+        finally:
+            response.close()
+
+    @staticmethod
+    def _write_stream(source, destination: Path) -> None:
+        total = 0
+        with destination.open('wb') as output:
+            while True:
+                chunk = source.read(128 * 1024)
+                if not chunk:
+                    break
+                output.write(chunk)
+                total += len(chunk)
+                if total > MAX_IMAGE_BYTES:
+                    raise RuntimeError('인포그래픽이 허용 크기(25MB)를 초과했습니다.')
+        if total == 0:
+            raise RuntimeError('다운로드한 인포그래픽이 비어 있습니다.')
 
 
 class KmsgClient:
@@ -477,7 +677,7 @@ def main() -> int:
         receipts = ReceiptStore(config.receipt_dir)
         # 이 참조를 main 종료까지 유지해야 flock도 유지된다.
         instance_lock = _acquire_single_instance(config.receipt_dir)
-        api = RelayAPI(config)
+        api = LocalDBRelayAPI(config) if config.local_db else RelayAPI(config)
         kmsg = KmsgClient(config)
 
         if args.check:

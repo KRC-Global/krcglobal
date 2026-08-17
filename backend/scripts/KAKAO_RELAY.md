@@ -45,6 +45,15 @@ python3 backend/scripts/kakao_relay.py \
 `KAKAO_RELAY_DRY_RUN=true`에서는 실제 전송 및 서버 작업 claim을 하지 않습니다.
 점검이 끝나면 `KAKAO_RELAY_DRY_RUN=false`로 바꿉니다.
 
+운영 서버 배포 권한이 없는 Mac에서는 공용 Supabase/R2를 직접 감시할 수 있습니다.
+이때 설치 시점의 마지막 공고 ID를 기준선으로 고정하면 과거 공고가 재전송되지
+않습니다.
+
+```text
+KAKAO_RELAY_USE_LOCAL_DB=true
+KAKAO_RELAY_MIN_NOTICE_ID=<설치 시점의 마지막 공고 ID>
+```
+
 ## 4. 재부팅 후 자동 실행
 
 ```bash
