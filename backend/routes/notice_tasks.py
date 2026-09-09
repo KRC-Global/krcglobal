@@ -4,11 +4,12 @@
 흐름
 ----
 1) /api/notices/collect 가 신규 BidNotice 를 INSERT 하면 services.notice_pipeline.
-   post_collect_hook() 이 NoticeTask(translate, infographic) 를 enqueue 한다.
+   post_collect_hook() 이 NoticeTask(translate) 를 enqueue 한다.
 2) ddkkbot 워커가 GET /api/notices/tasks?status=pending 으로 큐를 폴링.
 3) POST /api/notices/tasks/<id>/claim 으로 작업을 잡고 (status=claimed),
-4) translate 면 JSON 결과(title_ko 등)를, infographic 은 R2 key + API 경로를
-   POST /api/notices/tasks/<id>/complete 로 업로드.
+4) translate 결과(title_ko 등)를 POST /api/notices/tasks/<id>/complete 로 보낸다.
+   서버가 번역된 내용으로 슬라이드를 생성하고 R2 저장 + 카카오 큐 등록까지 한다.
+   기존 infographic 완료 API는 이전 워커/수동 재처리 호환을 위해 유지한다.
 5) 실패 시 POST /api/notices/tasks/<id>/fail. attempts 가 max_attempts 미만이면
    pending 으로 되돌리고, 한도 도달 시 failed 로 종료.
 
@@ -24,17 +25,18 @@ from __future__ import annotations
 
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 
 from flask import Blueprint, request, jsonify, send_file, current_app
-from sqlalchemy import asc
+from sqlalchemy import asc, or_
 from werkzeug.utils import secure_filename
 
 from models import db, BidNotice, NoticeTask, KakaoDelivery
 from routes.auth import token_required, admin_required, verify_token
 from services.notice_pipeline import (
     enqueue_kakao_image_delivery,
+    generate_and_queue_notice_infographic,
     notify_task_done,
     notify_task_failed,
 )
@@ -103,6 +105,42 @@ def _safe_infographic_ext(filename: str) -> str | None:
     return ext if ext in ALLOWED_INFOGRAPHIC_EXTENSIONS else None
 
 
+def _recover_stale_claims() -> int:
+    """중단된 워커가 남긴 claimed 작업을 재시도 가능 상태로 회수한다."""
+    try:
+        timeout_minutes = max(
+            5,
+            int(current_app.config.get('NOTICE_TASK_CLAIM_TIMEOUT_MINUTES', 30)),
+        )
+    except (TypeError, ValueError):
+        timeout_minutes = 30
+    now = datetime.utcnow()
+    cutoff = now - timedelta(minutes=timeout_minutes)
+    stale = (NoticeTask.query
+             .filter(NoticeTask.status == 'claimed')
+             .filter(or_(NoticeTask.claimed_at.is_(None), NoticeTask.claimed_at < cutoff))
+             .all())
+    if not stale:
+        return 0
+
+    for task in stale:
+        message = f'claim 제한시간({timeout_minutes}분) 초과로 자동 회수'
+        task.error = message
+        task.worker_id = None
+        task.claimed_at = None
+        if (task.attempts or 0) < (task.max_attempts or 3):
+            task.status = 'pending'
+        else:
+            task.status = 'failed'
+            task.completed_at = now
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return 0
+    return len(stale)
+
+
 # ── 1. 작업 목록 (워커 폴링용) ───────────────────────────────────────────────
 @notice_tasks_bp.route('/tasks', methods=['GET'])
 @worker_required
@@ -117,6 +155,10 @@ def list_tasks():
         limit = max(1, min(100, int(request.args.get('limit', 20))))
     except (TypeError, ValueError):
         limit = 20
+
+    # pending 폴링 자체가 경량 watchdog 역할을 한다. 워커가 완료/실패 보고 전에
+    # 종료되어도 claim 제한시간 후 자동으로 다시 보이게 된다.
+    recovered = _recover_stale_claims() if status == 'pending' else 0
 
     query = NoticeTask.query
     if status:
@@ -135,6 +177,7 @@ def list_tasks():
         'success': True,
         'data': [r.to_dict() for r in rows],
         'count': len(rows),
+        'recovered': recovered,
     })
 
 
@@ -303,6 +346,19 @@ def complete_task(tid: int):
 
     if task.task_type == 'translate':
         ok, err = _complete_translate(task, notice, body, result)
+        if ok:
+            try:
+                infographic = generate_and_queue_notice_infographic(notice)
+                task.result = {**(task.result or {}), 'infographic': infographic}
+            except Exception as exc:
+                # 번역 결과만 먼저 확정하면 이미지 생성 실패를 다시 시도할 연결고리가
+                # 사라진다. 모두 rollback 해 워커가 같은 완료 요청을 안전하게 재시도한다.
+                db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'message': f'번역 후 인포그래픽 생성 실패: {exc}',
+                    'retryable': True,
+                }), 503
     elif task.task_type == 'infographic':
         ok, err = _complete_infographic(task, notice, body, result, is_multipart)
     elif task.task_type in ('summary', 'review'):
@@ -637,19 +693,6 @@ def complete_kakao_delivery(did: int):
     delivery.completed_at = datetime.utcnow()
     delivery.error = None
     delivery.result = result if isinstance(result, dict) else {}
-
-    # 이미지 성공 후 링크만 별도 큐잉하여 링크 재시도 시 이미지 중복을 방지한다.
-    if delivery.kind == 'image':
-        link = KakaoDelivery.query.filter_by(
-            notice_id=delivery.notice_id,
-            kind='link',
-        ).first()
-        if not link:
-            db.session.add(KakaoDelivery(
-                notice_id=delivery.notice_id,
-                kind='link',
-                status='pending',
-            ))
 
     try:
         db.session.commit()

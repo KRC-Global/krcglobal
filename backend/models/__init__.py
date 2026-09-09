@@ -6,8 +6,40 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 import re as _re
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 
 db = SQLAlchemy()
+
+
+@event.listens_for(Engine, 'connect')
+def _ensure_writable_postgres(dbapi_conn, _connection_record):
+    """Supabase Transaction Pooler 가 read-only 세션 GUC 를 남기는 경우가 있다.
+
+    연결 직후 autocommit 으로 풀어 두지 않으면 INSERT(kakao_deliveries 등)가
+    ReadOnlySqlTransaction 으로 실패한다. SQLite 테스트 엔진은 무시한다.
+    """
+    module = getattr(dbapi_conn.__class__, '__module__', '') or ''
+    if 'sqlite' in module:
+        return
+    if not hasattr(dbapi_conn, 'autocommit'):
+        return
+    prev = dbapi_conn.autocommit
+    try:
+        dbapi_conn.autocommit = True
+        cur = dbapi_conn.cursor()
+        try:
+            cur.execute('SET default_transaction_read_only = off')
+            cur.execute('SET SESSION CHARACTERISTICS AS TRANSACTION READ WRITE')
+        finally:
+            cur.close()
+    except Exception:
+        pass
+    finally:
+        try:
+            dbapi_conn.autocommit = prev
+        except Exception:
+            pass
 
 # 한국 시간대 (UTC+9)
 KST = timezone(timedelta(hours=9))
@@ -1671,6 +1703,7 @@ class BidNotice(db.Model):
             'source': self.source,
             'title': self.title,
             'titleKo': self.title_ko,
+            'textExcerptKo': self.text_excerpt_ko,
             'country': self.country,
             'client': self.client,
             'sector': self.sector,
@@ -1717,8 +1750,9 @@ class ScrapingRun(db.Model):
 class NoticeTask(db.Model):
     """발주공고 작업 큐 — ddkkbot 워커가 가져가서 처리하는 단위 작업.
 
-    수집 직후 신규 BidNotice 마다 task_type='translate' / 'slides' 가 enqueue 되고,
-    워커가 claim → complete/fail 사이클로 소화한다.
+    수집 직후 신규 BidNotice 마다 task_type='translate' 가 enqueue 되고, 워커가
+    claim → complete/fail 사이클로 소화한다. 인포그래픽은 번역 완료 시 서버가
+    직접 생성하며, task_type='infographic'은 이전 작업/수동 호환용으로 남겨둔다.
     """
     __tablename__ = 'notice_tasks'
 
@@ -1767,8 +1801,7 @@ class NoticeTask(db.Model):
 class KakaoDelivery(db.Model):
     """Mac 카카오톡 릴레이 전송 큐.
 
-    이미지와 링크를 별도 단계로 저장해 링크 전송만 실패했을 때 이미지가
-    중복 발송되지 않도록 한다. kind='image' 완료 후 kind='link'가 생성된다.
+    인포그래픽 이미지 전송 큐. 원문은 슬라이드 우측 하단 QR로 연다.
     """
     __tablename__ = 'kakao_deliveries'
 
@@ -1817,8 +1850,10 @@ class KakaoDelivery(db.Model):
         if include_notice and self.notice:
             data['notice'] = {
                 'id': self.notice.id,
+                'source': self.notice.source,
                 'title': self.notice.title,
                 'titleKo': self.notice.title_ko,
+                'deadline': self.notice.deadline,
                 'sourceUrl': self.notice.source_url,
                 'infographicUrl': self.notice.infographic_url,
                 'hasInfographic': bool(self.notice.infographic_path or self.notice.infographic_url),

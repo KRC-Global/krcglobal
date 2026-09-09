@@ -102,11 +102,15 @@ class Config:
     DISCORD_NOTICE_WEBHOOK_URL = os.environ.get('DISCORD_NOTICE_WEBHOOK_URL', '').strip()
     # 워커(ddkkbot)용 인증 시크릿 — 미설정 시 admin JWT 만 허용.
     WORKER_SECRET = os.environ.get('WORKER_SECRET', '').strip()
+    # 워커가 비정상 종료해 claimed 에 멈춘 작업을 pending 폴링 시 자동 회수한다.
+    NOTICE_TASK_CLAIM_TIMEOUT_MINUTES = os.environ.get(
+        'NOTICE_TASK_CLAIM_TIMEOUT_MINUTES', '30'
+    )
     # Discord 메시지에 시스템 상세 페이지 링크를 만들 때 쓰는 베이스 URL.
     SITE_BASE_URL = os.environ.get('SITE_BASE_URL', '').rstrip('/')
 
     # ── Mac 카카오톡 릴레이 ──
-    # true 일 때 인포그래픽 완료 직후 kakao_deliveries 큐에 이미지 전송을 등록한다.
+    # true 일 때 번역 완료 → 서버 인포그래픽 생성 직후 kakao_deliveries 에 등록한다.
     # 실제 카카오톡 조작은 항상 켜진 Mac의 scripts/kakao_relay.py 가 담당한다.
     KAKAO_RELAY_ENABLED = os.environ.get(
         'KAKAO_RELAY_ENABLED', 'true'

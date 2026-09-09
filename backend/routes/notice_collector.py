@@ -1,6 +1,7 @@
 """
 발주공고 수집 봇
 World Bank API / UNGM API / ADB RSS / AfDB RSS / KOICA data.go.kr
+나라장터 KOICA 발주계획(입찰 전 사전공개)
 농업 관련 기술용역 공고($1M 이상)를 병렬 수집 → bid_notices 테이블 저장
 """
 import os
@@ -15,6 +16,13 @@ from xml.etree import ElementTree
 from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import or_
 from models import db, BidNotice, ScrapingRun
+from services.krc_fitness import GRADE_HIGH, classify_krc_fit
+from services.g2b_koica_plan import (
+    SOURCE as KOICA_PLAN_SOURCE,
+    collect_koica_g2b_plans,
+    format_plan_summary,
+    should_store_plan,
+)
 
 collector_bp = Blueprint('collector', __name__)
 
@@ -29,6 +37,9 @@ AGRI_KEYWORDS = [
     'climate change', 'climate adaptation',
     'reservoir', 'dam', 'dams',
     'rehabilitation', 'refurbishment',
+    # 관개·댐·용수 (2026-08 보강)
+    'canal', 'weir', 'barrage', 'polder', 'flood control',
+    'water supply', 'water treatment', 'hydropower',
 ]
 
 CONSULTING_KEYWORDS = [
@@ -44,7 +55,10 @@ AGRI_KEYWORDS_KO = [
     '농업', '농촌', '관개', '식량', '작물', '수산', '산림', '농지',
     '용수', '양식', '축산', '수자원', '간척', '개간',
     # 수자원 인프라 / 기후변화 (2026-04 추가)
-    '기후변화', '저수지', '댐', '개보수',
+    '기후변화', '저수지', '댐',
+    # 관개·용수·농업 (2026-08 보강)
+    '정수', '취수', '상수도', '하수', '홍수', '배수',
+    '방조제', '용수로', '시범농장', '농민', '농기', '축산',
 ]
 
 CONSULTING_KEYWORDS_KO = [
@@ -525,6 +539,13 @@ def _build_fingerprint_cache():
     _existing_fingerprints_cache = (fp_to_notice, url_to_notice)
 
 
+def _krc_fit_passes(source: str, grade: str, title: str = '', item_kind: str = '') -> bool:
+    """저장 허용 적합도. KOICA 나라장터 발주계획은 농업·농촌(중)까지 알린다."""
+    if source == KOICA_PLAN_SOURCE:
+        return should_store_plan(grade, title=title, item_kind=item_kind)
+    return grade == GRADE_HIGH
+
+
 def _save_notice(source, title, country, client, sector,
                  contract_value, deadline, source_url, raw_data) -> bool:
     """BidNotice 저장 — 신규 INSERT 또는 아카이브된 기존 레코드 재활성화.
@@ -540,6 +561,18 @@ def _save_notice(source, title, country, client, sector,
     global _existing_fingerprints_cache
     if not source_url or not title:
         return False
+
+    item_kind = ''
+    if isinstance(raw_data, dict):
+        item_kind = str(raw_data.get('item_kind') or '')
+    fit_text = f'{title} {country or ""} {client or ""} {sector or ""}'
+    grade, reason = classify_krc_fit(fit_text, item_kind=item_kind)
+    if not _krc_fit_passes(source, grade, title=title, item_kind=item_kind):
+        print(f'[krc-fit] {grade} 저장안함 ({reason}): {(title or "")[:80]}')
+        return False
+    raw_data = dict(raw_data) if isinstance(raw_data, dict) else {}
+    raw_data['krc_fit'] = grade
+    raw_data['krc_fit_reason'] = reason
 
     # 캐시 미빌드 시 (단독 호출 등) DB 직접 체크 — 느리지만 안전
     if _existing_fingerprints_cache is None:
@@ -595,6 +628,12 @@ def _save_notice(source, title, country, client, sector,
         status='new',
         raw_data=raw_data,
     )
+    if source == KOICA_PLAN_SOURCE:
+        n.title_ko = title[:500]
+        n.summary_ko = format_plan_summary(
+            raw_data if isinstance(raw_data, dict) else {},
+            (raw_data or {}).get('title') if isinstance(raw_data, dict) else title,
+        )
     db.session.add(n)
     # post_collect_hook 가 신규 ID 리스트를 받을 수 있도록 모듈 레벨 리스트에 누적.
     # _do_collect 가 commit 직전에 리셋해두므로 매 수집 run 마다 깨끗한 상태.
@@ -856,6 +895,7 @@ _UNGM_SEARCH_URL = 'https://www.ungm.org/Public/Notice/Search'
 _UNGM_AGENCY_IDS = {
     'adb':  '85',
     'afdb': '84',
+    'ifad': '65',
 }
 
 
@@ -1006,6 +1046,11 @@ def _collect_adb() -> list:
 def _collect_afdb() -> list:
     """AfDB — UNGM 공개 검색 경유 (AfDB 자체 RSS/HTML Cloudflare 차단됨)"""
     return _collect_via_ungm('afdb')
+
+
+def _collect_ifad() -> list:
+    """IFAD — UNGM 공개 검색 경유 (농업 특화 MDB)"""
+    return _collect_via_ungm('ifad')
 
 
 # ── ADB/AfDB 상세 페이지 보강 (WB _wb_extract_details 패턴) ─────────────────
@@ -1310,14 +1355,101 @@ _KOICA_KEYWORDS = [
 ]
 
 
+def _collect_koica_local_bids() -> list:
+    """KOICA 현지입찰공고 — nebid localBidManageList.
+
+    사전공고(beffatPblancList)와 달리 실제 진행 중인 현지 입찰이다.
+    농업·관개·댐·저수지 키워드가 제목에 있는 건만 수집한다.
+    """
+    import requests as req
+    from bs4 import BeautifulSoup
+
+    list_url = 'https://nebid.koica.go.kr/oep/lobi/localBidManageList.do'
+    results = []
+    seen = set()
+    headers = _browser_headers(referer='https://nebid.koica.go.kr/')
+
+    for page in range(1, 5):
+        r = req.post(
+            list_url,
+            data={'P_PAGE_NO': str(page), 'P_PAGE_SIZE': '10'},
+            headers=headers,
+            timeout=20,
+            verify=False,
+        )
+        if r.status_code != 200:
+            raise RuntimeError(f'KOICA local HTTP {r.status_code} page {page}')
+        soup = BeautifulSoup(r.text, 'html.parser')
+        rows = soup.select('tr.row[onclick]')
+        if not rows:
+            break
+        for row in rows:
+            onclick = row.get('onclick', '')
+            m = re.search(
+                r"localBidManageDetailInqire\('([^']+)'\s*,\s*'([^']+)'\)",
+                onclick,
+            )
+            if not m:
+                continue
+            bid_no, odr = m.group(1), m.group(2)
+            detail_url = (
+                'https://nebid.koica.go.kr/oep/lobi/localBidManageDetail.do'
+                f'?P_LOAZ_BID_PBLANC_NO={bid_no}&P_PBLANC_ODR={odr}'
+            )
+            if detail_url in seen:
+                continue
+            seen.add(detail_url)
+
+            cols = [c.get_text(' ', strip=True) for c in row.select('td')]
+            if len(cols) < 6:
+                continue
+            title = cols[2]
+            item_kind = cols[3] if len(cols) > 3 else ''
+            posted = cols[5] if len(cols) > 5 else ''
+            combined = f'{title} {item_kind}'
+            if not _is_agri_ko(combined) and not _is_agri(combined):
+                continue
+            if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
+                continue
+
+            results.append({
+                'source': 'koica',
+                'title': _decorate_title(title, item_kind or '현지입찰'),
+                'country': '',
+                'client': 'KOICA',
+                'sector': 'agriculture',
+                'contract_value': '',
+                'deadline': '',
+                'source_url': detail_url,
+                'raw_data': {
+                    'bid_no': bid_no,
+                    'odr': odr,
+                    'title': title,
+                    'item_kind': item_kind,
+                    'posted': posted,
+                    'channel': 'local',
+                },
+            })
+        if len(rows) < 10:
+            break
+
+    print(f'[KOICA-local] {len(results)} agri items from {len(seen)} rows')
+    return results
+
+
 def _collect_koica() -> list:
-    """KOICA — API 키 있으면 data.go.kr, 없으면 HTML 스크래핑 fallback"""
+    """KOICA — 현지입찰 + (API 키 있으면 data.go.kr) + 사전공고 HTML fallback"""
     service_key = os.environ.get('KOICA_API_KEY', '')
+    extra_local = []
+    try:
+        extra_local = _collect_koica_local_bids()
+    except Exception as e:
+        print(f'[KOICA-local] 요청 오류: {e}')
 
     try:
         import requests as req
     except ImportError:
-        return []
+        return extra_local
 
     # ── API 키 있는 경우: data.go.kr ─────────────────────────────────────
     if service_key:
@@ -1387,7 +1519,7 @@ def _collect_koica() -> list:
                 })
         except Exception as e:
             print(f'[KOICA-API] 요청 오류: {e}')
-        return results
+        return (results or []) + extra_local
 
     # ── API 키 없는 경우: nebid.koica.go.kr 전자조달 HTML 스크래핑 ─────────
     # 기존 www.koica.go.kr/koica_kr/bid/selectBidList.do 는 K2WebWizard
@@ -1395,7 +1527,7 @@ def _collect_koica() -> list:
     try:
         from bs4 import BeautifulSoup
     except ImportError:
-        return []
+        return extra_local
 
     list_url = 'https://nebid.koica.go.kr/oep/bepb/beffatPblancList.do'
     results  = []
@@ -1484,10 +1616,15 @@ def _collect_koica() -> list:
         attempts_errors.append(f'nebid: {e}')
         print(f'[KOICA-nebid] 요청 오류: {e}')
 
-    if not results and attempts_errors:
+    if not results and not extra_local and attempts_errors:
         raise RuntimeError('KOICA 수집 실패: ' + ' | '.join(attempts_errors))
 
-    return results
+    return (results or []) + extra_local
+
+
+def _collect_koica_plan() -> list:
+    """나라장터 KOICA 발주계획 — 입찰공고 전에 공개되는 조달 계획."""
+    return collect_koica_g2b_plans()
 
 
 # ── Tier 2: AIIB (Asian Infrastructure Investment Bank) ─────────────────────
@@ -1802,6 +1939,109 @@ def _collect_isdb() -> list:
     return results
 
 
+def _collect_edcf() -> list:
+    """EDCF(대외경제협력기금) 공개 입찰공고.
+
+    https://www.edcfkorea.go.kr/fe/HPHFFE065M01
+    개도국발주사업·EDCF발주사업·KSP 중 농업·댐·저수지·관개·용수 관련만 수집.
+    MDB 입찰정보 게시판(HPHFFE073M01)은 컨설턴트 로그인이 필요해 여기서는 제외하고,
+    기존 World Bank/ADB/AfDB/AIIB/IsDB 수집기가 MDB 공고를 담당한다.
+    """
+    import requests as req
+    from bs4 import BeautifulSoup
+
+    results = []
+    seen = set()
+    headers = _browser_headers(referer='https://www.edcfkorea.go.kr/')
+    base = 'https://www.edcfkorea.go.kr'
+
+    for page in range(1, 6):
+        url = (
+            f'{base}/fe/HPHFFE065M01?boardtypeid=162'
+            f'&pagesize=10&currentpage={page}'
+        )
+        r = req.get(url, headers=headers, timeout=20)
+        if r.status_code != 200:
+            raise RuntimeError(f'EDCF HTTP {r.status_code} page {page}')
+        soup = BeautifulSoup(r.text, 'html.parser')
+        items = soup.select('div.notice-list-item')
+        if not items:
+            break
+
+        page_fresh = 0
+        for item in items:
+            def _span(label: str) -> str:
+                el = item.find('span', attrs={'title': label})
+                return el.get_text(' ', strip=True) if el else ''
+
+            title = _span('사업명')
+            if not title:
+                continue
+            category = _span('분류')
+            sector_label = _span('사업분야')
+            country = _span('국가')
+            posted = _span('공고일')
+
+            link = item.select_one('span.subject a[href]')
+            href = (link.get('href') if link else '') or ''
+            m = re.search(r'boardid=(\d+)', href)
+            board_id = m.group(1) if m else ''
+            source_url = (
+                f'{base}/fe/HPHFFE066M01?boardtypeid=162&boardid={board_id}'
+                if board_id else (base + href.split('#')[0] if href.startswith('/') else href)
+            )
+            if not source_url or source_url in seen:
+                continue
+            seen.add(source_url)
+
+            if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
+                continue
+            page_fresh += 1
+
+            combined = f'{title} {category} {sector_label}'
+            if not (_is_agri_ko(combined) or _is_agri(combined)
+                    or _is_consulting_ko(combined)):
+                continue
+            # 컨설팅만 매칭된 건은 농업·수자원 맥락일 때만 (F/S 정수장 등)
+            if not (_is_agri_ko(combined) or _is_agri(combined)):
+                if not any(k in combined for k in (
+                    '정수', '취수', '상수도', '하수', '관개', '댐', '저수지',
+                    '용수', '수자원', '농촌', '농업', '홍수',
+                )):
+                    continue
+
+            sector = (
+                'consulting'
+                if (_is_consulting_ko(combined) or _is_consulting(combined))
+                and not (_is_agri_ko(combined) or _is_agri(combined))
+                else 'agriculture'
+            )
+            results.append({
+                'source': 'edcf',
+                'title': _decorate_title(title, category),
+                'country': country,
+                'client': 'EDCF' if 'EDCF' in category else (category or 'EDCF'),
+                'sector': sector,
+                'contract_value': '',
+                'deadline': '',
+                'source_url': source_url,
+                'raw_data': {
+                    'board_id': board_id,
+                    'category': category,
+                    'sector': sector_label,
+                    'country': country,
+                    'posted': posted,
+                    'title': title,
+                },
+            })
+
+        if page_fresh == 0:
+            break
+
+    print(f'[EDCF] {len(results)} agri/water items from {len(seen)} notices')
+    return results
+
+
 # ── 수집 실행 ────────────────────────────────────────────────────────────────
 COLLECTORS = {
     'worldbank': _collect_worldbank,
@@ -1810,7 +2050,10 @@ COLLECTORS = {
     'afdb':      _collect_afdb,
     'aiib':      _collect_aiib,
     'isdb':      _collect_isdb,
+    'ifad':      _collect_ifad,
     'koica':     _collect_koica,
+    'edcf':      _collect_edcf,
+    'koica_plan': _collect_koica_plan,
 }
 
 SOURCE_DISPLAY = {
@@ -1820,7 +2063,10 @@ SOURCE_DISPLAY = {
     'afdb':      'AfDB',
     'aiib':      'AIIB',
     'isdb':      'IsDB',
+    'ifad':      'IFAD',
     'koica':     'KOICA',
+    'edcf':      'EDCF',
+    'koica_plan': 'KOICA 발주계획',
 }
 
 
@@ -1857,6 +2103,7 @@ _POSTED_KEYS = (
     'bidPblancDt', 'postDt',                  # KOICA API
     'id',                                     # AIIB: 게시일
     'period',                                 # KOICA nebid: "2026-02-19 ~ 2026-02-24"
+    'posted', 'order_month',                  # KOICA 나라장터 발주계획
 )
 
 
@@ -1899,6 +2146,11 @@ def _sync_db_to_latest(fetched_urls_by_source: dict, errors: dict) -> dict:
     now = datetime.utcnow()
 
     for src, urls in fetched_urls_by_source.items():
+        # 발주계획은 입찰공고처럼 "지금 게시판에 있는 것만 활성"이 아니다.
+        # 최근 N페이지 스냅샷으로 기존 계획을 지우지 않고, 게시일 cleanup 만 탄다.
+        if src == KOICA_PLAN_SOURCE:
+            skipped.append(f'{src}(plan)')
+            continue
         if src in errors:
             skipped.append(f'{src}(error)')
             continue
@@ -2172,6 +2424,20 @@ def _do_collect():
     for item in all_items:
         src = item['source']
         fetched_by_source[src] = fetched_by_source.get(src, 0) + 1
+        raw = item.get('raw_data')
+        item_kind = ''
+        if isinstance(raw, dict):
+            item_kind = str(raw.get('item_kind') or '')
+        grade, reason = classify_krc_fit(
+            f"{item.get('title','')} {item.get('country','')} {item.get('client','')}",
+            item_kind=item_kind,
+        )
+        if not _krc_fit_passes(src, grade, title=item.get('title') or '', item_kind=item_kind):
+            skipped += 1
+            print(f'[krc-fit] {grade} skip ({reason}): {(item.get("title") or "")[:80]}')
+            continue
+        if isinstance(raw, dict):
+            raw = {**raw, 'krc_fit': grade, 'krc_fit_reason': reason}
         saved = _save_notice(
             source=src,
             title=item['title'],
@@ -2181,7 +2447,7 @@ def _do_collect():
             contract_value=item.get('contract_value', ''),
             deadline=item.get('deadline', ''),
             source_url=item['source_url'],
-            raw_data=item.get('raw_data'),
+            raw_data=raw,
         )
         if saved:
             created += 1
@@ -2225,7 +2491,7 @@ def _do_collect():
     # ADB/AfDB 상세 페이지 보강 — 마감일·금액·발주처 추출
     enrich_result = _enrich_pending_notices(limit=15)
 
-    # ddkkbot 작업 큐잉 + Discord 알림 (실패해도 수집 결과를 깨지 않음)
+    # 번역 작업 큐잉 + Discord 알림 (인포그래픽은 번역 완료 시 서버가 직접 생성)
     pipeline_result = {'enqueued': 0, 'notified': 0}
     try:
         new_ids = [n.id for n in _new_notices_in_run if getattr(n, 'id', None)]

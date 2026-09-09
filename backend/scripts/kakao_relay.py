@@ -2,7 +2,7 @@
 """KRC 발주공고를 Mac 카카오톡 채팅방으로 전달하는 상시 릴레이.
 
 백엔드의 kakao_deliveries 큐를 폴링하고, kmsg(macOS Accessibility)를 통해
-인포그래픽 이미지와 원문 source_url을 순서대로 전송한다.
+인포그래픽 이미지를 전송한다. 원문 링크는 슬라이드 우측 하단 QR로 연다.
 """
 from __future__ import annotations
 
@@ -248,6 +248,7 @@ class LocalDBRelayAPI:
             candidates = (
                 self.BidNotice.query
                 .filter(self.BidNotice.id > self.config.min_notice_id)
+                .filter(self.BidNotice.archived_at.is_(None))
                 .filter(self.BidNotice.source_url.isnot(None))
                 .filter(or_(
                     self.BidNotice.infographic_path.isnot(None),
@@ -311,17 +312,6 @@ class LocalDBRelayAPI:
             delivery.completed_at = datetime.utcnow()
             delivery.error = None
             delivery.result = result
-            if delivery.kind == 'image':
-                link = self.KakaoDelivery.query.filter_by(
-                    notice_id=delivery.notice_id, kind='link',
-                ).first()
-                if not link:
-                    self.db.session.add(self.KakaoDelivery(
-                        notice_id=delivery.notice_id,
-                        kind='link',
-                        status='pending',
-                        max_attempts=3,
-                    ))
             self.db.session.commit()
 
     def fail(self, delivery_id: int, error: str, *, retryable: bool) -> None:
@@ -425,7 +415,7 @@ class KmsgClient:
             self.chat_id = self._resolve_exact_room()
             return True
         except (subprocess.SubprocessError, RuntimeError, json.JSONDecodeError) as exc:
-            LOG.warning('카카오톡 사전 점검 실패: %s', _safe_error(exc))
+            LOG.warning('카카오톡 사전 점검 실패: %s', _kakao_preflight_error(exc))
             return False
 
     def _resolve_exact_room(self) -> str:
@@ -455,17 +445,17 @@ class KmsgClient:
             '--deep-recovery', '--keep-window',
         ], timeout=90)
 
-    def send_link(self, source_url: str) -> None:
+    def send_link(self, message: str) -> None:
         if not self.chat_id:
             raise RuntimeError('대상 채팅방 chat_id가 준비되지 않았습니다.')
         self._run([
-            'send', self.config.room_name, source_url,
+            'send', self.config.room_name, message,
             '--deep-recovery', '--keep-window',
         ], timeout=60)
 
-    def preview_link(self, source_url: str) -> None:
+    def preview_link(self, message: str) -> None:
         self._run([
-            'send', self.config.room_name, source_url, '--dry-run',
+            'send', self.config.room_name, message, '--dry-run',
         ], timeout=15)
 
 
@@ -506,12 +496,85 @@ def _safe_error(exc: BaseException) -> str:
     return detail.replace('\n', ' ')[:500]
 
 
+def _kakao_preflight_error(exc: BaseException) -> str:
+    detail = _safe_error(exc)
+    low = detail.lower()
+    if 'enter kakaotalk credentials' in low or ('authentication' in low and '✗' in detail):
+        return '카카오톡 로그인이 풀려 있습니다. Mac 카카오톡에서 다시 로그인해 주세요.'
+    if '서버에 연결' in detail or 'could not connect' in low:
+        return '카카오톡 서버에 연결할 수 없습니다. 네트워크와 카톡 상태를 확인해 주세요.'
+    if 'no chat list' in low or '채팅 목록에서 정확한' in detail:
+        return (
+            '카카오톡 채팅 목록에서 대상 방을 찾지 못했습니다. '
+            '채팅 탭을 연 다음 대상 방을 한 번 열어주세요.'
+        )
+    return detail
+
+
+SOURCE_LABELS = {
+    'worldbank': 'World Bank',
+    'ungm': 'UNGM',
+    'adb': 'ADB',
+    'afdb': 'AfDB',
+    'aiib': 'AIIB',
+    'isdb': 'IsDB',
+    'ifad': 'IFAD',
+    'koica': 'KOICA',
+    'koica_plan': 'KOICA 발주계획',
+    'edcf': 'EDCF',
+}
+TITLE_MAX_CHARS = 42
+
+
 def _validate_source_url(value: str | None) -> str:
     source_url = (value or '').strip()
     parsed = urlparse(source_url)
     if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
         raise RuntimeError('공고 source_url이 올바른 http(s) URL이 아닙니다.')
     return source_url
+
+
+def _compact_source_url(source_url: str) -> str:
+    """카톡 사이트 미리보기가 붙지 않도록 https:// 를 뺀 주소만 남긴다."""
+    parsed = urlparse(_validate_source_url(source_url))
+    path = parsed.path or ''
+    query = f'?{parsed.query}' if parsed.query else ''
+    fragment = f'#{parsed.fragment}' if parsed.fragment else ''
+    return f'{parsed.netloc}{path}{query}{fragment}'
+
+
+def _short_title(notice: dict) -> str:
+    title = (notice.get('titleKo') or notice.get('title_ko') or notice.get('title') or '').strip()
+    title = ' '.join(title.split())
+    if len(title) <= TITLE_MAX_CHARS:
+        return title
+    return title[: TITLE_MAX_CHARS - 1].rstrip() + '…'
+
+
+def _deadline_label(raw: str | None) -> str:
+    value = (raw or '').strip()
+    if not value:
+        return ''
+    digits = value.replace('.', '-').replace('/', '-')
+    parts = digits.split('-')
+    if len(parts) >= 3 and parts[0].isdigit() and parts[1].isdigit() and parts[2][:2].isdigit():
+        return f'마감 {int(parts[1])}/{int(parts[2][:2])}'
+    return f'마감 {value}'
+
+
+def _format_link_message(notice: dict, source_url: str | None = None) -> str:
+    """이미지 다음으로 보낼 한 줄 요약 + 스킴 없는 주소."""
+    url = _validate_source_url(source_url or notice.get('sourceUrl'))
+    source_key = str(notice.get('source') or '').strip().lower()
+    source = SOURCE_LABELS.get(source_key, source_key.upper() or '공고')
+    parts = [source]
+    title = _short_title(notice)
+    if title:
+        parts.append(title)
+    deadline = _deadline_label(notice.get('deadline') or notice.get('deadlineDate'))
+    if deadline:
+        parts.append(deadline)
+    return f'{" · ".join(parts)}\n{_compact_source_url(url)}'
 
 
 def _validate_image(path: Path) -> None:
@@ -582,10 +645,10 @@ def _process_delivery(
                 attempted_send = True
                 kmsg.send_image(image_path)
         elif kind == 'link':
-            source_url = _validate_source_url(notice.get('sourceUrl'))
+            message = _format_link_message(notice)
             receipts.save(delivery_id, {'state': 'attempting', 'kind': kind})
             attempted_send = True
-            kmsg.send_link(source_url)
+            kmsg.send_link(message)
         else:
             raise RuntimeError(f'지원하지 않는 카카오 전송 종류: {kind}')
 
@@ -627,8 +690,7 @@ def run_once(config: RelayConfig, api: RelayAPI, kmsg: KmsgClient, receipts: Rec
     delivery = pending[0]
     notice = delivery.get('notice') or {}
     if config.dry_run:
-        source_url = _validate_source_url(notice.get('sourceUrl'))
-        kmsg.preview_link(source_url)
+        kmsg.preview_link(_format_link_message(notice))
         LOG.info(
             'DRY RUN: 전송 대기 작업 확인(실제 전송/claim 없음): delivery=%s notice=%s kind=%s',
             delivery.get('id'), notice.get('id'), delivery.get('kind'),
@@ -704,6 +766,9 @@ def main() -> int:
             except (requests.RequestException, RuntimeError, json.JSONDecodeError) as exc:
                 processed = False
                 LOG.warning('릴레이 폴링 실패: %s', _safe_error(exc))
+            except Exception as exc:
+                processed = False
+                LOG.warning('릴레이 폴링 예외: %s', _safe_error(exc))
             if config.once:
                 break
             # 한 공고의 image → link를 빠르게 이어 보내고, 유휴 시에는 설정 주기로 폴링한다.
