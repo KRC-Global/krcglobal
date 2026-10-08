@@ -525,6 +525,7 @@ def _normalize_country(country: str) -> str:
 _existing_fingerprints_cache = None  # 수집 배치 시작 시 1회 빌드, 매 건마다 재사용
 _new_notices_in_run: list = []        # 이번 수집에서 신규 INSERT 된 BidNotice 객체
 _reactivated_notices_in_run: list = []  # 이번 수집에서 아카이브 해제된 BidNotice 객체
+_revived_with_new_doc_ids: list = []    # 그중 원문 문서(source_url)가 바뀐 공고 ID
 
 
 def _build_fingerprint_cache():
@@ -619,6 +620,10 @@ def _save_notice(source, title, country, client, sector,
                 url_cache.pop(existing.source_url, None)
                 existing.source_url = source_url[:500]
                 url_cache[source_url] = existing
+                # 가리키는 문서가 바뀌었다 = 공고 단계가 넘어갔다.
+                # 옛 단계 기준 번역·카드를 그대로 쓰지 않도록 재번역 대상에 올린다.
+                if existing.id:
+                    _revived_with_new_doc_ids.append(existing.id)
             # ② 수집일을 재수집 시점으로 갱신. created_at 이 60일을 넘기면
             #    _cleanup_stale_notices 가 같은 run 안에서 aged_out 시켜
             #    재활성화가 무효화된다. 실제 노후화 판정은 raw_data 게시일
@@ -2411,10 +2416,11 @@ def collect_notices():
 def _do_collect():
     """collect_notices 의 실제 작업 — 예외 시 호출자가 500 응답 처리."""
     global _existing_fingerprints_cache, _new_notices_in_run
-    global _reactivated_notices_in_run
+    global _reactivated_notices_in_run, _revived_with_new_doc_ids
     _existing_fingerprints_cache = None  # 매 수집 run 마다 캐시 리셋
     _new_notices_in_run = []             # 신규 BidNotice 캡처 리스트도 리셋
     _reactivated_notices_in_run = []     # 재활성화 캡처 리스트도 리셋
+    _revived_with_new_doc_ids = []       # 문서 교체 캡처 리스트도 리셋
 
     all_items, errors = _run_all_collectors()
 
@@ -2531,8 +2537,17 @@ def _do_collect():
             seen_ids.add(nid)
             revived_ids.append(nid)
         if new_ids or revived_ids:
-            from services.notice_pipeline import post_collect_hook
+            from services.notice_pipeline import post_collect_hook, requeue_translation
+            # 문서가 교체된 재활성화 건은 번역부터 다시 — 워커가 번역을 끝내면
+            # 인포그래픽이 현재 템플릿으로 재생성되고 카카오 큐까지 등록된다.
+            revived_set = set(revived_ids)
+            requeued = requeue_translation(
+                [i for i in _revived_with_new_doc_ids if i in revived_set]
+            )
+            if requeued:
+                print(f'[collect] 문서 교체로 재번역 큐 등록: {requeued}건')
             pipeline_result = post_collect_hook(new_ids + revived_ids)
+            pipeline_result['requeued'] = requeued
     except Exception as e:
         print(f'[collect] post_collect_hook 예외 (수집은 성공): {e}')
 

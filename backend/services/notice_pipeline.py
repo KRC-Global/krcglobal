@@ -169,6 +169,61 @@ def enqueue_default_tasks(notice_ids: list[int]) -> int:
     return added
 
 
+def requeue_translation(notice_ids: list[int]) -> int:
+    """재활성화된 공고의 번역을 다시 돌린다 — 최신 문서 기준으로 카드를 갱신.
+
+    AIIB 처럼 한 사업의 공고가 단계별로 다른 문서로 올라오는 소스
+    (GPN → REOI → SPN → Addendum)에서는 레코드가 재활성화돼도
+    title_ko/summary_ko 가 옛 단계 기준으로 남아, 마감일·공고종류가
+    실제 문서와 어긋난 카드가 그대로 쓰인다.
+
+    done/failed 상태의 translate 작업을 pending 으로 되돌리면 워커가 다시
+    번역하고, 완료 처리에서 인포그래픽 재생성 + 카카오 큐 등록까지 이어진다
+    (generate_and_queue_notice_infographic). 즉 재활성화 건도 신규 공고와
+    같은 경로로 발송된다.
+
+    기존 번역문은 지우지 않는다 — 워커가 덮어쓸 때까지 카드가 비지 않게.
+
+    Returns: 다시 큐에 넣은 작업 수.
+    """
+    if not notice_ids:
+        return 0
+
+    requeued = 0
+    for nid in notice_ids:
+        task = NoticeTask.query.filter_by(
+            notice_id=nid, task_type='translate'
+        ).first()
+        if task is None:
+            db.session.add(NoticeTask(
+                notice_id=nid,
+                task_type='translate',
+                status='pending',
+                priority=0,
+            ))
+            requeued += 1
+            continue
+        # 이미 대기/처리 중이면 건드리지 않는다 (워커 claim 과 경쟁 방지)
+        if task.status in ('pending', 'claimed'):
+            continue
+        task.status = 'pending'
+        task.worker_id = None
+        task.claimed_at = None
+        task.completed_at = None
+        task.error = None
+        task.attempts = 0
+        requeued += 1
+
+    if requeued:
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f'[pipeline] 재번역 큐 commit 실패: {e}')
+            return 0
+    return requeued
+
+
 # ── 알림 메시지 빌더 ──────────────────────────────────────────────────────────
 def _site_url_for(notice_id: int) -> str | None:
     base = os.environ.get('SITE_BASE_URL', '').rstrip('/')
