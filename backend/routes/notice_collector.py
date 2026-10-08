@@ -204,6 +204,17 @@ DEFAULT_FRESHNESS_DAYS = 60
 # (별도 cleanup 단계에서 처리. 1년 = 365일 기본.)
 ARCHIVE_RETENTION_DAYS = 365
 
+# ── 소스 무수집 감시 ─────────────────────────────────────────────────────────
+# 수집기가 예외 없이 빈 리스트만 돌려주면 run 기록에는 count=0, error=None 으로
+# 남아 정상처럼 보인다. 실제로 ADB 는 198회 run(2026-04-16~10-08) 동안 단 한 건도
+# 수집하지 못한 채 아무도 눈치채지 못했다. 연속 무수집을 장애로 간주해 알린다.
+SOURCE_SILENT_RUNS = 7       # 이 횟수만큼 연속 0건이면 경보
+SOURCE_HEALTH_LOOKBACK = 30  # 이력 조회 범위(run 수)
+
+# 상시 공고가 없는 것이 정상인 소스는 감시 대상에서 제외한다.
+# (현재는 없음 — 전 소스가 꾸준히 공고를 내보내는 기관)
+SOURCE_SILENT_EXEMPT: set = set()
+
 
 def _is_stale_date(date_str: str, days: int = DEFAULT_FRESHNESS_DAYS) -> bool:
     """범용 날짜 문자열(ISO, YYYY-MM-DD, YYYY.MM.DD, 'Month DD, YYYY' 등) 기준
@@ -2418,6 +2429,81 @@ def collect_notices():
         return jsonify({'success': False, 'message': f'수집 중 오류: {e}'}), 500
 
 
+def _check_source_health(fetched_by_source: dict, errors: dict) -> dict:
+    """소스별 '조용한 실패'를 찾아낸다 — 예외 없이 0건만 돌려주는 상태.
+
+    이번 run 의 결과에 과거 ScrapingRun 이력을 이어 붙여 소스별 연속 무수집
+    횟수를 센다. SOURCE_SILENT_RUNS 이상이면 사람이 봐야 할 장애로 본다.
+
+    Returns: {'silent': [{source, display, runs, had_error}], 'checked': N}
+    """
+    display_to_key = {v: k for k, v in SOURCE_DISPLAY.items()}
+
+    try:
+        history = (ScrapingRun.query
+                   .order_by(ScrapingRun.id.desc())
+                   .limit(SOURCE_HEALTH_LOOKBACK)
+                   .all())
+    except Exception as e:
+        print(f'[health] 이력 조회 실패: {e}')
+        return {'silent': [], 'checked': 0}
+
+    silent = []
+    for key in COLLECTORS:
+        if key in SOURCE_SILENT_EXEMPT:
+            continue
+
+        # 이번 run 이 1건이라도 건졌으면 건강한 소스
+        if fetched_by_source.get(key, 0) > 0:
+            continue
+
+        streak = 1  # 이번 run 포함
+        for run in history:
+            rows = run.sources if isinstance(run.sources, list) else []
+            row = next((r for r in rows
+                        if display_to_key.get(r.get('name')) == key), None)
+            if row is None:            # 그 시점엔 없던 소스 → 거기서 끊는다
+                break
+            if (row.get('count') or 0) > 0:
+                break
+            streak += 1
+
+        if streak >= SOURCE_SILENT_RUNS:
+            silent.append({
+                'source': key,
+                'display': SOURCE_DISPLAY.get(key, key),
+                'runs': streak,
+                # 이력 조회 범위까지 꽉 찼다면 실제 연속 횟수는 더 클 수 있다
+                'capped': streak > SOURCE_HEALTH_LOOKBACK,
+                'had_error': key in errors,
+            })
+
+    return {'silent': silent, 'checked': len(COLLECTORS)}
+
+
+def _notify_source_health(health: dict) -> bool:
+    """무수집 소스를 Discord 로 알린다. best-effort — 실패해도 수집은 성공."""
+    silent = health.get('silent') or []
+    if not silent:
+        return False
+    try:
+        from services.notifier import get_notifier
+        lines = []
+        for s in silent:
+            reason = '수집기 예외' if s['had_error'] else '예외 없이 0건(조용한 실패)'
+            runs = f'{s["runs"]}회 이상' if s.get('capped') else f'{s["runs"]}회'
+            lines.append(f'· {s["display"]}: {runs} 연속 무수집 — {reason}')
+        return get_notifier().send(
+            title=f'[발주공고] 무수집 소스 {len(silent)}건 감지',
+            body=('아래 소스가 연속으로 한 건도 수집하지 못했습니다. '
+                  '사이트 구조 변경이나 차단일 수 있어 점검이 필요합니다.\n\n'
+                  + '\n'.join(lines)),
+        )
+    except Exception as e:
+        print(f'[health] 알림 실패: {e}')
+        return False
+
+
 def _do_collect():
     """collect_notices 의 실제 작업 — 예외 시 호출자가 500 응답 처리."""
     global _existing_fingerprints_cache, _new_notices_in_run
@@ -2501,6 +2587,10 @@ def _do_collect():
         }
         for key in COLLECTORS.keys()
     ]
+    # 소스 건강도는 이번 run 을 이력에 넣기 전에 판정한다
+    # (넣고 나면 자기 자신을 과거 이력으로 두 번 세게 된다).
+    health = _check_source_health(fetched_by_source, errors)
+
     db.session.add(ScrapingRun(
         trigger=trigger,
         total_found=len(all_items),
@@ -2526,6 +2616,12 @@ def _do_collect():
 
     # ADB/AfDB 상세 페이지 보강 — 마감일·금액·발주처 추출
     enrich_result = _enrich_pending_notices(limit=15)
+
+    # 무수집 소스 경보 — 공고를 놓치고 있다는 유일한 신호다
+    health['notified'] = _notify_source_health(health)
+    if health.get('silent'):
+        for s in health['silent']:
+            print(f'[health] {s["display"]}: {s["runs"]}회 연속 무수집')
 
     # 번역 작업 큐잉 + Discord 알림 (인포그래픽은 번역 완료 시 서버가 직접 생성)
     pipeline_result = {'enqueued': 0, 'notified': 0}
@@ -2567,6 +2663,7 @@ def _do_collect():
         'cleanup': cleanup_result,
         'enrich': enrich_result,
         'pipeline': pipeline_result,
+        'health': health,
         'collected_at': datetime.utcnow().isoformat() + 'Z',
     })
 
