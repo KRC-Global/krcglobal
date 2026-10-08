@@ -102,12 +102,16 @@ NOTICE_KINDS: tuple[tuple[str, str, str, str], ...] = (
     ('eoi', '관심표명',
      r'expressions?\s+of\s+interest|\bEOI\b|\bREOI\b',
      r'관심\s*표명'),
+    # SPN(Specific Procurement Notice)은 실제 마감일이 붙는 개별 입찰 공고다.
+    # GPN(조달예고)과 한 유형으로 묶으면 마감이 코앞인 입찰이 '세부 공고 대기'
+    # 로 표시돼 기회를 놓친다. 'plan' 의 국문 패턴('조달 공고')이 '특정 조달
+    # 공고'도 잡으므로, 더 구체적인 itb 를 먼저 둬 선점시킨다.
     ('itb', '입찰',
-     r'invitation\s+(for|to)\s+bid',
-     r'입찰\s*(초청|공고)'),
+     r'invitation\s+(for|to)\s+bid|specific\s+procurement\s+notice|\bSPN\b',
+     r'입찰\s*(초청|공고)|특정\s*조달|개별\s*조달'),
     ('plan', '조달예고',
-     r'(general|specific)\s+procurement\s+notice|procurement\s+plan|\bGPN\b|\bSPN\b',
-     r'조달\s*(계획|공고)|일반\s*조달|특정\s*조달'),
+     r'general\s+procurement\s+notice|procurement\s+plan|\bGPN\b',
+     r'조달\s*(계획|공고)|일반\s*조달'),
 )
 
 # 유형별 진행 순서도. {posted}/{due} 는 렌더 시 치환한다.
