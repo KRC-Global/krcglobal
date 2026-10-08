@@ -13,6 +13,25 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DEFAULT_DATABASE_URL = 'postgresql://postgres.zzypdvwdwgwocczpaaiu:KrcGlobal2026!DB@aws-1-ap-northeast-1.pooler.supabase.com:6543/postgres'
 
 
+def _force_psycopg2(url: str) -> str:
+    """DB URL 의 드라이버를 psycopg2 로 명시한다.
+
+    SQLAlchemy 2.1 부터 'postgresql://' 의 기본 DBAPI 가 psycopg2 에서
+    psycopg(v3) 로 바뀌었다. 설치된 드라이버는 psycopg2-binary 뿐이라
+    기본값에 의존하면 'ModuleNotFoundError: No module named psycopg' 로
+    앱이 부팅 단계에서 죽는다(2026-10-08 운영 장애).
+
+    requirements 에 SQLAlchemy 를 핀해두었지만, 환경변수 DATABASE_URL 이
+    드라이버 없는 스킴으로 들어오는 경우까지 막으려면 여기서도 고정해야 한다.
+    이미 드라이버가 지정된 URL('postgresql+psycopg2://' 등)은 건드리지 않는다.
+    """
+    if url and url.startswith('postgresql://'):
+        return 'postgresql+psycopg2://' + url[len('postgresql://'):]
+    if url and url.startswith('postgres://'):   # 구형 표기도 함께 정규화
+        return 'postgresql+psycopg2://' + url[len('postgres://'):]
+    return url
+
+
 class Config:
     """Base configuration"""
 
@@ -24,7 +43,9 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'gbms-secret-key-change-in-production'
 
     # Database configuration (Supabase PostgreSQL)
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or DEFAULT_DATABASE_URL
+    SQLALCHEMY_DATABASE_URI = _force_psycopg2(
+        os.environ.get('DATABASE_URL') or DEFAULT_DATABASE_URL
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # PostgreSQL pool settings for Supabase Transaction Pooler (포트 6543)

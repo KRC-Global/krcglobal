@@ -4,6 +4,9 @@
 # Web Framework
 Flask==2.3.3
 Flask-SQLAlchemy==3.1.1
+# SQLAlchemy 2.1 부터 'postgresql://' 기본 DBAPI 가 psycopg(v3) 로 바뀌어
+# psycopg2-binary 만 설치된 환경에서 부팅이 깨진다. 상한을 고정한다.
+SQLAlchemy>=2.0.16,<2.1
 Flask-CORS==4.0.0
 Flask-WTF==1.2.1
 
