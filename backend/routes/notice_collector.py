@@ -621,6 +621,11 @@ def _save_notice(source, title, country, client, sector,
                 existing.source_url = source_url[:500]
                 url_cache[source_url] = existing
                 # 가리키는 문서가 바뀌었다 = 공고 단계가 넘어갔다.
+                # 제목의 공고종류 표기(GPN/SPN/REOI…)도 새 문서 기준으로 맞춘다.
+                # 뒤이어 재번역이 돌므로 title_ko 와 어긋난 채로 남지 않는다.
+                # 정규화 제목은 괄호를 지우므로 fp_cache 키는 그대로 유효하다.
+                if title and title[:500] != existing.title:
+                    existing.title = title[:500]
                 # 옛 단계 기준 번역·카드를 그대로 쓰지 않도록 재번역 대상에 올린다.
                 if existing.id:
                     _revived_with_new_doc_ids.append(existing.id)
