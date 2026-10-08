@@ -4,6 +4,10 @@
     {
       "path": "/api/notices/collect",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/notices/collect",
+      "schedule": "0 13 * * *"
     }
   ],
   "builds": [
@@ -14,25 +18,79 @@
         "maxLambdaSize": "200mb"
       }
     },
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "dashboard.html", "use": "@vercel/static" },
-    { "src": "pending.html", "use": "@vercel/static" },
-    { "src": "assets/**", "use": "@vercel/static" },
-    { "src": "pages/**", "use": "@vercel/static" }
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "dashboard.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "pending.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "assets/**",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "pages/**",
+      "use": "@vercel/static"
+    }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "api/index.py" },
-    { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/pages/(.*)", "dest": "/pages/$1" },
-    { "src": "/(.*\\.html)", "dest": "/$1" },
-    { "src": "/(.*\\.js)", "dest": "/$1" },
-    { "src": "/(.*\\.css)", "dest": "/$1" },
-    { "src": "/(.*\\.svg)", "dest": "/$1" },
-    { "src": "/(.*\\.png)", "dest": "/$1" },
-    { "src": "/(.*\\.ico)", "dest": "/$1" },
-    { "src": "/(.*\\.woff2?)", "dest": "/$1" },
-    { "src": "/(.*\\.ttf)", "dest": "/$1" },
-    { "src": "^/$", "dest": "/index.html" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    {
+      "src": "/api/(.*)",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "/pages/(.*)",
+      "dest": "/pages/$1"
+    },
+    {
+      "src": "/(.*\\.html)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*\\.js)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*\\.css)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*\\.svg)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*\\.png)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*\\.ico)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*\\.woff2?)",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*\\.ttf)",
+      "dest": "/$1"
+    },
+    {
+      "src": "^/$",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
   ]
 }
