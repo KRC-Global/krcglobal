@@ -131,10 +131,18 @@ def _fmt_value(raw, currency: str = 'USD') -> str:
 # ── 상태/마감일 공통 헬퍼 ────────────────────────────────────────────────────
 _DATE_RX = re.compile(r'(\d{4})[-./\s년]\s*(\d{1,2})[-./\s월]\s*(\d{1,2})')
 
+# 영문 텍스트 날짜 포맷. AIIB 는 같은 필드에 'Sep 29, 2026' 과 'Sep 14,2026'
+# (쉼표 뒤 공백 없음)을 섞어 쓰므로 공백 없는 변형도 함께 시도한다.
+_TEXT_DATE_FORMATS = (
+    '%B %d, %Y', '%b %d, %Y',
+    '%B %d,%Y', '%b %d,%Y',
+    '%d %B %Y', '%d %b %Y',
+)
+
 
 def _parse_date_any(s: str):
     """YYYY-MM-DD / YYYY.MM.DD / YYYY/MM/DD / 'YYYY년 MM월 DD일' / ISO datetime
-    / 'April 15, 2026' / '15 April 2026' / RFC 822 pubDate → date.
+    / 'April 15, 2026' / 'Sep 14,2026' / '15 April 2026' / RFC 822 pubDate → date.
     파싱 실패 시 None."""
     if not s:
         return None
@@ -151,7 +159,7 @@ def _parse_date_any(s: str):
             return datetime(y, mo, d).date()
         except Exception:
             pass
-    for fmt in ('%B %d, %Y', '%b %d, %Y', '%d %B %Y', '%d %b %Y'):
+    for fmt in _TEXT_DATE_FORMATS:
         try:
             return datetime.strptime(raw, fmt).date()
         except ValueError:
@@ -206,7 +214,7 @@ def _is_stale_date(date_str: str, days: int = DEFAULT_FRESHNESS_DAYS) -> bool:
     d = _parse_date_any(date_str)
     if d is None:
         # 'April 15, 2026' 형식 재시도
-        for fmt in ('%B %d, %Y', '%b %d, %Y', '%d %B %Y', '%d %b %Y'):
+        for fmt in _TEXT_DATE_FORMATS:
             try:
                 d = datetime.strptime(str(date_str).strip(), fmt).date()
                 break
@@ -516,6 +524,7 @@ def _normalize_country(country: str) -> str:
 
 _existing_fingerprints_cache = None  # 수집 배치 시작 시 1회 빌드, 매 건마다 재사용
 _new_notices_in_run: list = []        # 이번 수집에서 신규 INSERT 된 BidNotice 객체
+_reactivated_notices_in_run: list = []  # 이번 수집에서 아카이브 해제된 BidNotice 객체
 
 
 def _build_fingerprint_cache():
@@ -601,12 +610,32 @@ def _save_notice(source, title, country, client, sector,
         if existing.archived_at is not None:
             existing.archived_at = None
             existing.archive_reason = None
+            # ① source_url 을 이번 run 에서 fetch 된 URL 로 재지정.
+            #    AIIB 처럼 같은 사업의 문서 URL 이 공고 단계마다 바뀌는 소스
+            #    (GPN → REOI → SPN → Addendum → Procurement Plan)에서는
+            #    옛 URL 을 남겨두면 같은 run 의 _sync_db_to_latest 가
+            #    "소스에서 사라졌다"고 오판해 곧바로 재아카이브한다.
+            if source_url != existing.source_url:
+                url_cache.pop(existing.source_url, None)
+                existing.source_url = source_url[:500]
+                url_cache[source_url] = existing
+            # ② 수집일을 재수집 시점으로 갱신. created_at 이 60일을 넘기면
+            #    _cleanup_stale_notices 가 같은 run 안에서 aged_out 시켜
+            #    재활성화가 무효화된다. 실제 노후화 판정은 raw_data 게시일
+            #    기준(_effective_posted_date)이 계속 담당한다.
+            existing.created_at = datetime.utcnow()
             if deadline:
                 existing.deadline = deadline[:50]
+            elif existing.deadline and _is_deadline_passed(existing.deadline):
+                # 소스가 더 이상 마감일을 주지 않는데 저장값은 이미 지난 날짜
+                # → 그대로 두면 cleanup 이 deadline_passed 로 즉시 되돌린다.
+                existing.deadline = None
             if contract_value:
                 existing.contract_value = contract_value[:100]
             if raw_data:
                 existing.raw_data = raw_data
+            # 재활성화도 "다시 올라온 공고" → 알림·task 대상에 포함.
+            _reactivated_notices_in_run.append(existing)
             return True
         # 이미 활성 — skip
         return False
@@ -1700,16 +1729,10 @@ def _collect_aiib() -> list:
         if _is_stale_date(posted, days=stale_cutoff_days):
             continue
 
-        # 마감일 파싱 — "April 15, 2026" / "Dec 27, 2016" 형식
+        # 마감일 파싱 — "April 15, 2026" / "Dec 27, 2016" / "Sep 30,2026" 형식
         deadline_iso = ''
         if deadline:
-            dd = None
-            for fmt in ('%B %d, %Y', '%b %d, %Y'):
-                try:
-                    dd = datetime.strptime(deadline, fmt).date()
-                    break
-                except ValueError:
-                    continue
+            dd = _parse_date_any(deadline)
             if dd:
                 deadline_iso = dd.isoformat()
                 if dd < today:
@@ -2388,8 +2411,10 @@ def collect_notices():
 def _do_collect():
     """collect_notices 의 실제 작업 — 예외 시 호출자가 500 응답 처리."""
     global _existing_fingerprints_cache, _new_notices_in_run
+    global _reactivated_notices_in_run
     _existing_fingerprints_cache = None  # 매 수집 run 마다 캐시 리셋
     _new_notices_in_run = []             # 신규 BidNotice 캡처 리스트도 리셋
+    _reactivated_notices_in_run = []     # 재활성화 캡처 리스트도 리셋
 
     all_items, errors = _run_all_collectors()
 
@@ -2495,9 +2520,19 @@ def _do_collect():
     pipeline_result = {'enqueued': 0, 'notified': 0}
     try:
         new_ids = [n.id for n in _new_notices_in_run if getattr(n, 'id', None)]
-        if new_ids:
+        # 재활성화 건도 알림 대상 — 단 cleanup 이 방금 다시 아카이브한 건은 제외
+        # (이 훅은 _cleanup_stale_notices 이후에 돈다).
+        seen_ids = set(new_ids)
+        revived_ids = []
+        for n in _reactivated_notices_in_run:
+            nid = getattr(n, 'id', None)
+            if not nid or nid in seen_ids or n.archived_at is not None:
+                continue
+            seen_ids.add(nid)
+            revived_ids.append(nid)
+        if new_ids or revived_ids:
             from services.notice_pipeline import post_collect_hook
-            pipeline_result = post_collect_hook(new_ids)
+            pipeline_result = post_collect_hook(new_ids + revived_ids)
     except Exception as e:
         print(f'[collect] post_collect_hook 예외 (수집은 성공): {e}')
 
