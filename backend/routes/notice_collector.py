@@ -813,22 +813,47 @@ def _collect_worldbank() -> list:
     return results
 
 
-# ── Tier 1: UNGM API ────────────────────────────────────────────────────────
-def _collect_ungm() -> list:
-    """UNGM — developer.ungm.org API 전용.
+# ── UNGM developer API (UNGM 본체 + ADB/AfDB/IFAD 공통 경로) ────────────────
+#
+# 과거 공개 스크래핑(POST /Public/Notice/Search)은 완전히 닫혔다.
+# 토큰(__RequestVerificationToken)을 실어도 'Bad Request'(400)만 돌아오고,
+# UNGM 은 Angular SPA 로 전환돼 서버 HTML 에 목록 데이터가 없다(2026-10 확인).
+# 그 결과 ADB·AfDB·IFAD·UNGM 네 소스가 198회 run 동안 0건이었다.
+#
+# 유일하게 유효한 경로는 developer.ungm.org API 이며 UNGM_API_KEY 가 필요하다.
+# 키가 없으면 수집기는 조용히 0건을 돌려주지 않고 명시적으로 로그를 남긴다
+# (연속 무수집은 _check_source_health 가 별도로 경보한다).
+_UNGM_API_URL = 'https://developer.ungm.org/api/v1/notices'
 
-    과거의 공개 POST 스크래핑(/Public/Notice/Search)은 2025~2026년 사이에
-    서버 측 에러 페이지(/Home/InternalError)로 리다이렉트되도록 변경되어 완전 사용 불가.
-    UNGM 은 이제 Angular SPA 로 전환됐고 서버 HTML에 목록 데이터가 포함되지 않음.
+# UNGM Agency ID — 기관별 공고만 뽑을 때 사용
+_UNGM_AGENCY_IDS = {
+    'adb':  '85',
+    'afdb': '84',
+    'ifad': '65',
+}
 
-    수집 가능 조건: 환경변수 UNGM_API_KEY 설정 + developer.ungm.org 접근 가능.
-    (IFAD / FAO / WFP 등 다수 UN 기관 발주공고가 이 경로로 수집됨)
+# 소스별 기본 발주처 표기 (API 응답에 기관명이 비어 올 때)
+_UNGM_DEFAULT_CLIENT = {
+    'adb':  'ADB',
+    'afdb': 'AfDB',
+    'ifad': 'IFAD',
+    'ungm': 'UN',
+}
+
+
+def _ungm_api_notices(source_key: str, agency_id: str = '') -> list:
+    """developer.ungm.org API 에서 공고를 가져와 공통 dict 형태로 변환.
+
+    source_key: 저장될 source 값('ungm' / 'adb' / 'afdb' / 'ifad')
+    agency_id : 지정하면 해당 기관 공고만 조회. 비우면 전체(UNGM 본체).
+
+    UNGM_API_KEY 미설정 시 빈 리스트. 예외는 호출자에게 올려 run 기록의
+    error 필드에 남도록 한다(조용한 실패를 만들지 않기 위함).
     """
     api_key = os.environ.get('UNGM_API_KEY', '')
-
     if not api_key:
-        print('[UNGM] UNGM_API_KEY 환경변수 미설정 — 공개 스크래핑 경로가 사라져 수집 불가. '
-              'developer.ungm.org 에서 API 키 발급 후 설정 필요.')
+        print(f'[{source_key}-UNGM] UNGM_API_KEY 미설정 — developer.ungm.org 에서 '
+              '키 발급 후 환경변수 설정 필요. 공개 스크래핑 경로는 폐쇄됨.')
         return []
 
     try:
@@ -836,251 +861,91 @@ def _collect_ungm() -> list:
     except ImportError:
         return []
 
-    # developer.ungm.org API (유일한 유효 경로)
-    if True:
-        url = 'https://developer.ungm.org/api/v1/notices'
-        headers = {
-            'Authorization': f'Bearer {api_key}',
-            'Accept': 'application/json',
-        }
-        results = []
-        page = 0
-        page_size = 50
-
-        while True:
-            params = {
-                'TenderStatusCode': 'AC',
-                'DeadlineFrom': datetime.utcnow().strftime('%Y-%m-%d'),
-                'Keywords': 'agriculture irrigation rural food consulting technical',
-                'PageSize': page_size,
-                'PageIndex': page,
-            }
-            try:
-                r = req.get(url, headers=headers, params=params, timeout=12)
-                r.raise_for_status()
-                data = r.json()
-            except Exception as e:
-                print(f'[UNGM-API] page {page} 요청 오류: {e}')
-                break
-
-            items = data.get('Notices') or data.get('notices') or []
-            if not items:
-                break
-
-            for item in items:
-                title = (item.get('Title') or item.get('title') or '').strip()
-                desc = item.get('Description') or item.get('description') or ''
-                combined = f"{title} {desc}"
-
-                if not _is_agri(combined) and not _is_consulting(combined):
-                    continue
-
-                value_raw = item.get('EstimatedValue') or item.get('estimatedValue') or 0
-                if value_raw and _parse_value_usd(str(value_raw)) < MIN_VALUE_USD:
-                    continue
-
-                deadline_raw = item.get('Deadline') or item.get('deadline') or ''
-                deadline = deadline_raw[:10] if deadline_raw else ''
-                if _is_deadline_passed(deadline):
-                    continue
-
-                # 게시일(Published) 60일 이전이면 제외
-                posted = (item.get('PublishedDate') or item.get('Published')
-                          or item.get('publishedDate') or '')
-                if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
-                    continue
-
-                source_url = (item.get('NoticeUrl') or item.get('noticeUrl') or
-                              item.get('Url') or '').strip()
-                if not source_url:
-                    notice_id = item.get('Id') or item.get('id') or ''
-                    source_url = f'https://www.ungm.org/Public/Notice/{notice_id}'
-
-                country = (item.get('Country') or item.get('country') or '').strip()
-                org = (item.get('AgencyName') or item.get('agencyName')
-                       or item.get('Beneficiary') or 'UN')
-                notice_type = (item.get('TypeName') or item.get('NoticeType')
-                               or item.get('typeName') or '')
-                sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
-
-                results.append({
-                    'source': 'ungm',
-                    'title': _decorate_title(title, notice_type),
-                    'country': country,
-                    'client': org,
-                    'sector': sector,
-                    'contract_value': _fmt_value(value_raw) if value_raw else '',
-                    'deadline': deadline,
-                    'source_url': source_url,
-                    'raw_data': item,
-                })
-
-            if len(items) < page_size:
-                break
-            page += 1
-
-        return results
-
-
-# ── Tier 2: ADB / AfDB via UNGM Public Search ──────────────────────────────
-#
-# ADB·AfDB 자체 RSS/HTML이 Cloudflare로 완전 차단(404/403)됨.
-# UNGM(UN Global Marketplace)이 두 기관 공고를 게시하며,
-# POST /Public/Notice/Search 엔드포인트가 인증 없이 동작함을 확인(2026-04).
-#
-# UNGM Agency ID: ADB=85, AfDB=84, FAO=49, IFAD=65, UNDP=1
-# 응답: HTML (테이블 행) → BeautifulSoup 파싱.
-#
-# Cell 구조 (0-indexed):
-#   0: buttons (skip)
-#   1: 제목 (.resultTitle a[href=/Public/Notice/{id}])
-#   2: 마감일 (.deadline)  — "06-May-2026 12:00\n(GMT 00.00)..."
-#   3: 게시일              — "13-Apr-2026"
-#   4: 기관 (.resultAgency)
-#   5: 공고 유형           — "Request for proposal"
-#   6: 참조번호            — "ADB/RFP/..."
-#   7: 국가                — "Philippines" / "Multiple destinations"
-
-_UNGM_SEARCH_URL = 'https://www.ungm.org/Public/Notice/Search'
-_UNGM_AGENCY_IDS = {
-    'adb':  '85',
-    'afdb': '84',
-    'ifad': '65',
-}
-
-
-def _collect_via_ungm(source_key: str) -> list:
-    """UNGM 공개 검색으로 ADB 또는 AfDB 공고 수집.
-
-    - 인증 불필요 (Public 엔드포인트)
-    - 농업/컨설팅 키워드 필터 적용
-    - 마감 지난 건 제외, DEFAULT_FRESHNESS_DAYS 이내만
-    """
-    import requests as req
-    from bs4 import BeautifulSoup
-
-    agency_id = _UNGM_AGENCY_IDS.get(source_key)
-    if not agency_id:
-        return []
-
     results = []
     page = 0
-    max_pages = 5  # 15건×5 = 최대 75건
+    page_size = 50
+    max_pages = 10
 
     while page < max_pages:
-        payload = {
+        params = {
+            'TenderStatusCode': 'AC',                                  # 진행 중
+            'DeadlineFrom': datetime.utcnow().strftime('%Y-%m-%d'),    # 마감 지난 건 제외
+            'PageSize': page_size,
             'PageIndex': page,
-            'PageSize': 15,
-            'Title': '',
-            'Description': '',
-            'Reference': '',
-            'PublishedFrom': '',
-            'PublishedTo': '',
-            'DeadlineFrom': '',
-            'DeadlineTo': '',
-            'Countries': [],
-            'Agencies': [agency_id],
-            'UNSPSCs': [],
-            'NoticeTypes': [],
-            'SortField': 'Deadline',
-            'SortAscending': True,
-            'isPicker': False,
-            'IsSustainable': False,
-            'IsActive': True,
-            'NoticeDisplayType': None,
-            'TypeOfCompetitions': [],
         }
+        if agency_id:
+            params['Agencies'] = agency_id
+        else:
+            # 기관 지정이 없으면 키워드로 범위를 좁힌다(전체 UN 공고는 너무 많다)
+            params['Keywords'] = 'agriculture irrigation rural food consulting technical'
+
         try:
-            r = req.post(_UNGM_SEARCH_URL, json=payload, timeout=15,
-                         headers={
-                             **_browser_headers(referer='https://www.ungm.org/Public/Notice'),
-                             'Content-Type': 'application/json',
-                             'X-Requested-With': 'XMLHttpRequest',
-                             'Accept': '*/*',
-                         })
-            if r.status_code != 200:
-                print(f'[{source_key}-UNGM] HTTP {r.status_code} on page {page}')
-                break
-        except req.RequestException as e:
-            print(f'[{source_key}-UNGM] 요청 실패: {e}')
+            r = req.get(_UNGM_API_URL, timeout=15,
+                        headers={'Authorization': f'Bearer {api_key}',
+                                 'Accept': 'application/json'},
+                        params=params)
+            r.raise_for_status()
+            data = r.json()
+        except Exception as e:
+            # 첫 페이지 실패는 소스 장애 → 올려서 run 기록에 남긴다.
+            # 뒷 페이지 실패는 이미 모은 결과를 살린다.
+            if page == 0:
+                raise RuntimeError(f'UNGM API 요청 실패({source_key}): {e}') from e
+            print(f'[{source_key}-UNGM] page {page} 중단: {e}')
             break
 
-        soup = BeautifulSoup(r.text, 'html.parser')
-        rows = soup.select('.dataRow.notice-table')
-        if not rows:
+        items = data.get('Notices') or data.get('notices') or []
+        if not items:
             break
 
-        for row in rows:
-            cells = row.select('.tableCell')
-            if len(cells) < 8:
+        for item in items:
+            title = (item.get('Title') or item.get('title') or '').strip()
+            desc = item.get('Description') or item.get('description') or ''
+            combined = f'{title} {desc}'
+
+            agri = _is_agri(combined)
+            cons = _is_consulting(combined)
+            if not agri and not cons:
                 continue
 
-            notice_id = row.get('data-noticeid', '')
-
-            # 제목: .ungm-title span (실제 공고명) → fallback: anchor text
-            title_span = cells[1].select_one('.ungm-title')
-            if title_span:
-                title = title_span.get_text(strip=True)
-            else:
-                title = cells[1].get_text(strip=True)
-            title = re.sub(r'Open in a new window', '', title).strip()
-            # tooltip 텍스트 제거
-            tooltip = cells[1].select_one('.info-tooltip__text')
-            if tooltip:
-                title = title.replace(tooltip.get_text(strip=True), '').strip()
-            if not title:
+            value_raw = item.get('EstimatedValue') or item.get('estimatedValue') or 0
+            if value_raw and _parse_value_usd(str(value_raw)) < MIN_VALUE_USD:
                 continue
 
-            link_el = cells[1].select_one('a[href*="/Public/Notice/"]')
-            href = link_el.get('href', '') if link_el else f'/Public/Notice/{notice_id}'
-            source_url = f'https://www.ungm.org{href}' if href.startswith('/') else href
-
-            # 마감일: "06-May-2026 12:00\n(GMT 00.00)..." → "2026-05-06"
-            deadline_raw = cells[2].get_text(strip=True).split('\n')[0].strip()
-            deadline = _normalize_date_str(deadline_raw.split(' ')[0] if deadline_raw else '')
-
-            # 마감일 지난 건 제외
+            deadline_raw = item.get('Deadline') or item.get('deadline') or ''
+            deadline = deadline_raw[:10] if deadline_raw else ''
             if _is_deadline_passed(deadline):
                 continue
 
-            # 게시일
-            posted_raw = cells[3].get_text(strip=True)
-            if _is_stale_date(posted_raw, days=DEFAULT_FRESHNESS_DAYS):
+            posted = (item.get('PublishedDate') or item.get('Published')
+                      or item.get('publishedDate') or '')
+            if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
                 continue
 
-            agency = cells[4].get_text(strip=True)
-            notice_type = cells[5].get_text(strip=True)
-            reference = cells[6].get_text(strip=True)
-            country = cells[7].get_text(strip=True)
-            if country == 'Multiple destinations':
-                country = ''
+            source_url = (item.get('NoticeUrl') or item.get('noticeUrl')
+                          or item.get('Url') or '').strip()
+            if not source_url:
+                notice_id = item.get('Id') or item.get('id') or ''
+                source_url = f'https://www.ungm.org/Public/Notice/{notice_id}'
 
-            combined = f'{title} {notice_type} {reference}'
-            if not _is_agri(combined) and not _is_consulting(combined):
-                continue
-
-            sector = 'consulting' if _is_consulting(combined) and not _is_agri(combined) else 'agriculture'
+            client = (item.get('AgencyName') or item.get('agencyName')
+                      or item.get('Beneficiary') or '').strip()
+            notice_type = (item.get('TypeName') or item.get('NoticeType')
+                           or item.get('typeName') or '')
 
             results.append({
                 'source': source_key,
                 'title': _decorate_title(title, notice_type),
-                'country': country,
-                'client': agency,
-                'sector': sector,
-                'contract_value': _extract_value_from_text(title),
+                'country': (item.get('Country') or item.get('country') or '').strip(),
+                'client': client or _UNGM_DEFAULT_CLIENT.get(source_key, 'UN'),
+                'sector': 'consulting' if cons and not agri else 'agriculture',
+                'contract_value': _fmt_value(value_raw) if value_raw else '',
                 'deadline': deadline,
                 'source_url': source_url,
-                'raw_data': {
-                    'ungm_id': notice_id,
-                    'title': title,
-                    'notice_type': notice_type,
-                    'reference': reference,
-                    'posted': posted_raw,
-                    'agency': agency,
-                },
+                'raw_data': item,
             })
 
-        if len(rows) < 15:
+        if len(items) < page_size:
             break
         page += 1
 
@@ -1088,18 +953,31 @@ def _collect_via_ungm(source_key: str) -> list:
     return results
 
 
+def _collect_ungm() -> list:
+    """UNGM 본체 — 기관 지정 없이 농업/컨설팅 키워드로 조회."""
+    return _ungm_api_notices('ungm')
+
+
+def _collect_via_ungm(source_key: str) -> list:
+    """ADB / AfDB / IFAD — UNGM API 의 기관 필터로 조회."""
+    agency_id = _UNGM_AGENCY_IDS.get(source_key)
+    if not agency_id:
+        return []
+    return _ungm_api_notices(source_key, agency_id)
+
+
 def _collect_adb() -> list:
-    """ADB — UNGM 공개 검색 경유 (ADB 자체 RSS/HTML Cloudflare 차단됨)"""
+    """ADB — UNGM API 기관 필터 경유 (ADB 자체 사이트는 JS 렌더링 + 봇 차단)."""
     return _collect_via_ungm('adb')
 
 
 def _collect_afdb() -> list:
-    """AfDB — UNGM 공개 검색 경유 (AfDB 자체 RSS/HTML Cloudflare 차단됨)"""
+    """AfDB — UNGM API 기관 필터 경유 (AfDB 자체 RSS/HTML 차단됨)."""
     return _collect_via_ungm('afdb')
 
 
 def _collect_ifad() -> list:
-    """IFAD — UNGM 공개 검색 경유 (농업 특화 MDB)"""
+    """IFAD — UNGM API 기관 필터 경유 (농업 특화 MDB)."""
     return _collect_via_ungm('ifad')
 
 
