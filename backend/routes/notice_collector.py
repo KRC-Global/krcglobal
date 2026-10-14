@@ -813,172 +813,38 @@ def _collect_worldbank() -> list:
     return results
 
 
-# ── UNGM developer API (UNGM 본체 + ADB/AfDB/IFAD 공통 경로) ────────────────
+# ── ADB — 수집 경로 재구성 대기 ──────────────────────────────────────────────
 #
-# 과거 공개 스크래핑(POST /Public/Notice/Search)은 완전히 닫혔다.
-# 토큰(__RequestVerificationToken)을 실어도 'Bad Request'(400)만 돌아오고,
-# UNGM 은 Angular SPA 로 전환돼 서버 HTML 에 목록 데이터가 없다(2026-10 확인).
-# 그 결과 ADB·AfDB·IFAD·UNGM 네 소스가 198회 run 동안 0건이었다.
+# 2026-10 조사 결과, 기존 UNGM 경유 경로는 완전히 폐쇄됐다:
+#   - POST ungm.org/Public/Notice/Search → 400 (CSRF 토큰을 실어도 동일)
+#   - developer.ungm.org → 200 이지만 문서·가입·엔드포인트가 전혀 없는 빈 껍데기
+#     (swagger/openapi/docs/api 12개 경로 모두 404)
+#   - api.ungm.org → DNS 미존재
+#   - UNGM Pro(유료 공식 상품)도 API 없음. 일일 이메일 다이제스트 + 웹 검색뿐
+#   → 발급받을 API 키 자체가 존재하지 않으므로 UNGM_API_KEY 분기를 제거한다.
 #
-# 유일하게 유효한 경로는 developer.ungm.org API 이며 UNGM_API_KEY 가 필요하다.
-# 키가 없으면 수집기는 조용히 0건을 돌려주지 않고 명시적으로 로그를 남긴다
-# (연속 무수집은 _check_source_health 가 별도로 경보한다).
-_UNGM_API_URL = 'https://developer.ungm.org/api/v1/notices'
-
-# UNGM Agency ID — 기관별 공고만 뽑을 때 사용
-_UNGM_AGENCY_IDS = {
-    'adb':  '85',
-    'afdb': '84',
-    'ifad': '65',
-}
-
-# 소스별 기본 발주처 표기 (API 응답에 기관명이 비어 올 때)
-_UNGM_DEFAULT_CLIENT = {
-    'adb':  'ADB',
-    'afdb': 'AfDB',
-    'ifad': 'IFAD',
-    'ungm': 'UN',
-}
-
-
-def _ungm_api_notices(source_key: str, agency_id: str = '') -> list:
-    """developer.ungm.org API 에서 공고를 가져와 공통 dict 형태로 변환.
-
-    source_key: 저장될 source 값('ungm' / 'adb' / 'afdb' / 'ifad')
-    agency_id : 지정하면 해당 기관 공고만 조회. 비우면 전체(UNGM 본체).
-
-    UNGM_API_KEY 미설정 시 빈 리스트. 예외는 호출자에게 올려 run 기록의
-    error 필드에 남도록 한다(조용한 실패를 만들지 않기 위함).
-    """
-    api_key = os.environ.get('UNGM_API_KEY', '')
-    if not api_key:
-        print(f'[{source_key}-UNGM] UNGM_API_KEY 미설정 — developer.ungm.org 에서 '
-              '키 발급 후 환경변수 설정 필요. 공개 스크래핑 경로는 폐쇄됨.')
-        return []
-
-    try:
-        import requests as req
-    except ImportError:
-        return []
-
-    results = []
-    page = 0
-    page_size = 50
-    max_pages = 10
-
-    while page < max_pages:
-        params = {
-            'TenderStatusCode': 'AC',                                  # 진행 중
-            'DeadlineFrom': datetime.utcnow().strftime('%Y-%m-%d'),    # 마감 지난 건 제외
-            'PageSize': page_size,
-            'PageIndex': page,
-        }
-        if agency_id:
-            params['Agencies'] = agency_id
-        else:
-            # 기관 지정이 없으면 키워드로 범위를 좁힌다(전체 UN 공고는 너무 많다)
-            params['Keywords'] = 'agriculture irrigation rural food consulting technical'
-
-        try:
-            r = req.get(_UNGM_API_URL, timeout=15,
-                        headers={'Authorization': f'Bearer {api_key}',
-                                 'Accept': 'application/json'},
-                        params=params)
-            r.raise_for_status()
-            data = r.json()
-        except Exception as e:
-            # 첫 페이지 실패는 소스 장애 → 올려서 run 기록에 남긴다.
-            # 뒷 페이지 실패는 이미 모은 결과를 살린다.
-            if page == 0:
-                raise RuntimeError(f'UNGM API 요청 실패({source_key}): {e}') from e
-            print(f'[{source_key}-UNGM] page {page} 중단: {e}')
-            break
-
-        items = data.get('Notices') or data.get('notices') or []
-        if not items:
-            break
-
-        for item in items:
-            title = (item.get('Title') or item.get('title') or '').strip()
-            desc = item.get('Description') or item.get('description') or ''
-            combined = f'{title} {desc}'
-
-            agri = _is_agri(combined)
-            cons = _is_consulting(combined)
-            if not agri and not cons:
-                continue
-
-            value_raw = item.get('EstimatedValue') or item.get('estimatedValue') or 0
-            if value_raw and _parse_value_usd(str(value_raw)) < MIN_VALUE_USD:
-                continue
-
-            deadline_raw = item.get('Deadline') or item.get('deadline') or ''
-            deadline = deadline_raw[:10] if deadline_raw else ''
-            if _is_deadline_passed(deadline):
-                continue
-
-            posted = (item.get('PublishedDate') or item.get('Published')
-                      or item.get('publishedDate') or '')
-            if _is_stale_date(posted, days=DEFAULT_FRESHNESS_DAYS):
-                continue
-
-            source_url = (item.get('NoticeUrl') or item.get('noticeUrl')
-                          or item.get('Url') or '').strip()
-            if not source_url:
-                notice_id = item.get('Id') or item.get('id') or ''
-                source_url = f'https://www.ungm.org/Public/Notice/{notice_id}'
-
-            client = (item.get('AgencyName') or item.get('agencyName')
-                      or item.get('Beneficiary') or '').strip()
-            notice_type = (item.get('TypeName') or item.get('NoticeType')
-                           or item.get('typeName') or '')
-
-            results.append({
-                'source': source_key,
-                'title': _decorate_title(title, notice_type),
-                'country': (item.get('Country') or item.get('country') or '').strip(),
-                'client': client or _UNGM_DEFAULT_CLIENT.get(source_key, 'UN'),
-                'sector': 'consulting' if cons and not agri else 'agriculture',
-                'contract_value': _fmt_value(value_raw) if value_raw else '',
-                'deadline': deadline,
-                'source_url': source_url,
-                'raw_data': item,
-            })
-
-        if len(items) < page_size:
-            break
-        page += 1
-
-    print(f'[{source_key}-UNGM] {len(results)} items collected')
-    return results
-
-
-def _collect_ungm() -> list:
-    """UNGM 본체 — 기관 지정 없이 농업/컨설팅 키워드로 조회."""
-    return _ungm_api_notices('ungm')
-
-
-def _collect_via_ungm(source_key: str) -> list:
-    """ADB / AfDB / IFAD — UNGM API 의 기관 필터로 조회."""
-    agency_id = _UNGM_AGENCY_IDS.get(source_key)
-    if not agency_id:
-        return []
-    return _ungm_api_notices(source_key, agency_id)
+# ADB 자체 경로도 전부 막혀 있다:
+#   - adb.org/projects/tenders : JS 렌더링, 공고 링크 0건.
+#     헤드리스 Chrome 으로도 5.8KB 껍데기만 내려옴(봇 차단)
+#   - cms.adb.org CSRN : Oracle EBS 로그인 세션 필요
+#   - RSS: /rss.xml 은 뉴스 전용, 조달 공고 RSS 경로 10개 모두 404
+#   - 사이트맵 13,000 URL 중 공고 페이지 0건(의도적 제외)
+#
+# 대안: ADB 공식 이메일 알림(alerts.adb.org) + CMS 주간 컨설팅 공고 메일을
+# 구독하고 메일을 파싱한다. 구독 완료 후 _collect_adb 를 메일 수집기로 교체한다.
+#
+# 그때까지 이 수집기는 빈 리스트가 아니라 예외를 올린다. 조용히 0건을 돌려주면
+# run 기록에 error=None 으로 남아 '정상'처럼 보이기 때문이다(ADB 가 198회 run
+# 동안 들키지 않았던 바로 그 실패 방식).
+ADB_SETUP_HINT = (
+    'ADB 수집 경로 미구성 — UNGM 공개 API 폐쇄로 기존 경로 사용 불가. '
+    'alerts.adb.org 이메일 구독 후 메일 파싱 수집기로 교체 예정.'
+)
 
 
 def _collect_adb() -> list:
-    """ADB — UNGM API 기관 필터 경유 (ADB 자체 사이트는 JS 렌더링 + 봇 차단)."""
-    return _collect_via_ungm('adb')
-
-
-def _collect_afdb() -> list:
-    """AfDB — UNGM API 기관 필터 경유 (AfDB 자체 RSS/HTML 차단됨)."""
-    return _collect_via_ungm('afdb')
-
-
-def _collect_ifad() -> list:
-    """IFAD — UNGM API 기관 필터 경유 (농업 특화 MDB)."""
-    return _collect_via_ungm('ifad')
+    """ADB — 수집 경로 재구성 대기(위 주석 참조)."""
+    raise RuntimeError(ADB_SETUP_HINT)
 
 
 # ── ADB/AfDB 상세 페이지 보강 (WB _wb_extract_details 패턴) ─────────────────
@@ -1967,12 +1833,9 @@ def _collect_edcf() -> list:
 # ── 수집 실행 ────────────────────────────────────────────────────────────────
 COLLECTORS = {
     'worldbank': _collect_worldbank,
-    'ungm':      _collect_ungm,
     'adb':       _collect_adb,
-    'afdb':      _collect_afdb,
     'aiib':      _collect_aiib,
     'isdb':      _collect_isdb,
-    'ifad':      _collect_ifad,
     'koica':     _collect_koica,
     'edcf':      _collect_edcf,
     'koica_plan': _collect_koica_plan,
@@ -1980,12 +1843,9 @@ COLLECTORS = {
 
 SOURCE_DISPLAY = {
     'worldbank': 'World Bank',
-    'ungm':      'UNGM',
     'adb':       'ADB',
-    'afdb':      'AfDB',
     'aiib':      'AIIB',
     'isdb':      'IsDB',
-    'ifad':      'IFAD',
     'koica':     'KOICA',
     'edcf':      'EDCF',
     'koica_plan': 'KOICA 발주계획',
