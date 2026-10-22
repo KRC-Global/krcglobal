@@ -367,6 +367,12 @@ def _fetch_seenthis_pages(max_pages: int = 3) -> list[dict]:
         r = req.get(url, headers=_browser_headers(), timeout=20)
         if r.status_code != 200:
             raise RuntimeError(f'seenthis HTTP {r.status_code} page {page}')
+        # 게시판이 폐지되면 200 + 오류안내 페이지가 돌아온다. 그대로 두면
+        # 파싱 0건 → 조용한 무수집이 되므로 예외로 올려 run 기록에 남긴다.
+        if '존재하지 않는 게시판' in r.text:
+            raise RuntimeError(
+                'seenthis /bidplan 게시판 폐지 — 나라장터 OpenAPI 로 대체 필요'
+            )
         page_items = parse_seenthis_list(r.text)
         fresh = 0
         for it in page_items:
@@ -408,9 +414,12 @@ def _enrich_detail(plan: dict) -> dict:
 
 def _collect_via_openapi() -> list[dict]:
     """조달청 발주계획현황 OpenAPI — 키가 있을 때만."""
+    # 운영에 이미 있는 KOICA_SERVICE_KEY 도 받는다. 단, data.go.kr 키는
+    # API 별 활용신청이 필요해 같은 키라도 미등록이면 403 이 돌아온다.
     key = (
         os.environ.get('DATA_GO_KR_API_KEY')
         or os.environ.get('KOICA_API_KEY')
+        or os.environ.get('KOICA_SERVICE_KEY')
         or ''
     ).strip()
     if not key:
