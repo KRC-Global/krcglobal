@@ -953,7 +953,12 @@ def _fetch_adb_alert_mails(limit: int = 10) -> list:
     conn = imaplib.IMAP4_SSL(host)
     try:
         conn.login(user, password)
-        conn.select('INBOX', readonly=True)   # 읽음 표시를 바꾸지 않는다
+        # 필터로 받은편지함을 건너뛰게 해둔 계정은 INBOX 검색에 걸리지 않는다.
+        # 그런 경우 ADB_MAIL_MAILBOX 에 '[Gmail]/All Mail' 을 지정한다.
+        mailbox = os.environ.get('ADB_MAIL_MAILBOX', 'INBOX').strip() or 'INBOX'
+        typ, _ = conn.select(f'"{mailbox}"', readonly=True)  # 읽음 표시를 바꾸지 않는다
+        if typ != 'OK':
+            raise RuntimeError(f'ADB 메일함 열기 실패: {mailbox}')
         typ, data = conn.search(None, 'FROM', f'"{sender}"', 'SINCE', since)
         if typ != 'OK':
             raise RuntimeError(f'ADB 메일 검색 실패: {typ}')
