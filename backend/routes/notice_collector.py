@@ -813,38 +813,198 @@ def _collect_worldbank() -> list:
     return results
 
 
-# ── ADB — 수집 경로 재구성 대기 ──────────────────────────────────────────────
+# ── ADB — 공식 알림 메일(alerts.adb.org) 파싱 ───────────────────────────────
 #
-# 2026-10 조사 결과, 기존 UNGM 경유 경로는 완전히 폐쇄됐다:
-#   - POST ungm.org/Public/Notice/Search → 400 (CSRF 토큰을 실어도 동일)
-#   - developer.ungm.org → 200 이지만 문서·가입·엔드포인트가 전혀 없는 빈 껍데기
-#     (swagger/openapi/docs/api 12개 경로 모두 404)
-#   - api.ungm.org → DNS 미존재
-#   - UNGM Pro(유료 공식 상품)도 API 없음. 일일 이메일 다이제스트 + 웹 검색뿐
-#   → 발급받을 API 키 자체가 존재하지 않으므로 UNGM_API_KEY 분기를 제거한다.
-#
-# ADB 자체 경로도 전부 막혀 있다:
+# 스크래핑 경로는 모두 막혀 있다(2026-10 확인):
 #   - adb.org/projects/tenders : JS 렌더링, 공고 링크 0건.
 #     헤드리스 Chrome 으로도 5.8KB 껍데기만 내려옴(봇 차단)
 #   - cms.adb.org CSRN : Oracle EBS 로그인 세션 필요
-#   - RSS: /rss.xml 은 뉴스 전용, 조달 공고 RSS 경로 10개 모두 404
-#   - 사이트맵 13,000 URL 중 공고 페이지 0건(의도적 제외)
+#   - 조달 공고 RSS 없음(/rss.xml 은 뉴스 전용), 사이트맵 13,000 URL 중 공고 0건
+#   - UNGM 경유도 폐쇄(공개 검색 400, developer.ungm.org 는 빈 껍데기,
+#     UNGM Pro 유료 상품조차 API 없이 이메일 다이제스트만 제공)
 #
-# 대안: ADB 공식 이메일 알림(alerts.adb.org) + CMS 주간 컨설팅 공고 메일을
-# 구독하고 메일을 파싱한다. 구독 완료 후 _collect_adb 를 메일 수집기로 교체한다.
+# 유일하게 남은 공식 경로가 alerts.adb.org 이메일 구독이다.
+# 메일은 e-alerts@comms.adb.org 에서 매일 오며 구조는 다음과 같다:
 #
-# 그때까지 이 수집기는 빈 리스트가 아니라 예외를 올린다. 조용히 0건을 돌려주면
-# run 기록에 error=None 으로 남아 '정상'처럼 보이기 때문이다(ADB 가 198회 run
-# 동안 들키지 않았던 바로 그 실패 방식).
-ADB_SETUP_HINT = (
-    'ADB 수집 경로 미구성 — UNGM 공개 API 폐쇄로 기존 경로 사용 불가. '
-    'alerts.adb.org 이메일 구독 후 메일 파싱 수집기로 교체 예정.'
-)
+#   <h3>Procurement Notices (Goods and Works)</h3>
+#   <p>제목<br><span><a href='추적링크'>https://www.adb.org/node/1181981</a></span></p>
+#   ...
+#   <h3>Project Information and Documents</h3>
+#   <p>제목<br><span><a href='추적링크'>https://www.adb.org/projects/documents/...</a></span></p>
+#   <hr><h3>Looking to do business with ADB?</h3>   ← 여기부터는 광고
+#
+# href 는 adb.musvc3.net 추적 링크이고 앵커 '텍스트'가 실제 ADB URL 이다.
+# 추적 링크를 저장하면 수신자 식별자가 DB 에 남고 링크도 만료되므로 텍스트를 쓴다.
+#
+# 메일 수신함은 IMAP 으로 읽는다(표준 라이브러리 imaplib, 추가 의존성 없음).
+# Gmail 은 앱 비밀번호가 필요하다: 계정 2단계 인증 → 앱 비밀번호 생성.
+
+_ADB_MAIL_SENDER = 'e-alerts@comms.adb.org'
+
+# 메일에서 수집 대상으로 삼을 섹션. 그 외(광고/뉴스)는 버린다.
+_ADB_MAIL_SECTIONS = {
+    'Procurement Notices (Goods and Works)': 'procurement',
+    'Project Information and Documents': 'project_doc',
+}
+
+# ADB 공고 제목에 흔히 붙는 국가 코드 → 국가명.
+# 예: "4588-VIE: Climate Resilient ...", "Loan 4134-GEO: Livable Cities ..."
+_ADB_COUNTRY_CODES = {
+    'AFG': 'Afghanistan', 'ARM': 'Armenia', 'AZE': 'Azerbaijan', 'BAN': 'Bangladesh',
+    'BHU': 'Bhutan', 'CAM': 'Cambodia', 'PRC': 'China', 'COO': 'Cook Islands',
+    'FIJ': 'Fiji', 'FSM': 'Micronesia', 'GEO': 'Georgia', 'IND': 'India',
+    'INO': 'Indonesia', 'KAZ': 'Kazakhstan', 'KGZ': 'Kyrgyz Republic', 'LAO': 'Lao PDR',
+    'MLD': 'Maldives', 'MON': 'Mongolia', 'MYA': 'Myanmar', 'NEP': 'Nepal',
+    'PAK': 'Pakistan', 'PAL': 'Palau', 'PNG': 'Papua New Guinea', 'PHI': 'Philippines',
+    'RMI': 'Marshall Islands', 'SAM': 'Samoa', 'SOL': 'Solomon Islands',
+    'SRI': 'Sri Lanka', 'TAJ': 'Tajikistan', 'THA': 'Thailand', 'TIM': 'Timor-Leste',
+    'TON': 'Tonga', 'TUR': 'Turkiye', 'TUV': 'Tuvalu', 'UZB': 'Uzbekistan',
+    'VAN': 'Vanuatu', 'VIE': 'Viet Nam',
+}
+
+_ADB_CODE_RX = re.compile(r'\b([A-Z]{3})\b')
+
+
+def _adb_country_from_title(title: str) -> str:
+    """제목의 ADB 국가 코드를 국가명으로. 못 찾으면 빈 문자열."""
+    for code in _ADB_CODE_RX.findall(title or ''):
+        name = _ADB_COUNTRY_CODES.get(code)
+        if name:
+            return name
+    return ''
+
+
+def _parse_adb_alert_html(html: str) -> list:
+    """ADB 알림 메일 HTML → [{'title','url','section'}] 목록.
+
+    섹션은 <h3> 로 구분된다. '_ADB_MAIL_SECTIONS' 에 없는 섹션(광고 등)은 건너뛴다.
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html or '', 'html.parser')
+    items = []
+    section = None
+
+    for el in soup.find_all(['h3', 'p']):
+        if el.name == 'h3':
+            section = _ADB_MAIL_SECTIONS.get(' '.join(el.get_text(' ', strip=True).split()))
+            continue
+        if not section:
+            continue
+
+        anchor = el.find('a')
+        if not anchor:
+            continue
+        # href 가 아니라 앵커 '텍스트'가 실제 ADB URL 이다
+        url = ' '.join(anchor.get_text(' ', strip=True).split())
+        if not url.startswith('http') or 'adb.org' not in url:
+            continue
+
+        # 제목 = <p> 전체 텍스트에서 URL 부분을 뺀 앞부분
+        full = ' '.join(el.get_text(' ', strip=True).split())
+        title = full.replace(url, '').strip(' –-|·')
+        if not title:
+            continue
+
+        items.append({'title': title, 'url': url, 'section': section})
+
+    return items
+
+
+def _fetch_adb_alert_mails(limit: int = 10) -> list:
+    """IMAP 으로 최근 ADB 알림 메일의 HTML 본문을 가져온다.
+
+    자격증명이 없으면 예외를 올린다. 빈 리스트를 돌려주면 run 기록에
+    error=None 으로 남아 '정상'처럼 보이기 때문이다(ADB 가 198회 run 동안
+    들키지 않았던 실패 방식).
+    """
+    import email as email_mod
+    import imaplib
+
+    user = os.environ.get('ADB_MAIL_USER', '').strip()
+    password = os.environ.get('ADB_MAIL_APP_PASSWORD', '').strip()
+    if not user or not password:
+        raise RuntimeError(
+            'ADB 알림 메일 자격증명 미설정 — ADB_MAIL_USER / ADB_MAIL_APP_PASSWORD '
+            '환경변수가 필요합니다. Gmail 은 2단계 인증 후 앱 비밀번호를 발급해 사용합니다.'
+        )
+
+    host = os.environ.get('ADB_MAIL_HOST', 'imap.gmail.com').strip()
+    sender = os.environ.get('ADB_MAIL_SENDER', _ADB_MAIL_SENDER).strip()
+    try:
+        days = max(1, int(os.environ.get('ADB_MAIL_LOOKBACK_DAYS', '7')))
+    except ValueError:
+        days = 7
+
+    from datetime import timedelta
+    since = (datetime.utcnow() - timedelta(days=days)).strftime('%d-%b-%Y')
+
+    bodies = []
+    conn = imaplib.IMAP4_SSL(host)
+    try:
+        conn.login(user, password)
+        conn.select('INBOX', readonly=True)   # 읽음 표시를 바꾸지 않는다
+        typ, data = conn.search(None, 'FROM', f'"{sender}"', 'SINCE', since)
+        if typ != 'OK':
+            raise RuntimeError(f'ADB 메일 검색 실패: {typ}')
+        ids = (data[0] or b'').split()
+        for mid in ids[-limit:]:                 # 최신 limit 통만
+            typ, raw = conn.fetch(mid, '(BODY.PEEK[])')
+            if typ != 'OK' or not raw or not raw[0]:
+                continue
+            msg = email_mod.message_from_bytes(raw[0][1])
+            for part in msg.walk():
+                if part.get_content_type() != 'text/html':
+                    continue
+                payload = part.get_payload(decode=True) or b''
+                charset = part.get_content_charset() or 'utf-8'
+                bodies.append(payload.decode(charset, errors='replace'))
+                break
+    finally:
+        try:
+            conn.logout()
+        except Exception:
+            pass
+
+    print(f'[ADB-mail] {len(bodies)}통 수신 (since {since}, from {sender})')
+    return bodies
 
 
 def _collect_adb() -> list:
-    """ADB — 수집 경로 재구성 대기(위 주석 참조)."""
-    raise RuntimeError(ADB_SETUP_HINT)
+    """ADB — 공식 알림 메일을 IMAP 으로 읽어 공고를 수집."""
+    results = []
+    seen_urls = set()
+
+    for html in _fetch_adb_alert_mails():
+        for item in _parse_adb_alert_html(html):
+            url = item['url']
+            if url in seen_urls:
+                continue
+
+            title = item['title']
+            if not _is_agri(title) and not _is_consulting(title):
+                continue
+
+            seen_urls.add(url)
+            results.append({
+                'source': 'adb',
+                'title': title[:500],
+                'country': _adb_country_from_title(title),
+                'client': 'ADB',
+                'sector': ('consulting' if _is_consulting(title) and not _is_agri(title)
+                           else 'agriculture'),
+                'contract_value': '',
+                # 마감일은 메일에 없다. node 링크가 입찰 PDF 로 바로 리다이렉트되므로
+                # 상세는 원문에서 확인한다(카드 QR 이 그 주소를 가리킨다).
+                'deadline': '',
+                'source_url': url,
+                'raw_data': {'section': item['section'], 'mail_title': title},
+            })
+
+    print(f'[ADB] {len(results)} agri/consulting items from mail')
+    return results
+
+
 
 
 # ── ADB/AfDB 상세 페이지 보강 (WB _wb_extract_details 패턴) ─────────────────
