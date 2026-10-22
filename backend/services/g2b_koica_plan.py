@@ -115,13 +115,17 @@ DEFAULT_MIN_POSTED = '2026-09-10'
 
 
 def should_store_plan(grade: str, title: str = '', item_kind: str = '') -> bool:
-    """농업·농촌(중) 이상, 또는 용역 제목에 농식품·낙농 등이 있으면 저장."""
-    from services.krc_fitness import GRADE_HIGH, GRADE_MID
+    """농업·농촌(중) 이상, 또는 용역 제목에 농식품·낙농 등이 있으면 저장.
+
+    단, 단순 인력파견·물품구매는 등급과 무관하게 제외한다. 발주계획은 '중'도
+    저장하므로 classify_krc_fit 의 '하' 판정만으로는 걸러지지 않는다.
+    """
+    from services.krc_fitness import GRADE_HIGH, GRADE_MID, excluded_procurement
+    is_excluded, _ = excluded_procurement(title, item_kind)
+    if is_excluded:
+        return False
     if grade in (GRADE_HIGH, GRADE_MID):
         return True
-    kind = (item_kind or '').strip()
-    if kind in ('물품', 'goods', 'Goods'):
-        return False
     blob = title or ''
     return any(k in blob for k in _PLAN_EXTRA_KO)
 

@@ -789,6 +789,16 @@ def _collect_worldbank() -> list:
             raw_light = {k: v for k, v in item.items() if k != 'notice_text'}
             raw_light['wb_details'] = wb_details
 
+            # 조달 유형을 item_kind 로 넘겨 적합도 판정이 코드 기준으로 걸러내게 한다.
+            # 제목 키워드보다 정확하다 — INDV(개인 컨설턴트 선정)는 기관이 수주할
+            # 사업이 아니라 개인 전문가 모집이고, GO 는 물품 조달이다.
+            method_code = (item.get('procurement_method_code') or '').strip().upper()
+            group = (item.get('procurement_group') or '').strip().upper()
+            if method_code == 'INDV':
+                raw_light['item_kind'] = '개인컨설턴트'
+            elif group == 'GO':
+                raw_light['item_kind'] = '물품'
+
             results.append({
                 'source': 'worldbank',
                 'title': display_title,
@@ -2438,6 +2448,7 @@ def _do_collect():
 
     created = 0
     skipped = 0
+    archived_by_fit = 0   # 기준 변경으로 제외된 기존 활성 공고
     created_by_source = {}
     fetched_by_source = {}
 
@@ -2455,6 +2466,16 @@ def _do_collect():
         if not _krc_fit_passes(src, grade, title=item.get('title') or '', item_kind=item_kind):
             skipped += 1
             print(f'[krc-fit] {grade} skip ({reason}): {(item.get("title") or "")[:80]}')
+            # 적합도 기준이 바뀌어 이제 제외되는 공고가 게시판에 활성으로 남아
+            # 있으면 기준과 화면이 어긋난다. _sync_db_to_latest 는 "소스에 아직
+            # 있는" 공고로 보고 그대로 두므로 여기서 직접 아카이브한다.
+            existing = (_existing_fingerprints_cache or ({}, {}))[1].get(
+                item.get('source_url') or '')
+            if existing is not None and existing.archived_at is None:
+                existing.archived_at = datetime.utcnow()
+                existing.archive_reason = 'krc_fit_excluded'
+                archived_by_fit += 1
+                print(f'  └ 기존 활성 공고 #{existing.id} 아카이브 ({reason})')
             continue
         if isinstance(raw, dict):
             raw = {**raw, 'krc_fit': grade, 'krc_fit_reason': reason}
@@ -2562,6 +2583,7 @@ def _do_collect():
         'enrich': enrich_result,
         'pipeline': pipeline_result,
         'health': health,
+        'archived_by_fit': archived_by_fit,
         'collected_at': datetime.utcnow().isoformat() + 'Z',
     })
 

@@ -64,6 +64,49 @@ _GOODS_EN = re.compile(
     re.I,
 )
 
+# ── 발송 제외 유형 ──────────────────────────────────────────────────────────
+# 단순 인력파견·물품구매는 KRC 가 기관으로 수주할 사업이 아니다.
+# 전 소스 공통으로 '하' 처리해 카드 생성·카톡 발송에서 제외한다.
+#
+# item_kind 는 소스가 알려주는 조달 유형이다:
+#   KOICA 나라장터  '물품' / '공사' / '용역'
+#   World Bank      procurement_method_code 로 세팅('개인컨설턴트' 등)
+# 코드가 있으면 키워드보다 정확하므로 먼저 본다.
+_EXCLUDED_KINDS = {
+    '물품': '단순 물품 구매',
+    'goods': '단순 물품 구매',
+    'Goods': '단순 물품 구매',
+    '개인컨설턴트': '단순 인력파견(개인 컨설턴트)',
+}
+
+_STAFFING_KO = (
+    '인력파견', '인력 파견', '파견인력', '파견 인력',
+    '인력공급', '인력 공급', '전문가 파견', '자문관 파견',
+    '단순노무', '단순 노무', '용역원',
+)
+# 'individual consultant' 처럼 개인 모집임이 명시된 경우만 잡는다.
+# 'Consulting Firm' / 'Design and Supervision Consultant' 같은 기관 용역은
+# KRC 주력이므로 걸리지 않아야 한다.
+_STAFFING_EN = re.compile(
+    r'\b(?:individual\s+(?:consultant|consultancy|selection|expert|specialist)'
+    r'|recruitment\s+of\s+(?:an?\s+)?(?:individual\s+|national\s+|international\s+)?'
+    r'(?:consultant|expert|specialist|advisers?|advisors?)'
+    r'|staffing|secondment|manpower|personnel\s+(?:supply|services?))\b',
+    re.I,
+)
+
+
+def excluded_procurement(text: str, item_kind: str = '') -> tuple[bool, str]:
+    """단순 인력파견·물품구매인지 판정. (제외여부, 사유)를 반환."""
+    kind = (item_kind or '').strip()
+    if kind in _EXCLUDED_KINDS:
+        return True, _EXCLUDED_KINDS[kind]
+
+    blob = _norm(f'{text} {item_kind}')
+    if any(k in blob for k in _STAFFING_KO) or _STAFFING_EN.search(blob):
+        return True, '단순 인력파견'
+    return False, ''
+
 # 농업·농촌·물이지만 관개 기반이 아니면 중
 _MID_KO = (
     '농업', '농촌', '식량', '농민', '가치사슬', '작물', '축산',
@@ -87,8 +130,11 @@ def classify_krc_fit(text: str, *, item_kind: str = '') -> tuple[str, str]:
     blob = _norm(f'{text} {item_kind}')
     kind = (item_kind or '').strip()
 
-    if kind in ('물품', 'goods', 'Goods'):
-        return GRADE_LOW, '단순 물품 구매'
+    # 단순 인력파견·물품구매는 어떤 소스든 먼저 걸러낸다
+    is_excluded, why = excluded_procurement(text, item_kind)
+    if is_excluded:
+        return GRADE_LOW, why
+
     if any(k in blob for k in _LOW_KO) or _LOW_EN.search(blob) or _GOODS_EN.search(blob):
         if '관개' in blob and not any(k in blob for k in (
             '기자재', '물품', '납품', '하수', '오수', '교량', '도로',
