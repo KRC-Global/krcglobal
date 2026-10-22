@@ -949,8 +949,16 @@ def _fetch_adb_alert_mails(limit: int = 10) -> list:
     from datetime import timedelta
     since = (datetime.utcnow() - timedelta(days=days)).strftime('%d-%b-%Y')
 
+    # 타임아웃을 반드시 준다. 포트가 막혀 있으면 기본 TCP 타임아웃까지 매달리는데,
+    # _run_all_collectors 는 as_completed(timeout=55) 로 전체를 묶고 있어
+    # ADB 하나가 멈추면 다른 소스 수집까지 통째로 무너진다.
+    try:
+        conn_timeout = max(5, int(os.environ.get('ADB_MAIL_TIMEOUT', '15')))
+    except ValueError:
+        conn_timeout = 15
+
     bodies = []
-    conn = imaplib.IMAP4_SSL(host)
+    conn = imaplib.IMAP4_SSL(host, timeout=conn_timeout)
     try:
         conn.login(user, password)
         # 필터로 받은편지함을 건너뛰게 해둔 계정은 INBOX 검색에 걸리지 않는다.
