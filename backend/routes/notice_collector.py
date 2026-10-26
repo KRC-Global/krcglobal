@@ -990,6 +990,15 @@ def _fetch_adb_alert_mails(limit: int = 10) -> list:
             pass
 
     print(f'[ADB-mail] {len(bodies)}통 수신 (since {since}, from {sender})')
+    if not bodies:
+        # ADB 알림은 매일 온다. 조회 기간 내 한 통도 없으면 설정이 어긋난 것이다.
+        # 특히 다른 계정에서 자동 전달받는 구성이면 발신자가 바뀌어 FROM 검색에
+        # 걸리지 않을 수 있다. 빈 리스트로 넘기면 또 조용한 무수집이 된다.
+        raise RuntimeError(
+            f'ADB 알림 메일 0통 (최근 {days}일, 발신자 {sender}, 메일함 {mailbox}) — '
+            '구독 주소·발신자·메일함 설정을 확인하세요. 자동 전달 구성이면 '
+            'ADB_MAIL_SENDER 를 전달 계정 주소로 바꿔야 할 수 있습니다.'
+        )
     return bodies
 
 
