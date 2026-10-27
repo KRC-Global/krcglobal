@@ -12,6 +12,10 @@ GRADE_HIGH = '상'
 GRADE_MID = '중'
 GRADE_LOW = '하'
 
+# 중 등급의 두 갈래 — 통과 여부가 달라 사유를 상수로 둔다
+REASON_RURAL = '농촌개발(관개 외)'
+REASON_URBAN_WATER = '도시 물·기후 일반'
+
 # 핵심 관개·농업용수 (하나라도 있으면 상 후보)
 _CORE_KO = (
     '관개', '농업용수', '용수로', '관개시설', '관개배수', '관개지구',
@@ -107,16 +111,30 @@ def excluded_procurement(text: str, item_kind: str = '') -> tuple[bool, str]:
         return True, '단순 인력파견'
     return False, ''
 
-# 농업·농촌·물이지만 관개 기반이 아니면 중
-_MID_KO = (
+# ── 중 등급 ── 관개 기반은 아니지만 관련은 있는 영역.
+# 성격이 둘로 갈려 취급이 다르다:
+#   (가) 농촌개발 — 농업·농촌·식량·임업 등. KRC 사업 영역이므로 수집·발송한다.
+#   (나) 도시 물·기후 일반 — 도시상수도·정수장·도시홍수 등. 농촌 연계가
+#        확인되지 않으면 수집하지 않는다.
+# (가)를 먼저 보므로 'Rural Water Supply' 처럼 둘 다 걸리는 건 농촌개발로 본다.
+_RURAL_KO = (
     '농업', '농촌', '식량', '농민', '가치사슬', '작물', '축산',
-    '정수장', '정수', '상수도', '취수원', '식수', '홍수',
-    '수자원', '물 안보', '물안보', '기후', '산림',
+    '산림', '농식품', '영농', '농가', '임업', '수산',
 )
-_MID_EN = re.compile(
-    r'\b(?:agriculture|agricultural|rural|food security|'
-    r'livelihood|value chain|water (?:supply|security|treatment)|'
-    r'drinking water|flood|climate|forestry|livestock)\b',
+_RURAL_EN = re.compile(
+    r'\b(?:agricultur\w*|rural|agro\w*|farm(?:er|ing|land)?s?|'
+    r'food security|livelihood|value chain|forestry|livestock|'
+    r'fisher(?:y|ies)|crop|horticultur\w*)\b',
+    re.I,
+)
+
+_WATER_CLIMATE_KO = (
+    '정수장', '정수', '상수도', '취수원', '식수', '홍수',
+    '수자원', '물 안보', '물안보', '기후',
+)
+_WATER_CLIMATE_EN = re.compile(
+    r'\b(?:water (?:supply|security|treatment)|drinking water|'
+    r'flood|climate)\b',
     re.I,
 )
 
@@ -158,8 +176,10 @@ def classify_krc_fit(text: str, *, item_kind: str = '') -> tuple[str, str]:
     if _WATER_STRUCT_EN.search(blob) and _AGRI_CONTEXT_EN.search(blob):
         return GRADE_HIGH, '농업 맥락의 댐·저수지'
 
-    if any(k in blob for k in _MID_KO) or _MID_EN.search(blob):
-        return GRADE_MID, '농업·농촌·물이지만 관개기반 아님'
+    if any(k in blob for k in _RURAL_KO) or _RURAL_EN.search(blob):
+        return GRADE_MID, REASON_RURAL
+    if any(k in blob for k in _WATER_CLIMATE_KO) or _WATER_CLIMATE_EN.search(blob):
+        return GRADE_MID, REASON_URBAN_WATER
 
     return GRADE_LOW, 'KRC 주력과 무관'
 

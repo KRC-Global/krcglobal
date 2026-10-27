@@ -16,7 +16,8 @@ from xml.etree import ElementTree
 from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import or_
 from models import db, BidNotice, ScrapingRun
-from services.krc_fitness import GRADE_HIGH, classify_krc_fit
+from services.krc_fitness import (GRADE_HIGH, GRADE_MID, REASON_RURAL,
+                                  classify_krc_fit)
 from services.g2b_koica_plan import (
     SOURCE as KOICA_PLAN_SOURCE,
     collect_koica_g2b_plans,
@@ -588,11 +589,20 @@ def _fit_text(title: str, country: str, client: str,
     return ' '.join(p for p in parts if p)
 
 
-def _krc_fit_passes(source: str, grade: str, title: str = '', item_kind: str = '') -> bool:
-    """저장 허용 적합도. KOICA 나라장터 발주계획은 농업·농촌(중)까지 알린다."""
+def _krc_fit_passes(source: str, grade: str, title: str = '', item_kind: str = '',
+                    reason: str = '') -> bool:
+    """저장 허용 적합도.
+
+    상(농업관개)은 당연히 통과. 중은 두 갈래라 사유로 가른다 —
+    농촌개발은 관개가 아니어도 KRC 사업 영역이므로 통과시키고,
+    도시 물·기후 일반(도시상수도·정수장·도시홍수)은 농촌 연계가
+    확인되지 않아 제외한다. 도로·교량은 이미 '하'로 빠진다.
+    """
     if source == KOICA_PLAN_SOURCE:
         return should_store_plan(grade, title=title, item_kind=item_kind)
-    return grade == GRADE_HIGH
+    if grade == GRADE_HIGH:
+        return True
+    return grade == GRADE_MID and reason == REASON_RURAL
 
 
 def _save_notice(source, title, country, client, sector,
@@ -616,7 +626,8 @@ def _save_notice(source, title, country, client, sector,
         item_kind = str(raw_data.get('item_kind') or '')
     fit_text = _fit_text(title, country, client, raw_data, sector)
     grade, reason = classify_krc_fit(fit_text, item_kind=item_kind)
-    if not _krc_fit_passes(source, grade, title=title, item_kind=item_kind):
+    if not _krc_fit_passes(source, grade, title=title, item_kind=item_kind,
+                           reason=reason):
         print(f'[krc-fit] {grade} 저장안함 ({reason}): {(title or "")[:80]}')
         return False
     raw_data = dict(raw_data) if isinstance(raw_data, dict) else {}
@@ -2613,7 +2624,8 @@ def _do_collect():
                       item.get('client', ''), raw),
             item_kind=item_kind,
         )
-        if not _krc_fit_passes(src, grade, title=item.get('title') or '', item_kind=item_kind):
+        if not _krc_fit_passes(src, grade, title=item.get('title') or '',
+                               item_kind=item_kind, reason=reason):
             skipped += 1
             print(f'[krc-fit] {grade} skip ({reason}): {(item.get("title") or "")[:80]}')
             rk = f'{src}:{grade}:{reason}'
