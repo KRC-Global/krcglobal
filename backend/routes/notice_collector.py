@@ -560,6 +560,34 @@ def _build_fingerprint_cache():
     _existing_fingerprints_cache = (fp_to_notice, url_to_notice)
 
 
+# 적합도 판정에 쓸 텍스트. 제목만 보면 사업명 수준이라 실제 계약 내역을 놓친다.
+# 예: "Strengthening Resilience of the Agriculture Sector Project [Invitation for
+# Bids]" 는 제목상 '농업 일반'이라 중 등급이지만, 실제 내역은
+# "Construction of pumping station for irrigation" 으로 KRC 주력(상)이다.
+# 소스마다 내역 필드 이름이 달라 알려진 키를 순서대로 찾는다.
+_FIT_DESC_KEYS = ('bid_description', 'ds', 'description', 'scope')
+
+
+def _fit_text(title: str, country: str, client: str,
+              raw_data=None, sector: str = '') -> str:
+    """제목·국가·발주처에 공고 본문 내역을 덧붙인 판정용 텍스트."""
+    parts = [title or '', country or '', client or '', sector or '']
+    if isinstance(raw_data, dict):
+        for key in _FIT_DESC_KEYS:
+            val = raw_data.get(key)
+            if val:
+                parts.append(str(val)[:600])
+                break
+        details = raw_data.get('wb_details')
+        if isinstance(details, dict):
+            for key in ('scope', 'text_excerpt'):
+                val = details.get(key)
+                if val:
+                    parts.append(str(val)[:600])
+                    break
+    return ' '.join(p for p in parts if p)
+
+
 def _krc_fit_passes(source: str, grade: str, title: str = '', item_kind: str = '') -> bool:
     """저장 허용 적합도. KOICA 나라장터 발주계획은 농업·농촌(중)까지 알린다."""
     if source == KOICA_PLAN_SOURCE:
@@ -586,7 +614,7 @@ def _save_notice(source, title, country, client, sector,
     item_kind = ''
     if isinstance(raw_data, dict):
         item_kind = str(raw_data.get('item_kind') or '')
-    fit_text = f'{title} {country or ""} {client or ""} {sector or ""}'
+    fit_text = _fit_text(title, country, client, raw_data, sector)
     grade, reason = classify_krc_fit(fit_text, item_kind=item_kind)
     if not _krc_fit_passes(source, grade, title=title, item_kind=item_kind):
         print(f'[krc-fit] {grade} 저장안함 ({reason}): {(title or "")[:80]}')
@@ -2482,7 +2510,8 @@ def _do_collect():
         if isinstance(raw, dict):
             item_kind = str(raw.get('item_kind') or '')
         grade, reason = classify_krc_fit(
-            f"{item.get('title','')} {item.get('country','')} {item.get('client','')}",
+            _fit_text(item.get('title', ''), item.get('country', ''),
+                      item.get('client', ''), raw),
             item_kind=item_kind,
         )
         if not _krc_fit_passes(src, grade, title=item.get('title') or '', item_kind=item_kind):
