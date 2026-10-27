@@ -1011,7 +1011,14 @@ def _fetch_adb_alert_mails(limit: int = 10) -> list:
         typ, _ = conn.select(f'"{mailbox}"', readonly=True)  # 읽음 표시를 바꾸지 않는다
         if typ != 'OK':
             raise RuntimeError(f'ADB 메일함 열기 실패: {mailbox}')
-        typ, data = conn.search(None, 'FROM', f'"{sender}"', 'SINCE', since)
+        # 발신자 OR 제목으로 찾는다. 사람이 손으로 전달한 메일은 발신자가
+        # 전달한 계정으로 바뀌어 FROM 검색에 안 걸리는데, 제목은
+        # 'Fwd:' 가 붙어도 부분일치로 잡힌다.
+        subject = os.environ.get('ADB_MAIL_SUBJECT', "What's new on ADB.org").strip()
+        typ, data = conn.search(
+            None, 'SINCE', since,
+            'OR', 'FROM', f'"{sender}"', 'SUBJECT', f'"{subject}"',
+        )
         if typ != 'OK':
             raise RuntimeError(f'ADB 메일 검색 실패: {typ}')
         ids = (data[0] or b'').split()
@@ -1039,7 +1046,8 @@ def _fetch_adb_alert_mails(limit: int = 10) -> list:
         # 특히 다른 계정에서 자동 전달받는 구성이면 발신자가 바뀌어 FROM 검색에
         # 걸리지 않을 수 있다. 빈 리스트로 넘기면 또 조용한 무수집이 된다.
         raise RuntimeError(
-            f'ADB 알림 메일 0통 (최근 {days}일, 발신자 {sender}, 메일함 {mailbox}) — '
+            f'ADB 알림 메일 0통 (최근 {days}일, 발신자 {sender} 또는 '
+            f'제목 "{subject}", 메일함 {mailbox}) — '
             '구독 주소·발신자·메일함 설정을 확인하세요. 자동 전달 구성이면 '
             'ADB_MAIL_SENDER 를 전달 계정 주소로 바꿔야 할 수 있습니다.'
         )
