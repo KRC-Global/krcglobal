@@ -1042,14 +1042,39 @@ def _fetch_adb_alert_mails(limit: int = 10) -> list:
 
     print(f'[ADB-mail] {len(bodies)}통 수신 (since {since}, from {sender})')
     if not bodies:
+        # 조건에 맞는 메일이 없을 때, 메일함에 무엇이 있는지 알려 원인을 좁힌다.
+        # (조건 없이 기간만으로 다시 조회 — 제목/발신자 조건이 문제인지 구분)
+        probe = ''
+        try:
+            conn2 = imaplib.IMAP4_SSL(host, timeout=conn_timeout)
+            try:
+                conn2.login(user, password)
+                conn2.select(f'"{mailbox}"', readonly=True)
+                typ2, d2 = conn2.search(None, 'SINCE', since)
+                all_ids = (d2[0] or b'').split() if typ2 == 'OK' else []
+                lines = []
+                for mid in all_ids[-3:]:
+                    typ3, hdr = conn2.fetch(mid, '(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)])')
+                    if typ3 == 'OK' and hdr and hdr[0]:
+                        raw_hdr = hdr[0][1].decode('utf-8', 'replace')
+                        lines.append(' / '.join(raw_hdr.split()[:14])[:110])
+                probe = (f' [진단] 기간 내 전체 메일 {len(all_ids)}통'
+                         + (' · 최근: ' + ' || '.join(lines) if lines else ''))
+            finally:
+                try:
+                    conn2.logout()
+                except Exception:
+                    pass
+        except Exception as pe:
+            probe = f' [진단 실패: {pe}]'
+
         # ADB 알림은 매일 온다. 조회 기간 내 한 통도 없으면 설정이 어긋난 것이다.
         # 특히 다른 계정에서 자동 전달받는 구성이면 발신자가 바뀌어 FROM 검색에
         # 걸리지 않을 수 있다. 빈 리스트로 넘기면 또 조용한 무수집이 된다.
         raise RuntimeError(
             f'ADB 알림 메일 0통 (최근 {days}일, 발신자 {sender} 또는 '
             f'제목 "{subject}", 메일함 {mailbox}) — '
-            '구독 주소·발신자·메일함 설정을 확인하세요. 자동 전달 구성이면 '
-            'ADB_MAIL_SENDER 를 전달 계정 주소로 바꿔야 할 수 있습니다.'
+            '구독 주소·발신자·메일함 설정을 확인하세요.' + probe
         )
     return bodies
 
