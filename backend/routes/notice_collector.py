@@ -912,6 +912,10 @@ def _adb_country_from_title(title: str) -> str:
     return ''
 
 
+# 문서 섹션에서 받아들일 유형 — 발주 예고 성격인 조달계획만.
+_ADB_PLAN_RX = re.compile(r'procurement\s+plan', re.I)
+
+
 def _parse_adb_alert_html(html: str) -> list:
     """ADB 알림 메일 HTML → [{'title','url','section'}] 목록.
 
@@ -1115,6 +1119,15 @@ def _collect_adb() -> list:
                 continue
 
             title = item['title']
+
+            # 'Project Information and Documents' 섹션에는 조달계획 말고도
+            # 감사보고서·TA 보고서·세이프가드 문서가 섞여 있다. 사업명에
+            # Irrigation 이 들어갔다는 이유로 "Audited Project Financial
+            # Statements" 가 발주공고로 저장된 적이 있다(#422).
+            # 이 섹션은 발주 예고에 해당하는 조달계획만 받는다.
+            if item['section'] == 'project_doc' and not _ADB_PLAN_RX.search(title):
+                continue
+
             if not _is_agri(title) and not _is_consulting(title):
                 continue
 
