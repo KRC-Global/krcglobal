@@ -2572,6 +2572,7 @@ def _do_collect():
     created = 0
     skipped = 0
     archived_by_fit = 0   # 기준 변경으로 제외된 기존 활성 공고
+    skip_reasons = {}     # (source, 사유) → 건수. 필터 튜닝 근거
     created_by_source = {}
     fetched_by_source = {}
 
@@ -2590,6 +2591,8 @@ def _do_collect():
         if not _krc_fit_passes(src, grade, title=item.get('title') or '', item_kind=item_kind):
             skipped += 1
             print(f'[krc-fit] {grade} skip ({reason}): {(item.get("title") or "")[:80]}')
+            rk = f'{src}:{grade}:{reason}'
+            skip_reasons[rk] = skip_reasons.get(rk, 0) + 1
             # 적합도 기준이 바뀌어 이제 제외되는 공고가 게시판에 활성으로 남아
             # 있으면 기준과 화면이 어긋난다. _sync_db_to_latest 는 "소스에 아직
             # 있는" 공고로 보고 그대로 두므로 여기서 직접 아카이브한다.
@@ -2701,6 +2704,8 @@ def _do_collect():
         'skipped': skipped,
         'total_fetched': len(all_items),
         'by_source': created_by_source,
+        'fetched_by_source': fetched_by_source,
+        'skip_reasons': skip_reasons,
         'errors': errors,
         'sync': sync_result,
         'cleanup': cleanup_result,
