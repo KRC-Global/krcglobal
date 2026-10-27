@@ -999,9 +999,9 @@ def _fetch_adb_alert_mails(limit: int = 10) -> list:
     # _run_all_collectors 는 as_completed(timeout=55) 로 전체를 묶고 있어
     # ADB 하나가 멈추면 다른 소스 수집까지 통째로 무너진다.
     try:
-        conn_timeout = max(5, int(os.environ.get('ADB_MAIL_TIMEOUT', '15')))
+        conn_timeout = max(5, int(os.environ.get('ADB_MAIL_TIMEOUT', '30')))
     except ValueError:
-        conn_timeout = 15
+        conn_timeout = 30
 
     bodies = []
     conn = imaplib.IMAP4_SSL(host, timeout=conn_timeout)
@@ -1039,16 +1039,28 @@ def _fetch_adb_alert_mails(limit: int = 10) -> list:
         if typ != 'OK':
             raise RuntimeError(f'ADB 메일 검색 실패: {typ}')
 
+        # 헤더는 한 번의 FETCH 로 묶어 받는다. 메일마다 왕복하면
+        # 통수가 늘었을 때 IMAP 읽기 제한에 걸린다(실측: 15초 타임아웃).
+        window = (data[0] or b'').split()[-200:]
         candidates = []
-        for mid in (data[0] or b'').split()[-200:]:
-            typ, hdr = conn.fetch(mid, '(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)])')
-            if typ != 'OK' or not hdr or not hdr[0]:
-                continue
-            head = email_mod.message_from_bytes(hdr[0][1])
-            subj = _decode_mail_header(head.get('Subject'))
-            frm = _decode_mail_header(head.get('From'))
-            if sender.lower() in frm.lower() or subject in subj.lower():
-                candidates.append(mid)
+        if window:
+            typ, hdrs = conn.fetch(
+                b','.join(window), '(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)])')
+            if typ != 'OK':
+                raise RuntimeError(f'ADB 메일 헤더 조회 실패: {typ}')
+            # 응답은 [(b'1 (BODY[HEADER...', b'헤더'), b')', ...] 형태.
+            # 순서에 기대지 않고 앞부분에서 메시지 번호를 직접 읽는다.
+            for part in hdrs or []:
+                if not isinstance(part, tuple) or len(part) < 2:
+                    continue
+                m = re.match(rb'\s*(\d+)\s', part[0] or b'')
+                if not m:
+                    continue
+                head = email_mod.message_from_bytes(part[1])
+                subj = _decode_mail_header(head.get('Subject'))
+                frm = _decode_mail_header(head.get('From'))
+                if sender.lower() in frm.lower() or subject in subj.lower():
+                    candidates.append(m.group(1))
 
         for mid in candidates[-limit:]:          # 최신 limit 통만
             typ, raw = conn.fetch(mid, '(BODY.PEEK[])')
