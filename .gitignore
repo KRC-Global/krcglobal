@@ -109,3 +109,5 @@ GEMINI.md
 PERMISSION_GUIDE.md
 add_permission_checks.sh
 package.json
+.vercel
+.orca
