@@ -949,6 +949,20 @@ def _parse_adb_alert_html(html: str) -> list:
     return items
 
 
+def _decode_mail_header(value) -> str:
+    """MIME 인코딩된 메일 헤더(=?UTF-8?B?...?=)를 사람이 읽는 문자열로."""
+    if not value:
+        return ''
+    from email.header import decode_header
+    out = []
+    for part, charset in decode_header(str(value)):
+        if isinstance(part, bytes):
+            out.append(part.decode(charset or 'utf-8', errors='replace'))
+        else:
+            out.append(part)
+    return ' '.join(out)
+
+
 def _fetch_adb_alert_mails(limit: int = 10) -> list:
     """IMAP 으로 최근 ADB 알림 메일의 HTML 본문을 가져온다.
 
@@ -1011,18 +1025,28 @@ def _fetch_adb_alert_mails(limit: int = 10) -> list:
         typ, _ = conn.select(f'"{mailbox}"', readonly=True)  # 읽음 표시를 바꾸지 않는다
         if typ != 'OK':
             raise RuntimeError(f'ADB 메일함 열기 실패: {mailbox}')
-        # 발신자 OR 제목으로 찾는다. 사람이 손으로 전달한 메일은 발신자가
-        # 전달한 계정으로 바뀌어 FROM 검색에 안 걸리는데, 제목은
-        # 'Fwd:' 가 붙어도 부분일치로 잡힌다.
-        subject = os.environ.get('ADB_MAIL_SUBJECT', "What's new on ADB.org").strip()
-        typ, data = conn.search(
-            None, 'SINCE', since,
-            'OR', 'FROM', f'"{sender}"', 'SUBJECT', f'"{subject}"',
-        )
+        # 기간으로만 추리고 발신자·제목 판별은 파이썬에서 한다.
+        # Gmail 의 IMAP SEARCH 는 단순 부분일치가 아니라 검색엔진처럼
+        # 토큰화해서, "What's new on ADB.org" 처럼 아포스트로피·마침표가
+        # 섞인 구문은 SUBJECT 로 찾아도 걸리지 않는다(전달 메일 실측).
+        # 전용 알림 계정이라 기간 내 통수가 적어 헤더를 직접 읽는 편이 확실하다.
+        subject = os.environ.get('ADB_MAIL_SUBJECT', 'new on ADB').strip().lower()
+        typ, data = conn.search(None, 'SINCE', since)
         if typ != 'OK':
             raise RuntimeError(f'ADB 메일 검색 실패: {typ}')
-        ids = (data[0] or b'').split()
-        for mid in ids[-limit:]:                 # 최신 limit 통만
+
+        candidates = []
+        for mid in (data[0] or b'').split()[-200:]:
+            typ, hdr = conn.fetch(mid, '(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)])')
+            if typ != 'OK' or not hdr or not hdr[0]:
+                continue
+            head = email_mod.message_from_bytes(hdr[0][1])
+            subj = _decode_mail_header(head.get('Subject'))
+            frm = _decode_mail_header(head.get('From'))
+            if sender.lower() in frm.lower() or subject in subj.lower():
+                candidates.append(mid)
+
+        for mid in candidates[-limit:]:          # 최신 limit 통만
             typ, raw = conn.fetch(mid, '(BODY.PEEK[])')
             if typ != 'OK' or not raw or not raw[0]:
                 continue
