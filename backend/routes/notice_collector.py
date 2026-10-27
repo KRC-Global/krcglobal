@@ -988,7 +988,23 @@ def _fetch_adb_alert_mails(limit: int = 10) -> list:
     bodies = []
     conn = imaplib.IMAP4_SSL(host, timeout=conn_timeout)
     try:
-        conn.login(user, password)
+        try:
+            conn.login(user, password)
+        except imaplib.IMAP4.error as e:
+            # 비밀번호 값은 드러내지 않고 '모양'만 알려 원인을 좁힌다.
+            # 앱 비밀번호는 공백 없는 16자다. 19자면 공백을 안 지운 것이고,
+            # 그 외 길이면 계정 비밀번호를 넣었을 가능성이 크다.
+            shape = f'{len(password)}자'
+            if password != password.strip():
+                shape += ' · 앞뒤 공백 있음'
+            if ' ' in password.strip():
+                shape += ' · 중간 공백 있음'
+            if len(password) == 16 and password.isalnum():
+                shape += ' · 앱 비밀번호 형식 맞음'
+            raise RuntimeError(
+                f'ADB 메일 로그인 실패 ({user} @ {host}) — 비밀번호 {shape}. '
+                f'원인: {e}'
+            ) from e
         # 필터로 받은편지함을 건너뛰게 해둔 계정은 INBOX 검색에 걸리지 않는다.
         # 그런 경우 ADB_MAIL_MAILBOX 에 '[Gmail]/All Mail' 을 지정한다.
         mailbox = os.environ.get('ADB_MAIL_MAILBOX', 'INBOX').strip() or 'INBOX'
