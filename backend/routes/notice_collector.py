@@ -1186,6 +1186,11 @@ _DATE_PATTERNS = [
     r'(\d{1,2}/\d{1,2}/\d{4})',                           # 30/05/2026
 ]
 
+# 본문에서 국가를 뽑을 때 뒤에 붙어오는 연락처·주소 라벨
+_COUNTRY_NOISE_RX = re.compile(
+    r'\s+(?:Telephone|Tel|Email|E-?mail|Address|Attention|Attn|Fax|Contact|'
+    r'Phone|Web|Website|Street|City|Postal)\b.*$', re.I)
+
 _DEADLINE_LABELS = [
     r'Submission\s+Deadline',
     r'Closing\s+Date',
@@ -1211,7 +1216,11 @@ def _extract_labeled_date(text: str, labels: list) -> str:
     """라벨 키워드 주변에서 날짜 추출."""
     for label in labels:
         for dp in _DATE_PATTERNS:
-            pat = rf'{label}\s*[:\-–]\s*{dp}'
+            # PDF 표가 평탄화되면 구분자가 사라진다.
+            #   "Deadline for Submission of 15 October 2026 ... Bids:"
+            # 그래서 콜론을 필수로 두지 않되, 사이에 숫자가 끼면 다른 항목의
+            # 값을 잘못 집는 것이므로 숫자 없는 짧은 간격만 허용한다.
+            pat = rf'{label}\s*[:\-–]?[^0-9]{{0,40}}?{dp}'
             m = re.search(pat, text, re.IGNORECASE)
             if m:
                 return _normalize_date_str(m.group(1))
@@ -1242,6 +1251,25 @@ def _normalize_date_str(raw: str) -> str:
     return raw[:10]
 
 
+def _pdf_text(content: bytes, max_pages: int = 3) -> str:
+    """PDF 바이트에서 앞 몇 쪽의 텍스트를 뽑는다. 실패하면 빈 문자열."""
+    if not content or content[:4] != b'%PDF':
+        return ''
+    try:
+        import pdfplumber
+    except ImportError:
+        print('[pdf] pdfplumber 미설치 — 본문 추출 건너뜀')
+        return ''
+    import io as _io
+    try:
+        with pdfplumber.open(_io.BytesIO(content)) as pdf:
+            parts = [(page.extract_text() or '') for page in pdf.pages[:max_pages]]
+        return ' '.join(' '.join(parts).split())
+    except Exception as e:
+        print(f'[pdf] 추출 실패: {e}')
+        return ''
+
+
 def _fetch_adb_detail(source_url: str) -> dict:
     """ADB 공고 상세 페이지에서 마감일·금액·발주처·조달방식 등 추출.
 
@@ -1252,9 +1280,9 @@ def _fetch_adb_detail(source_url: str) -> dict:
 
     if not source_url:
         return {}
+    hdrs = _browser_headers(referer='https://www.adb.org/')
     try:
-        r = req.get(source_url, timeout=12,
-                    headers=_browser_headers(referer='https://www.adb.org/projects/tenders'))
+        r = req.get(source_url, timeout=25, headers=hdrs, allow_redirects=True)
         if r.status_code != 200:
             print(f'[ADB-detail] HTTP {r.status_code}: {source_url}')
             return {}
@@ -1267,9 +1295,41 @@ def _fetch_adb_detail(source_url: str) -> dict:
     except ImportError:
         return {}
 
-    soup = BeautifulSoup(r.text, 'html.parser')
-    plain = soup.get_text(' ', strip=True)
     details = {}
+
+    # ADB 링크는 두 모양이다.
+    #   /node/<id>              → 입찰공고 PDF 로 바로 리다이렉트
+    #   /projects/documents/... → 안내문만 있는 HTML, 실체는 첨부 PDF
+    # 어느 쪽이든 본문은 PDF 안에 있으므로 PDF 텍스트를 우선한다.
+    ctype = (r.headers.get('content-type') or '').lower()
+    if 'pdf' in ctype or r.content[:4] == b'%PDF':
+        plain = _pdf_text(r.content)
+    else:
+        soup = BeautifulSoup(r.text, 'html.parser')
+        plain = soup.get_text(' ', strip=True)
+        link = next((a['href'] for a in soup.find_all('a', href=True)
+                     if a['href'].lower().endswith('.pdf')), '')
+        if link:
+            pdf_url = link if link.startswith('http') else 'https://www.adb.org' + link
+            try:
+                pr = req.get(pdf_url, timeout=25, headers=hdrs)
+                if pr.status_code == 200:
+                    ptext = _pdf_text(pr.content)
+                    if ptext:
+                        plain = ptext
+                        details['document_url'] = pdf_url
+            except req.RequestException as e:
+                print(f'[ADB-detail] 첨부 PDF 실패: {e}')
+
+    if not plain:
+        return {}
+
+    # 문서 URL 슬러그의 국가코드 — /projects/documents/bhu-58041-001-pp → Bhutan
+    um = re.search(r'/documents/([a-z]{3})-\d', source_url)
+    if um:
+        name = _ADB_COUNTRY_CODES.get(um.group(1).upper())
+        if name:
+            details['country'] = name
 
     # 마감일
     deadline = _extract_labeled_date(plain, _DEADLINE_LABELS)
@@ -1290,10 +1350,15 @@ def _fetch_adb_detail(source_url: str) -> dict:
                 details['contract_value'] = val
                 break
 
-    # 국가
-    cm = re.search(r'Country\s*[:\-–]\s*([A-Z][A-Za-z ,\-]+)', plain)
-    if cm:
-        details['country'] = cm.group(1).strip().rstrip('.,')[:100]
+    # 국가 — URL 슬러그에서 이미 얻었으면 그 값이 더 정확하다.
+    # 본문에서 뽑을 때는 뒤따르는 연락처 라벨이 붙어오므로 잘라낸다
+    # (실측: "Country: Azerbaijan Telephone ...").
+    if not details.get('country'):
+        cm = re.search(r'Country\s*[:\-–]\s*([A-Z][A-Za-z ,\-]+)', plain)
+        if cm:
+            val = _COUNTRY_NOISE_RX.sub('', cm.group(1)).strip().rstrip('.,')
+            if 2 <= len(val) <= 60:
+                details['country'] = val
 
     # 발주처 / Executing Agency
     ea = re.search(r'(?:Executing\s+Agency|Borrower|Employer|Client)\s*[:\-–]\s*([^\n<;]{3,200})', plain)
@@ -1424,6 +1489,7 @@ def _enrich_pending_notices(limit: int = 15) -> dict:
         return {'attempted': 0, 'enriched': 0}
 
     enriched = 0
+    enriched_ids = []
     for n in pending:
         fetcher = detail_fetchers.get(n.source)
         if not fetcher:
@@ -1451,10 +1517,20 @@ def _enrich_pending_notices(limit: int = 15) -> dict:
                 n.client = details['client']
 
             enriched += 1
+            enriched_ids.append(n.id)
 
         t.sleep(0.5)  # rate-limit 보호
 
     if enriched:
+        # 본문을 새로 얻었으니 요약을 다시 만들어야 한다. 보강 전에 번역이
+        # 끝난 건은 "본문이 없어 확인할 수 없음" 식 요약을 달고 있다.
+        try:
+            from services.notice_pipeline import requeue_translation
+            requeued = requeue_translation(enriched_ids)
+            if requeued:
+                print(f'[enrich] 본문 보강 후 재번역 큐 등록: {requeued}건')
+        except Exception as e:
+            print(f'[enrich] 재번역 큐 실패: {e}')
         try:
             db.session.commit()
         except Exception as e:
@@ -2698,7 +2774,7 @@ def _do_collect():
     cleanup_result = _cleanup_stale_notices(days=DEFAULT_FRESHNESS_DAYS)
 
     # ADB/AfDB 상세 페이지 보강 — 마감일·금액·발주처 추출
-    enrich_result = _enrich_pending_notices(limit=15)
+    enrich_result = _enrich_pending_notices(limit=6)  # PDF 다운로드·파싱이라 비싸다
 
     # 무수집 소스 경보 — 공고를 놓치고 있다는 유일한 신호다
     health['notified'] = _notify_source_health(health)
