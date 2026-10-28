@@ -343,7 +343,7 @@ svg.ic { width:1em; height:1em; fill:none; stroke:currentColor; stroke-width:1.8
 .left { flex:1 1 0; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
 .right { width:560px; flex:0 0 560px; display:flex; flex-direction:column; gap:12px; }
 
-h1 { font-size:46px; font-weight:700; line-height:1.28; letter-spacing:-.02em;
+h1 { font-size:50px; font-weight:700; line-height:1.28; letter-spacing:-.02em;
      word-break:keep-all; text-wrap:balance; }
 .subtitle { margin-top:12px; font-size:18px; line-height:1.4; color:var(--muted); word-break:break-word; }
 
@@ -355,10 +355,10 @@ h1 { font-size:46px; font-weight:700; line-height:1.28; letter-spacing:-.02em;
 }
 .callout .ct {
   display:flex; align-items:center; gap:8px;
-  font-size:19px; font-weight:700; letter-spacing:.02em; margin-bottom:8px;
+  font-size:21px; font-weight:700; letter-spacing:.02em; margin-bottom:8px;
 }
 .callout .ct svg.ic { font-size:21px; stroke-width:2; }
-.callout p { font-size:20px; line-height:1.58; word-break:keep-all; margin-top:4px; }
+.callout p { font-size:23px; line-height:1.52; word-break:keep-all; margin-top:4px; }
 .callout p:first-of-type { margin-top:0; }
 .callout p::before { content:"\\2022"; color:var(--rule); font-weight:700; margin-right:8px; }
 /* 색이 셋뿐이라 hue 로 가르지 못한다. 대신 띠 색과 채움 유무가 구분을 진다:
@@ -378,7 +378,7 @@ h1 { font-size:46px; font-weight:700; line-height:1.28; letter-spacing:-.02em;
   border-radius:8px; padding:12px 16px;
 }
 .dday svg.ic { font-size:36px; color:var(--seal); stroke-width:1.6; }
-.dday .n { font-size:36px; font-weight:700; line-height:1; color:var(--seal); letter-spacing:-.01em; }
+.dday .n { font-size:40px; font-weight:700; line-height:1; color:var(--seal); letter-spacing:-.01em; }
 .dday .s { font-size:17px; color:var(--muted); margin-top:4px; }
 
 /* 달력 일러스트: 스프링 바인딩 + 빨간 월 머리 + 큰 일자 */
@@ -415,8 +415,8 @@ h1 { font-size:46px; font-weight:700; line-height:1.28; letter-spacing:-.02em;
 .card.has-cal { min-height:90px; }
 .card svg.ic { font-size:24px; color:var(--rule); }
 .card .k { font-size:15px; font-weight:700; color:var(--rule); }
-.card .v { font-size:22px; font-weight:700; line-height:1.22; margin-top:4px; word-break:keep-all; }
-.card .v.sm { font-size:18px; line-height:1.28; }
+.card .v { font-size:25px; font-weight:700; line-height:1.22; margin-top:4px; word-break:keep-all; }
+.card .v.sm { font-size:21px; line-height:1.28; }
 .card .v.nowrap { white-space:nowrap; }
 
 .urlbox {
@@ -451,7 +451,7 @@ body.noquote .lower { flex:0 0 128px; }
   font-size:15px; font-weight:700; color:var(--rule);
 }
 .quote .qt {
-  margin:0; font-size:17px; line-height:1.5; color:var(--ink);
+  margin:0; font-size:19px; line-height:1.5; color:var(--ink);
   overflow:hidden; overflow-wrap:anywhere; word-break:break-word;
   display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4;
 }
@@ -463,7 +463,7 @@ body.noquote .lower { flex:0 0 128px; }
   border-radius:8px; padding:12px; display:flex; gap:12px; align-items:center;
 }
 .step svg.ic { font-size:22px; color:var(--rule); flex:0 0 auto; }
-.step .t { font-size:18px; font-weight:700; line-height:1.2; }
+.step .t { font-size:20px; font-weight:700; line-height:1.2; }
 .step .d { font-size:15px; color:var(--muted); margin-top:4px; }
 .step .d.date { display:flex; align-items:center; gap:8px; margin-top:4px; }
 .step .d.date span { font-size:14px; color:var(--muted); }
@@ -1256,14 +1256,14 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
     regular16 = _pil_font(16)
     regular17 = _pil_font(17)
     regular18 = _pil_font(18)
-    regular19 = _pil_font(19)
+    regular19 = _pil_font(23)   # 콜아웃 본문
     bold16 = _pil_font(16, bold=True)
-    bold17 = _pil_font(17, bold=True)
-    bold19 = _pil_font(19, bold=True)
+    bold17 = _pil_font(21, bold=True)    # 긴 팩트 값
+    bold19 = _pil_font(21, bold=True)    # 콜아웃 머리말
     bold20 = _pil_font(20, bold=True)
-    bold22 = _pil_font(22, bold=True)
+    bold22 = _pil_font(25, bold=True)    # 팩트 값
     bold24 = _pil_font(24, bold=True)
-    bold38 = _pil_font(38, bold=True)
+    bold38 = _pil_font(42, bold=True)    # D-day
 
     margin = 64
     draw.rectangle((0, 0, SLIDE_W, 14), fill=accent)
@@ -1330,18 +1330,47 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
     callout_y = max(250, title_end + 12)
     available = max(180, callout_limit - callout_y)
     gap = 10
-    box_h = max(84, (available - gap * (len(groups) - 1)) // max(1, len(groups)))
-    for kind, icon, label, body in groups:
+    # 글자를 키우면 같은 문장이 더 많은 줄을 차지한다. 세 블록을 똑같이
+    # 3등분하면 내용이 많은 개요·확인 필요가 잘리고 KRC 검토만 빈다.
+    # 필요한 줄 수를 먼저 세고 그 비율로 높이를 나눈다.
+    line_h = 31                       # 23px 본문의 줄 간격
+    head_h = 45 + 8                   # 머리말 + 아래 여백
+    need = []
+    for _, _, _, body in groups:
+        lines = 0
+        for line in body:
+            lines += len(_pil_wrap(draw, f'• {line}', regular19, left_w - 44, 12))
+        need.append(max(1, lines))
+    total_gap = gap * (len(groups) - 1)
+    usable = max(180, available - total_gap)
+    fixed = head_h * len(groups)
+    text_room = max(len(groups) * line_h, usable - fixed)
+    total_need = sum(need) or 1
+    heights = []
+    for cnt in need:
+        share = int(text_room * cnt / total_need)
+        heights.append(max(84, head_h + max(line_h, share)))
+    # 반올림으로 넘치면 가장 큰 블록에서 덜어낸다
+    over = sum(heights) + total_gap - available
+    while over > 0:
+        i = heights.index(max(heights))
+        take = min(over, heights[i] - 84)
+        if take <= 0:
+            break
+        heights[i] -= take
+        over -= take
+
+    for idx, (kind, icon, label, body) in enumerate(groups):
         color, fill = group_colors[kind]
-        bottom = min(callout_limit, callout_y + box_h)
+        bottom = min(callout_limit, callout_y + heights[idx])
         draw.rounded_rectangle((left_x, callout_y, left_x + left_w, bottom), radius=8,
-                               fill=fill, outline='#CBBDA6', width=1)
+                               fill=fill, outline=pal['LINE'], width=1)
         draw.rectangle((left_x, callout_y, left_x + 6, bottom), fill=color)
         _pil_icon(draw, icon, (left_x + 18, callout_y + 13, left_x + 42, callout_y + 37),
                   color, width=2)
         draw.text((left_x + 50, callout_y + 13), label, font=bold19, fill=color)
         text_y = callout_y + 45
-        max_body_lines = max(1, (bottom - text_y - 8) // 27)
+        max_body_lines = max(1, (bottom - text_y - 8) // line_h)
         body_lines: list[str] = []
         for line in body:
             wrapped = _pil_wrap(draw, f'• {line}', regular19, left_w - 44,
@@ -1350,7 +1379,7 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
             if len(body_lines) >= max_body_lines:
                 break
         _pil_draw_lines(draw, (left_x + 22, text_y), body_lines, regular19,
-                        pal['INK'], spacing=27)
+                        pal['INK'], spacing=line_h)
         callout_y = bottom + gap
 
     # 오른쪽 D-day(달력)와 2x3 팩트 카드.
