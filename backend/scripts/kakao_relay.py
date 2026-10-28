@@ -11,6 +11,7 @@ import fcntl
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import socket
@@ -623,6 +624,53 @@ def _recover_claimed(api: RelayAPI, receipts: ReceiptStore, config: RelayConfig)
                 LOG.warning('미시도 작업 재큐잉 실패: delivery=%s error=%s', delivery_id, _safe_error(exc))
 
 
+# ── 발송 카드 로컬 보관 ──────────────────────────────────────────────────────
+# 카톡으로 나간 카드를 기관별 폴더에 날짜순으로 남긴다. 카드 원본은 R2 에만
+# 있고 카톡방은 스크롤로 흘러가서, 나중에 "그때 그 공고" 를 찾기 어렵다.
+#
+#   <보관폴더>/ADB/261028_소농의 기후적응형 감자 생산….png
+#   <보관폴더>/World Bank/261028_….png
+#
+# 보관 폴더는 NOTICE_ARCHIVE_DIR 로 바꿀 수 있고, 비우면 보관하지 않는다.
+_ARCHIVE_UNSAFE_RX = re.compile(r'[\\/:*?"<>|\n\r\t]')
+
+
+def _archive_dir() -> Path | None:
+    raw = os.environ.get('NOTICE_ARCHIVE_DIR', '').strip()
+    if raw.lower() in ('0', 'off', 'none', 'false'):
+        return None
+    if not raw:
+        # 기본값: 저장소 안 notices/ (gitignore 처리됨)
+        raw = str(Path(__file__).resolve().parent.parent.parent / 'notices')
+    return Path(raw).expanduser()
+
+
+def _archive_name(notice: dict) -> str:
+    """YYMMDD_제목.png — 날짜로 시작해 폴더에서 시간순으로 정렬된다."""
+    title = (notice.get('titleKo') or notice.get('title_ko')
+             or notice.get('title') or f'notice-{notice.get("id", "")}')
+    title = _ARCHIVE_UNSAFE_RX.sub(' ', str(title))
+    title = ' '.join(title.split())[:80].rstrip(' .')
+    return f'{time.strftime("%y%m%d")}_{title or "notice"}.png'
+
+
+def _archive_card(image_path: Path, notice: dict) -> str:
+    """발송된 카드를 기관별 폴더에 복사. 실패해도 발송에는 영향을 주지 않는다."""
+    base = _archive_dir()
+    if base is None:
+        return ''
+    source_key = str(notice.get('source') or '').strip().lower()
+    folder = base / (SOURCE_LABELS.get(source_key) or source_key.upper() or '기타')
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        dest = folder / _archive_name(notice)
+        shutil.copy2(image_path, dest)
+        return str(dest)
+    except OSError as exc:
+        LOG.warning('카드 보관 실패(발송은 정상): %s', _safe_error(exc))
+        return ''
+
+
 def _process_delivery(
     delivery: dict,
     api: RelayAPI,
@@ -644,6 +692,10 @@ def _process_delivery(
                 receipts.save(delivery_id, {'state': 'attempting', 'kind': kind})
                 attempted_send = True
                 kmsg.send_image(image_path)
+                # 전송 성공분만 남긴다 — 폴더가 실제 발송 이력이 되도록.
+                saved = _archive_card(image_path, notice)
+                if saved:
+                    LOG.info('카드 보관: %s', saved)
         elif kind == 'link':
             message = _format_link_message(notice)
             receipts.save(delivery_id, {'state': 'attempting', 'kind': kind})

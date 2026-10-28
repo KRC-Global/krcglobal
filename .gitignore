@@ -111,3 +111,4 @@ add_permission_checks.sh
 package.json
 .vercel
 .orca
+notices/
