@@ -1857,6 +1857,12 @@ class KakaoDelivery(db.Model):
                 'sourceUrl': self.notice.source_url,
                 'infographicUrl': self.notice.infographic_url,
                 'hasInfographic': bool(self.notice.infographic_path or self.notice.infographic_url),
+                # 원문 본문 보강 완료 여부 — 릴레이가 ADB 카드를 보강 전에
+                # 내보내지 않도록 판단하는 데 쓴다(<source>_details 존재).
+                'enriched': bool(
+                    isinstance(self.notice.raw_data, dict)
+                    and any(str(k).endswith('_details') for k in self.notice.raw_data)
+                ),
                 'imageDownloadPath': f'/api/notices/{self.notice.id}/infographic',
             }
         return data

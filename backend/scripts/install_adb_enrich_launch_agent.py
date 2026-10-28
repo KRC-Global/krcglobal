@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 LABEL = 'com.krcglobal.adb-enrich'
-DEFAULT_INTERVAL = 1800   # 30분
+DEFAULT_INTERVAL = 600    # 10분 — ADB 는 보강 후 즉시 발송하므로 빨리 돌린다
 DEFAULT_LIMIT = 10
 
 

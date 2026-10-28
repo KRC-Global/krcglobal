@@ -20,7 +20,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -733,14 +733,84 @@ def _process_delivery(
             LOG.error('실패 상태 보고도 실패했습니다: %s', _safe_error(report_exc))
 
 
+# ── 발송 시점 제어 ──────────────────────────────────────────────────────────
+# ADB  : 메일이 오면 바로 처리해 즉시 내보낸다. 단 본문 보강(PDF 추출) 전에
+#        나가면 카드가 부실하므로 보강을 기다린다(최대 ADB_HOLD_HOURS).
+# 그 외 : 하루 한 번 아침에 몰아서 보낸다. 밤중 수집분이 새벽에 울리지 않게.
+#
+# 어느 경우든 오래 묶인 건은 결국 내보낸다 — 맥이 꺼져 창을 놓쳐도
+# 공고가 영영 묶이지 않도록.
+KST = timezone(timedelta(hours=9))
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, '').strip() or default)
+    except ValueError:
+        return default
+
+
+def _immediate_sources() -> set[str]:
+    raw = os.environ.get('KAKAO_IMMEDIATE_SOURCES', 'adb')
+    return {s.strip().lower() for s in raw.split(',') if s.strip()}
+
+
+def _delivery_age_hours(delivery: dict) -> float:
+    raw = delivery.get('createdAt') or ''
+    try:
+        created = datetime.fromisoformat(raw.replace('Z', '+00:00'))
+    except ValueError:
+        return 0.0
+    if created.tzinfo is None:                    # 서버는 UTC naive 로 저장한다
+        created = created.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - created).total_seconds() / 3600.0
+
+
+def _should_send_now(delivery: dict, notice: dict) -> tuple[bool, str]:
+    """지금 보낼지 판단. (보낼지, 사유)."""
+    source = str(notice.get('source') or '').strip().lower()
+    age = _delivery_age_hours(delivery)
+    stale_h = _env_int('KAKAO_STALE_SEND_HOURS', 24)
+
+    if source in _immediate_sources():
+        hold_h = _env_int('KAKAO_ADB_ENRICH_WAIT_HOURS', 6)
+        if notice.get('enriched'):
+            return True, '즉시 발송(보강 완료)'
+        if age >= hold_h:
+            return True, f'즉시 발송(보강 대기 {hold_h}시간 초과)'
+        return False, f'본문 보강 대기 중 ({age:.1f}/{hold_h}시간)'
+
+    if age >= stale_h:
+        return True, f'정시 창을 놓쳐 지연 발송({age:.1f}시간 경과)'
+
+    hour = _env_int('KAKAO_DAILY_SEND_HOUR', 10)
+    window = max(1, _env_int('KAKAO_DAILY_WINDOW_HOURS', 2))
+    now_kst = datetime.now(KST)
+    if hour <= now_kst.hour < hour + window:
+        return True, f'일일 발송 시간대({hour}:00~{hour + window}:00 KST)'
+    return False, f'{hour}:00 KST 발송 대기 (현재 {now_kst.strftime("%H:%M")} KST)'
+
+
 def run_once(config: RelayConfig, api: RelayAPI, kmsg: KmsgClient, receipts: ReceiptStore) -> bool:
     _recover_claimed(api, receipts, config)
-    pending = api.list('pending', limit=1)
+    # 보류 대상이 앞에 있어도 뒤의 보낼 수 있는 건을 찾아야 하므로 여러 건을 본다.
+    pending = api.list('pending', limit=20)
     if not pending:
         return False
 
-    delivery = pending[0]
-    notice = delivery.get('notice') or {}
+    delivery = notice = None
+    for candidate in pending:
+        cand_notice = candidate.get('notice') or {}
+        ok, reason = _should_send_now(candidate, cand_notice)
+        if ok:
+            delivery, notice = candidate, cand_notice
+            LOG.info('발송 대상 선택: delivery=%s notice=%s — %s',
+                     candidate.get('id'), cand_notice.get('id'), reason)
+            break
+        LOG.debug('보류: delivery=%s notice=%s — %s',
+                  candidate.get('id'), cand_notice.get('id'), reason)
+    if delivery is None:
+        return False
     if config.dry_run:
         kmsg.preview_link(_format_link_message(notice))
         LOG.info(
