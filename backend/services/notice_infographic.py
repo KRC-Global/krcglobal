@@ -29,20 +29,71 @@ from urllib.parse import urlparse
 SLIDE_W = 1920
 SLIDE_H = 1080
 
-# Danuri 워크북 팔레트
-PALETTE = {
-    'W': SLIDE_W,
-    'H': SLIDE_H,
-    'PAPER': '#F7F3EA',   # 미색 종이
-    'PANEL': '#EDE5D5',   # 베이지 패널
-    'RULE': '#8B6F47',    # 갈색 룰
-    'INK': '#1A1A1A',     # 검정 잉크
-    'MUTED': '#6E6355',
-    'SEAL': '#B0392E',    # 붉은 인장
-    'BLUE': '#3E6B8A',    # 콜아웃 info
-    'AMBER': '#A9762B',   # 콜아웃 warn
-    'GREEN': '#4C7A5A',   # 콜아웃 tip
-}
+# ── 3색 체계 ────────────────────────────────────────────────────────────────
+# 카드가 쓰는 색은 셋뿐이다: 기관 대표색, 상아색 바탕, 검정 잉크.
+# 나머지는 모두 이 셋을 섞어 만든다. 붉은 인장·파랑/호박/초록 콜아웃처럼
+# 출처가 없는 색을 쓰지 않으면, 카드가 기관의 색으로만 말한다.
+PAPER = '#F7F3EA'   # 상아 — 바탕
+INK = '#1A1A1A'     # 검정 — 글자
+DEFAULT_ACCENT = '#8B6F47'
+
+
+def _hex_to_rgb(value: str) -> tuple:
+    h = (value or '').lstrip('#')
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def _mix(a: str, b: str, t: float) -> str:
+    """a 를 b 쪽으로 t 만큼 섞는다. t=0 이면 a, t=1 이면 b."""
+    ra, ga, ba = _hex_to_rgb(a)
+    rb, gb, bb = _hex_to_rgb(b)
+    f = min(1.0, max(0.0, t))
+    return '#%02X%02X%02X' % (
+        round(ra + (rb - ra) * f),
+        round(ga + (gb - ga) * f),
+        round(ba + (bb - ba) * f),
+    )
+
+
+def build_palette(accent: str = DEFAULT_ACCENT) -> dict:
+    """기관 대표색 하나로 카드 전체 색을 만든다.
+
+    콜아웃 세 종류는 색상(hue)이 아니라 농도와 채움으로 가른다:
+      개요      기관색 띠 + 기관색 옅은 바탕
+      확인 필요  검정 띠 + 검정 옅은 바탕
+      KRC 검토  기관색 띠 + 채움 없음(상아 바탕)
+    색을 셋으로 줄이면 hue 로 구분할 수 없으니, 대신 무게가 구분을 진다.
+    """
+    accent = accent or DEFAULT_ACCENT
+    return {
+        'W': SLIDE_W,
+        'H': SLIDE_H,
+        'PAPER': PAPER,
+        'PANEL': _mix(PAPER, INK, 0.07),        # 상아 계열 패널
+        'INK': INK,
+        'MUTED': _mix(INK, PAPER, 0.42),        # 흐린 검정
+        'ACCENT': accent,
+        'ACCENT_SOFT': _mix(accent, PAPER, 0.84),
+        'RULE': _mix(accent, PAPER, 0.42),      # 괘선 — 기관색 흐림
+        'LINE': _mix(PAPER, INK, 0.22),         # 상자 테두리
+        'SEAL': accent,                         # 인장·마감 — 기관색
+        'INFO': accent,
+        'INFO_WASH': _mix(accent, PAPER, 0.85),
+        'WARN': INK,
+        'WARN_WASH': _mix(INK, PAPER, 0.87),
+        'TIP': accent,
+        'TIP_WASH': PAPER,
+        # 아래는 CSS 가 직접 쓰는 파생값
+        'PANEL_LIGHT': _mix(PAPER, '#FFFFFF', 0.55),   # 종이 위 밝은 면
+        'LINE_SOFT': _mix(PAPER, INK, 0.13),
+        'GRAIN_A': _mix(PAPER, INK, 0.035),            # 종이결
+        'GRAIN_B': _mix(PAPER, INK, 0.022),
+        'QUOTE_WASH': _mix(PAPER, INK, 0.05),
+        'NOW_WASH': _mix(accent, PAPER, 0.88),
+    }
+
+
+PALETTE = build_palette()
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FONT_DIR = REPO_ROOT / 'assets' / 'fonts' / 'notice'
@@ -116,15 +167,16 @@ def _theme_vars(source_key: str) -> dict:
     (AfDB 2.56:1, UNGM 3.07:1). 기준(4.5:1)을 넘을 때까지 단계적으로
     어둡게 해서, 기관 색을 유지하면서 작은 글자도 읽히게 한다.
     """
-    theme = dict(_source_theme(source_key))
-    accent, soft = theme['ACCENT'], theme['ACCENT_SOFT']
+    accent = _source_theme(source_key)['ACCENT']
+    pal = build_palette(accent)
+    soft = pal['ACCENT_SOFT']
     deep = accent
     for step in range(0, 17):               # 0 ~ 0.64 까지 0.04 씩
         deep = _darken(accent, step * 0.04)
         if _contrast(deep, soft) >= 4.5:
             break
-    theme['ACCENT_DEEP'] = deep
-    return theme
+    pal['ACCENT_DEEP'] = deep
+    return pal
 
 
 SECTOR_LABELS = {
@@ -245,17 +297,18 @@ CSS = Template('''/* Hallmark · v2.0.0 · built: the project · redesign: polis
 @font-face { font-family:"Pretendard"; src:url("./Pretendard-Regular.ttf") format("truetype"); font-weight:400; }
 @font-face { font-family:"Pretendard"; src:url("./Pretendard-Bold.ttf") format("truetype"); font-weight:700; }
 :root {
-  --paper:$PAPER; --panel:$PANEL; --ink:$INK; --muted:$MUTED;
-  --rule:$RULE; --seal:$SEAL; --info:$BLUE; --warn:$AMBER; --tip:$GREEN;
-  --accent:$ACCENT; --accent-soft:$ACCENT_SOFT; --accent-deep:$ACCENT_DEEP;
+  /* 카드가 쓰는 색은 셋 — 기관 대표색, 상아 바탕, 검정 잉크.
+     아래는 전부 그 셋을 섞어 만든 값이다. */
+  --accent:$ACCENT; --paper:$PAPER; --ink:$INK;
+  --accent-soft:$ACCENT_SOFT; --accent-deep:$ACCENT_DEEP;
+  --panel:$PANEL; --muted:$MUTED; --rule:$RULE; --line:$LINE; --seal:$SEAL;
+  --info:$INFO; --warn:$WARN; --tip:$TIP;
   --face:"Pretendard", sans-serif;
-  /* 종이 위에 얹는 면: 순백 대신 바탕 쪽으로 살짝 당긴 흰색 */
-  --face-card:#FDFCF9;
-  --line:rgba(139,111,71,.55); --line-soft:rgba(139,111,71,.30);
-  --grain-a:rgba(139,111,71,.035); --grain-b:rgba(139,111,71,.022);
-  --wash-info:rgba(62,107,138,.10); --wash-warn:rgba(169,118,43,.12);
-  --wash-tip:rgba(76,122,90,.11); --wash-quote:rgba(139,111,71,.07);
-  --wash-now:rgba(176,57,46,.10);
+  --face-card:$PANEL_LIGHT;
+  --line-soft:$LINE_SOFT;
+  --grain-a:$GRAIN_A; --grain-b:$GRAIN_B;
+  --wash-info:$INFO_WASH; --wash-warn:$WARN_WASH; --wash-tip:$TIP_WASH;
+  --wash-quote:$QUOTE_WASH; --wash-now:$NOW_WASH;
 }
 * { box-sizing:border-box; margin:0; padding:0; }
 html,body { width:${W}px; height:${H}px; overflow-x:clip; overflow-y:clip; }
@@ -308,12 +361,15 @@ h1 { font-size:46px; font-weight:700; line-height:1.28; letter-spacing:-.02em;
 .callout p { font-size:20px; line-height:1.58; word-break:keep-all; margin-top:4px; }
 .callout p:first-of-type { margin-top:0; }
 .callout p::before { content:"\\2022"; color:var(--rule); font-weight:700; margin-right:8px; }
+/* 색이 셋뿐이라 hue 로 가르지 못한다. 대신 띠 색과 채움 유무가 구분을 진다:
+   개요는 기관색 띠에 옅은 기관색 바탕, 확인 필요는 검정 띠에 회색 바탕,
+   KRC 검토는 기관색 띠에 채움 없음. */
 .c-info { background:var(--wash-info); border-left-color:var(--info); }
-.c-info .ct { color:var(--info); }
+.c-info .ct { color:var(--accent-deep); }
 .c-warn { background:var(--wash-warn); border-left-color:var(--warn); }
-.c-warn .ct { color:var(--warn); }
+.c-warn .ct { color:var(--ink); }
 .c-tip  { background:var(--wash-tip); border-left-color:var(--tip); }
-.c-tip  .ct { color:var(--tip); }
+.c-tip  .ct { color:var(--accent-deep); }
 
 /* ── D-day 배지 ── */
 .dday {
@@ -412,7 +468,7 @@ body.noquote .lower { flex:0 0 128px; }
 .step .d.date { display:flex; align-items:center; gap:8px; margin-top:4px; }
 .step .d.date span { font-size:14px; color:var(--muted); }
 .step.done { opacity:.62; }
-.step.done svg.ic { color:var(--tip); }
+.step.done svg.ic { color:var(--muted); }
 .step.now { background:var(--wash-now); border-color:var(--seal); border-width:2px; }
 .step.now svg.ic { color:var(--seal); }
 .step.now .t { color:var(--seal); }
@@ -843,7 +899,7 @@ def _qr_png_bytes(url: str, pixel_size: int = 176) -> bytes | None:
     modules = qr.symbol_size(scale=1, border=1)[0]
     scale = max(2, int(pixel_size / max(modules, 1)))
     buf = io.BytesIO()
-    qr.save(buf, kind='png', scale=scale, border=1, dark='#1A1A1A', light='#FFFFFF')
+    qr.save(buf, kind='png', scale=scale, border=1, dark='#1A1A1A', light=PALETTE['PANEL_LIGHT'])
     return buf.getvalue()
 
 
@@ -922,7 +978,7 @@ def build_slide_html(notice: dict) -> str:
         client_line = f'<div class="client">발주처  {escape(data["client_line"])}</div>'
     return PAGE.substitute(
         bodycls='' if data['excerpt'] else 'noquote',
-        css=CSS.substitute({**PALETTE, **_theme_vars(data['source_key'])}),
+        css=CSS.substitute(_theme_vars(data['source_key'])),
         icons=ICONS,
         issuer=escape(data['issuer']),
         client_line=client_line,
@@ -1150,7 +1206,7 @@ def _pil_calendar(draw, xy: tuple[int, int], parts: tuple[int, int, int],
     else:
         w, h, header, day_size, month_size, year_size = 54, 66, 24, 24, 12, 11
     year, month, day = parts
-    draw.rounded_rectangle((x, y, x + w, y + h), radius=7, fill='#FFFFFF',
+    draw.rounded_rectangle((x, y, x + w, y + h), radius=7, fill=PALETTE['PANEL_LIGHT'],
                            outline=color, width=2)
     draw.rectangle((x + 2, y + 2, x + w - 2, y + header), fill=color)
     ring_y = y + 2
@@ -1161,7 +1217,7 @@ def _pil_calendar(draw, xy: tuple[int, int], parts: tuple[int, int, int],
     month_s = f'{month}월'
     mw = _pil_text_width(draw, month_s, month_font)
     draw.text((x + (w - mw) // 2, y + (6 if size == 'md' else 4)), month_s,
-              font=month_font, fill='#FFFFFF')
+              font=month_font, fill=PALETTE['PANEL_LIGHT'])
     day_font = _pil_font(day_size, bold=True)
     day_s = str(day)
     dw = _pil_text_width(draw, day_s, day_font)
@@ -1185,13 +1241,17 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
         raise RuntimeError(f'폰트 폴더가 없습니다: {FONT_DIR}')
 
     data = normalize_notice(notice)
-    image = Image.new('RGB', (SLIDE_W, SLIDE_H), PALETTE['PAPER'])
+    # 카드 전체 색을 기관 대표색 하나에서 만든다(상아·검정과 그 혼합만 사용).
+    accent = data.get('accent') or DEFAULT_ACCENT
+    pal = build_palette(accent)
+    accent_soft = data.get('accent_soft') or pal['ACCENT_SOFT']
+    image = Image.new('RGB', (SLIDE_W, SLIDE_H), pal['PAPER'])
     draw = ImageDraw.Draw(image)
     # 미세한 워크북 종이 결. PNG 압축 시에도 단색보다 밋밋하지 않게 보인다.
     for y in range(0, SLIDE_H, 5):
-        draw.line((0, y, SLIDE_W, y), fill='#F1EBDD', width=1)
+        draw.line((0, y, SLIDE_W, y), fill=pal['GRAIN_A'], width=1)
     for x in range(2, SLIDE_W, 13):
-        draw.point((x, (x * 47) % SLIDE_H), fill='#E8DFCF')
+        draw.point((x, (x * 47) % SLIDE_H), fill=pal['GRAIN_B'])
 
     regular16 = _pil_font(16)
     regular17 = _pil_font(17)
@@ -1206,15 +1266,13 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
     bold38 = _pil_font(38, bold=True)
 
     margin = 64
-    accent = data.get('accent') or PALETTE['RULE']
-    accent_soft = data.get('accent_soft') or '#E9DFCD'
     draw.rectangle((0, 0, SLIDE_W, 14), fill=accent)
     draw.text((margin, 28), data['issuer'], font=bold38, fill=accent)
     header_bottom = 70
     if data.get('client_line'):
-        draw.text((margin, 70), f'발주처  {data["client_line"]}', font=regular18, fill=PALETTE['MUTED'])
+        draw.text((margin, 70), f'발주처  {data["client_line"]}', font=regular18, fill=pal['MUTED'])
         header_bottom = 96
-    draw.text((margin, header_bottom), '발 주 공 고  보 고', font=bold16, fill=PALETTE['MUTED'])
+    draw.text((margin, header_bottom), '발 주 공 고  보 고', font=bold16, fill=pal['MUTED'])
     country = data['country'].split(',')[0].split('(')[0].strip()
     tags = [data['kind_label'], country, data['sector']]
     if data['days_left'] is not None and data['days_left'] >= 0:
@@ -1250,16 +1308,17 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
     title_y = rule_y + 22
     title_lines = _pil_wrap(draw, data['title'], title_font, left_w, 2)
     title_end = _pil_draw_lines(draw, (left_x, title_y), title_lines, title_font,
-                                PALETTE['INK'], spacing=title_size + 12)
+                                pal['INK'], spacing=title_size + 12)
     if data['title_en'] and data['title_en'] != data['title']:
         english = _pil_wrap(draw, data['title_en'], regular18, left_w, 2)
         title_end = _pil_draw_lines(draw, (left_x, title_end + 3), english, regular18,
-                                    PALETTE['MUTED'], spacing=25)
+                                    pal['MUTED'], spacing=25)
 
     group_colors = {
-        'info': (PALETTE['BLUE'], '#E7ECEE'),
-        'warn': (PALETTE['AMBER'], '#EEE5D3'),
-        'tip': (PALETTE['GREEN'], '#E4E9DF'),
+        # 색이 셋뿐이라 hue 로 가르지 못한다. 띠 색과 채움 농도가 구분을 진다.
+        'info': (pal['INFO'], pal['INFO_WASH']),
+        'warn': (pal['WARN'], pal['WARN_WASH']),
+        'tip': (pal['TIP'], pal['TIP_WASH']),
     }
     groups = _callout_groups(data)
     has_qr = bool(_qr_target_url(data.get('url') or ''))
@@ -1291,25 +1350,26 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
             if len(body_lines) >= max_body_lines:
                 break
         _pil_draw_lines(draw, (left_x + 22, text_y), body_lines, regular19,
-                        PALETTE['INK'], spacing=27)
+                        pal['INK'], spacing=27)
         callout_y = bottom + gap
 
     # 오른쪽 D-day(달력)와 2x3 팩트 카드.
     dday_y, dday_h = 118, 90
     draw.rounded_rectangle((right_x, dday_y, right_x + right_w, dday_y + dday_h), radius=8,
-                           fill=PALETTE['PANEL'], outline=PALETTE['RULE'], width=1)
-    draw.rectangle((right_x, dday_y, right_x + 6, dday_y + dday_h), fill=PALETTE['SEAL'])
+                           fill=pal['PANEL'], outline=pal['RULE'], width=1)
+    draw.rectangle((right_x, dday_y, right_x + 6, dday_y + dday_h), fill=pal['SEAL'])
     deadline_parts = _parse_ymd(data.get('deadline') or '')
     if deadline_parts:
-        cal_w, _ = _pil_calendar(draw, (right_x + 18, dday_y + 12), deadline_parts)
+        cal_w, _ = _pil_calendar(draw, (right_x + 18, dday_y + 12), deadline_parts,
+                                 color=pal['SEAL'])
         text_x = right_x + 18 + cal_w + 14
     else:
         _pil_icon(draw, 'calendar', (right_x + 22, dday_y + 24, right_x + 62, dday_y + 64),
-                  PALETTE['SEAL'], width=3)
+                  pal['SEAL'], width=3)
         text_x = right_x + 78
     big, sub = _pil_dday(data)
-    draw.text((text_x, dday_y + 14), big, font=bold38, fill=PALETTE['SEAL'])
-    draw.text((text_x, dday_y + 56), sub, font=regular17, fill=PALETTE['MUTED'])
+    draw.text((text_x, dday_y + 14), big, font=bold38, fill=pal['SEAL'])
+    draw.text((text_x, dday_y + 56), sub, font=regular17, fill=pal['MUTED'])
 
     collected_parts = _parse_ymd(data.get('created') or '')
     collected_value = data.get('created_short') or data.get('created') or '—'
@@ -1330,36 +1390,36 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
         x = right_x + col * (card_w + card_gap)
         y = card_start + row * (card_h + card_gap)
         draw.rounded_rectangle((x, y, x + card_w, y + card_h), radius=8,
-                               fill=PALETTE['PANEL'], outline='#B8A17E', width=1)
+                               fill=pal['PANEL'], outline=pal['LINE'], width=1)
         if date_parts:
-            cal_w, _ = _pil_calendar(draw, (x + 10, y + 14), date_parts)
+            cal_w, _ = _pil_calendar(draw, (x + 10, y + 14), date_parts, color=pal['SEAL'])
             text_x = x + 10 + cal_w + 10
         else:
-            _pil_icon(draw, icon, (x + 14, y + 16, x + 42, y + 44), PALETTE['RULE'], width=2)
+            _pil_icon(draw, icon, (x + 14, y + 16, x + 42, y + 44), pal['RULE'], width=2)
             text_x = x + 52
-        draw.text((text_x, y + 14), label, font=bold16, fill=PALETTE['RULE'])
+        draw.text((text_x, y + 14), label, font=bold16, fill=pal['RULE'])
         value_width = x + card_w - text_x - 10
         if label == '공고번호':
             value_font = bold16
             draw.text((text_x, y + 44),
                       _pil_ellipsize(draw, str(value), value_font, value_width),
-                      font=value_font, fill=PALETTE['INK'])
+                      font=value_font, fill=pal['INK'])
         else:
             value_font = bold22 if len(str(value)) <= 16 else bold17
             value_lines = _pil_wrap(draw, value, value_font, value_width, 2)
             _pil_draw_lines(draw, (text_x, y + 42), value_lines, value_font,
-                            PALETTE['INK'], spacing=24)
+                            pal['INK'], spacing=24)
 
     if data['url']:
         url_y = card_start + 3 * (card_h + card_gap)
         draw.rounded_rectangle((right_x, url_y, right_x + right_w, url_y + 64), radius=8,
-                               fill=PALETTE['PANEL'], outline='#B8A17E', width=1)
+                               fill=pal['PANEL'], outline=pal['LINE'], width=1)
         _pil_icon(draw, 'link', (right_x + 16, url_y + 18, right_x + 42, url_y + 44),
-                  PALETTE['RULE'], width=2)
+                  pal['RULE'], width=2)
         url_lines = _pil_wrap(draw, '우측 하단 QR을 스캔하면 원문 공고가 열립니다',
                               regular16, right_w - 68, 2)
         _pil_draw_lines(draw, (right_x + 52, url_y + 14), url_lines, regular16,
-                        PALETTE['MUTED'], spacing=22)
+                        pal['MUTED'], spacing=22)
 
     quote_h = 138 if data['excerpt'] else 0
     flow_h = 104
@@ -1370,14 +1430,14 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
     quote_right = SLIDE_W - margin - reserved
     if data['excerpt']:
         draw.rounded_rectangle((margin, quote_y, quote_right, quote_y + quote_h), radius=8,
-                               fill='#F0EADD')
-        draw.rectangle((margin, quote_y, margin + 6, quote_y + quote_h), fill='#B8A17E')
+                               fill=pal['QUOTE_WASH'])
+        draw.rectangle((margin, quote_y, margin + 6, quote_y + quote_h), fill=pal['LINE'])
         _pil_icon(draw, 'info', (margin + 16, quote_y + 12, margin + 38, quote_y + 34),
-                  PALETTE['RULE'], width=2)
-        draw.text((margin + 44, quote_y + 12), '원문 발췌', font=bold16, fill=PALETTE['RULE'])
+                  pal['RULE'], width=2)
+        draw.text((margin + 44, quote_y + 12), '원문 발췌', font=bold16, fill=pal['RULE'])
         quote_lines = _pil_wrap(draw, data['excerpt'], regular17, quote_right - margin - 36, 4)
         _pil_draw_lines(draw, (margin + 18, quote_y + 40), quote_lines, regular17,
-                        PALETTE['INK'], spacing=24)
+                        pal['INK'], spacing=24)
 
     flow_total = SLIDE_W - margin * 2 - reserved
     step_w = (flow_total - arrow_w * 3) // 4
@@ -1388,15 +1448,15 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
     due_parts = _parse_ymd(data.get('deadline') or '')
     flow_x = margin
     for index, ((icon, title, sub_text), state) in enumerate(zip(FLOWS[data['kind']], states)):
-        border = PALETTE['SEAL'] if state == 'now' else '#B8A17E'
-        fill = '#EEDDD7' if state == 'now' else PALETTE['PANEL']
+        border = pal['SEAL'] if state == 'now' else pal['LINE']
+        fill = pal['ACCENT_SOFT'] if state == 'now' else pal['PANEL']
         draw.rounded_rectangle((flow_x, flow_y, flow_x + step_w, flow_y + flow_h), radius=8,
                                fill=fill, outline=border, width=2 if state == 'now' else 1)
-        icon_color = PALETTE['SEAL'] if state == 'now' else (
-            PALETTE['GREEN'] if state == 'done' else PALETTE['RULE'])
+        icon_color = pal['SEAL'] if state == 'now' else (
+            pal['MUTED'] if state == 'done' else pal['SEAL'])
         _pil_icon(draw, icon, (flow_x + 12, flow_y + 36, flow_x + 38, flow_y + 62),
                   icon_color, width=2)
-        title_color = PALETTE['SEAL'] if state == 'now' else PALETTE['INK']
+        title_color = pal['SEAL'] if state == 'now' else pal['INK']
         draw.text((flow_x + 46, flow_y + 12), title, font=bold17, fill=title_color)
         date_parts = posted_parts if '{posted}' in sub_text else (
             due_parts if '{due}' in sub_text else None)
@@ -1412,15 +1472,16 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
             caption = sub_text
         if date_parts:
             cal_w, _ = _pil_calendar(
-                draw, (flow_x + 46, flow_y + 42), date_parts, size='sm')
+                draw, (flow_x + 46, flow_y + 42), date_parts, size='sm',
+                color=pal['SEAL'])
             draw.text((flow_x + 46 + cal_w + 8, flow_y + 58), caption,
-                      font=regular16, fill=PALETTE['MUTED'])
+                      font=regular16, fill=pal['MUTED'])
         else:
             caption = _pil_ellipsize(draw, caption, regular16, step_w - 58)
-            draw.text((flow_x + 46, flow_y + 58), caption, font=regular16, fill=PALETTE['MUTED'])
+            draw.text((flow_x + 46, flow_y + 58), caption, font=regular16, fill=pal['MUTED'])
         flow_x += step_w
         if index < 3:
-            draw.text((flow_x + 6, flow_y + 32), '→', font=bold24, fill=PALETTE['RULE'])
+            draw.text((flow_x + 6, flow_y + 32), '→', font=bold24, fill=pal['RULE'])
             flow_x += arrow_w
     qr_png = _qr_png_bytes(data.get('url') or '', pixel_size=qr_img) if has_qr else None
     if qr_png:
@@ -1429,24 +1490,24 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
         qr_h = 214
         qr_y = lower_top + lower_h - qr_h
         draw.rounded_rectangle((qr_x, qr_y, qr_x + qr_panel_w, qr_y + qr_h), radius=8,
-                               fill='#FFFFFF', outline='#B8A17E', width=1)
+                               fill=pal['PANEL_LIGHT'], outline=pal['LINE'], width=1)
         qr_image = PilImage.open(io.BytesIO(qr_png)).convert('RGB')
         qr_image = qr_image.resize((qr_img, qr_img), PilImage.Resampling.NEAREST)
         image.paste(qr_image, (qr_x + 14, qr_y + 12))
         label = '발주공고보기'
         label_w = _pil_text_width(draw, label, bold16)
         draw.text((qr_x + (qr_panel_w - label_w) // 2, qr_y + 184), label,
-                  font=bold16, fill=PALETTE['RULE'])
+                  font=bold16, fill=pal['RULE'])
     else:
         seal_x = SLIDE_W - margin - seal_w
         draw.ellipse((seal_x, flow_y + 8, seal_x + seal_w, flow_y + 96),
-                     outline=PALETTE['SEAL'], width=3)
-        draw.text((seal_x + 18, flow_y + 33), '공고', font=bold24, fill=PALETTE['SEAL'])
+                     outline=pal['SEAL'], width=3)
+        draw.text((seal_x + 18, flow_y + 33), '공고', font=bold24, fill=pal['SEAL'])
 
     rule_right = SLIDE_W - margin - (qr_panel_w + qr_gap if qr_png else 0)
     draw.line((margin, footer_rule_y, max(margin + 200, rule_right), footer_rule_y),
-              fill='#B8A17E', width=1)
-    draw.text((margin, 1030), '한국농어촌공사 · 글로벌사업', font=regular17, fill=PALETTE['MUTED'])
+              fill=pal['LINE'], width=1)
+    draw.text((margin, 1030), '한국농어촌공사 · 글로벌사업', font=regular17, fill=pal['MUTED'])
     footer = f'출처 · {data["source"]}'
     if data.get('created_short') or data['created']:
         footer += f'   |   수집일 {data.get("created_short") or data["created"]}'
@@ -1454,7 +1515,7 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
     footer_x = (SLIDE_W - margin - qr_panel_w - qr_gap - footer_w) if qr_png else (
         SLIDE_W - margin - footer_w)
     if footer_x > margin + 280:
-        draw.text((footer_x, 1030), footer, font=regular17, fill=PALETTE['MUTED'])
+        draw.text((footer_x, 1030), footer, font=regular17, fill=pal['MUTED'])
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
