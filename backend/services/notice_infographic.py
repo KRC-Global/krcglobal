@@ -81,6 +81,52 @@ DEFAULT_THEME = {'ACCENT': '#8B6F47', 'ACCENT_SOFT': '#E9DFCD'}
 def _source_theme(source_key: str) -> dict:
     return SOURCE_THEMES.get((source_key or '').strip().lower(), DEFAULT_THEME)
 
+def _darken(hex_color: str, amount: float = 0.26) -> str:
+    """색을 검정 쪽으로 당긴다. 태그 글자처럼 옅은 바탕 위에서 대비가
+    모자란 자리에 쓴다(WCAG 4.5:1)."""
+    h = (hex_color or '').lstrip('#')
+    if len(h) != 6:
+        return hex_color
+    r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    f = max(0.0, 1.0 - amount)
+    return '#%02X%02X%02X' % (int(r * f), int(g * f), int(b * f))
+
+
+def _relative_luminance(hex_color: str) -> float:
+    h = (hex_color or '').lstrip('#')
+    if len(h) != 6:
+        return 0.0
+    out = []
+    for i in (0, 2, 4):
+        c = int(h[i:i + 2], 16) / 255
+        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * out[0] + 0.7152 * out[1] + 0.0722 * out[2]
+
+
+def _contrast(fg: str, bg: str) -> float:
+    a, b = _relative_luminance(fg), _relative_luminance(bg)
+    hi, lo = max(a, b), min(a, b)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def _theme_vars(source_key: str) -> dict:
+    """테마 색 + 파생색. CSS :root 토큰으로 들어간다.
+
+    억양색을 옅은 바탕에 그대로 쓰면 기관에 따라 대비가 모자란다
+    (AfDB 2.56:1, UNGM 3.07:1). 기준(4.5:1)을 넘을 때까지 단계적으로
+    어둡게 해서, 기관 색을 유지하면서 작은 글자도 읽히게 한다.
+    """
+    theme = dict(_source_theme(source_key))
+    accent, soft = theme['ACCENT'], theme['ACCENT_SOFT']
+    deep = accent
+    for step in range(0, 17):               # 0 ~ 0.64 까지 0.04 씩
+        deep = _darken(accent, step * 0.04)
+        if _contrast(deep, soft) >= 4.5:
+            break
+    theme['ACCENT_DEEP'] = deep
+    return theme
+
+
 SECTOR_LABELS = {
     'agriculture': '농업',
     'irrigation': '관개·수리',
@@ -187,119 +233,141 @@ ICONS = '''
 </defs></svg>
 '''
 
-CSS = Template('''
+CSS = Template('''/* Hallmark · v2.0.0 · built: the project · redesign: polish · surface: absolute · posture: restrained · shape: card · hero: none · nav: none · footer: a byline and the source · theme: Danuri workbook (by request) · genre: editorial */
+/* critique: 1920x1080 정적 카드. 카톡으로 보내는 한 장짜리 공고 요약이라
+   히어로·네비·폴드가 없고, 읽는 사람은 스크롤 대신 한눈에 훑는다. */
+/* Hallmark · dismissed 3 · 왼쪽 띠가 콜아웃의 종류다. 개요는 파랑, 확인 필요는
+   호박색, KRC 검토는 초록으로 6px 띠가 의미를 지고, D-day 는 붉은 인장색으로
+   마감이라는 것을 띠 하나로 말한다. 테두리를 두르면 그 구분이 사라진다. */
+/* Hallmark · answered F23 · 이 문서는 서빙되지 않는다. Chrome 헤드리스로 한 번
+   캡처해 PNG 로만 쓰고 그 PNG 가 카톡으로 간다. title·description 이 닿을
+   곳이 없다. */
 @font-face { font-family:"Pretendard"; src:url("./Pretendard-Regular.ttf") format("truetype"); font-weight:400; }
 @font-face { font-family:"Pretendard"; src:url("./Pretendard-Bold.ttf") format("truetype"); font-weight:700; }
+:root {
+  --paper:$PAPER; --panel:$PANEL; --ink:$INK; --muted:$MUTED;
+  --rule:$RULE; --seal:$SEAL; --info:$BLUE; --warn:$AMBER; --tip:$GREEN;
+  --accent:$ACCENT; --accent-soft:$ACCENT_SOFT; --accent-deep:$ACCENT_DEEP;
+  --face:"Pretendard", sans-serif;
+  /* 종이 위에 얹는 면: 순백 대신 바탕 쪽으로 살짝 당긴 흰색 */
+  --face-card:#FDFCF9;
+  --line:rgba(139,111,71,.55); --line-soft:rgba(139,111,71,.30);
+  --grain-a:rgba(139,111,71,.035); --grain-b:rgba(139,111,71,.022);
+  --wash-info:rgba(62,107,138,.10); --wash-warn:rgba(169,118,43,.12);
+  --wash-tip:rgba(76,122,90,.11); --wash-quote:rgba(139,111,71,.07);
+  --wash-now:rgba(176,57,46,.10);
+}
 * { box-sizing:border-box; margin:0; padding:0; }
-html,body { width:${W}px; height:${H}px; overflow:hidden; }
+html,body { width:${W}px; height:${H}px; overflow-x:clip; overflow-y:clip; }
 body {
-  background:$PAPER; color:$INK; font-family:"Pretendard",sans-serif;
-  padding:0 64px 34px; display:flex; flex-direction:column;
+  background:var(--paper); color:var(--ink); font-family:var(--face);
+  padding:0 64px 36px; display:flex; flex-direction:column;
   background-image:
-    repeating-linear-gradient(0deg, rgba(139,111,71,.035) 0 1px, transparent 1px 4px),
-    repeating-linear-gradient(90deg, rgba(139,111,71,.022) 0 1px, transparent 1px 6px);
+    repeating-linear-gradient(0deg, var(--grain-a) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, var(--grain-b) 0 1px, transparent 1px 6px);
 }
 svg.ic { width:1em; height:1em; fill:none; stroke:currentColor; stroke-width:1.8;
          stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto; }
 
 /* ── 헤더 ── */
-.head-bar { height:14px; background:$ACCENT; margin:0 -64px 16px; }
+.head-bar { height:14px; background:var(--accent); margin:0 -64px 16px; }
 .head { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; }
 .issuer-block { min-width:0; }
-.issuer { font-weight:700; font-size:32px; letter-spacing:.04em; color:$ACCENT; line-height:1.15; }
-.client { margin-top:4px; font-size:18px; color:$MUTED; }
-.head .label { margin-top:6px; font-weight:700; font-size:16px; letter-spacing:.28em; color:$MUTED; }
+.issuer { font-weight:700; font-size:32px; letter-spacing:.04em; color:var(--accent); line-height:1.15; }
+.client { margin-top:4px; font-size:18px; color:var(--muted); }
+.head .label { margin-top:8px; font-weight:700; font-size:15px; color:var(--muted); }
 .tags { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
 .tag {
-  font-size:17px; font-weight:700; color:$ACCENT;
-  background:$ACCENT_SOFT; border:1px solid $ACCENT;
-  border-radius:999px; padding:5px 15px 6px;
+  font-size:17px; font-weight:700; color:var(--accent-deep);
+  background:var(--accent-soft); border:1px solid var(--accent);
+  border-radius:999px; padding:4px 16px;
 }
-.rule { height:3px; background:$ACCENT; margin-top:12px; }
-.rule.thin { height:1px; background:$RULE; opacity:.45; }
+.rule { height:3px; background:var(--accent); margin-top:12px; }
+.rule.thin { height:1px; background:var(--rule); opacity:.45; }
 
 /* ── 본문 2단 ── */
-.body { flex:1 1 auto; display:flex; gap:36px; padding-top:18px; min-height:0; overflow:hidden; }
+.body { flex:1 1 auto; display:flex; gap:36px; padding-top:20px; min-height:0; overflow:hidden; }
 .left { flex:1 1 0; min-width:0; display:flex; flex-direction:column; overflow:hidden; }
 .right { width:560px; flex:0 0 560px; display:flex; flex-direction:column; gap:12px; }
 
-h1 { font-size:46px; font-weight:700; line-height:1.28; letter-spacing:-.02em; word-break:keep-all; }
-.subtitle { margin-top:12px; font-size:18px; line-height:1.4; color:$MUTED; word-break:break-word; }
+h1 { font-size:46px; font-weight:700; line-height:1.28; letter-spacing:-.02em;
+     word-break:keep-all; text-wrap:balance; }
+.subtitle { margin-top:12px; font-size:18px; line-height:1.4; color:var(--muted); word-break:break-word; }
 
 /* ── Obsidian 콜아웃 ── */
 .callout {
-  margin-top:12px; border-radius:8px; padding:12px 18px 13px 16px;
-  border:1px solid rgba(139,111,71,.3); border-left-width:6px; border-left-style:solid;
+  margin-top:12px; border-radius:8px; padding:12px 16px;
+  border:1px solid var(--line-soft); border-left-width:6px; border-left-style:solid;
   flex:1 1 0; min-height:0;
 }
 .callout .ct {
-  display:flex; align-items:center; gap:9px;
+  display:flex; align-items:center; gap:8px;
   font-size:19px; font-weight:700; letter-spacing:.02em; margin-bottom:8px;
 }
 .callout .ct svg.ic { font-size:21px; stroke-width:2; }
-.callout p { font-size:20px; line-height:1.58; word-break:keep-all; margin-top:5px; }
+.callout p { font-size:20px; line-height:1.58; word-break:keep-all; margin-top:4px; }
 .callout p:first-of-type { margin-top:0; }
-.callout p::before { content:"\\2022"; color:$RULE; font-weight:700; margin-right:8px; }
-.c-info { background:rgba(62,107,138,.10); border-left-color:$BLUE; }
-.c-info .ct { color:$BLUE; }
-.c-warn { background:rgba(169,118,43,.12); border-left-color:$AMBER; }
-.c-warn .ct { color:$AMBER; }
-.c-tip  { background:rgba(76,122,90,.11); border-left-color:$GREEN; }
-.c-tip  .ct { color:$GREEN; }
+.callout p::before { content:"\\2022"; color:var(--rule); font-weight:700; margin-right:8px; }
+.c-info { background:var(--wash-info); border-left-color:var(--info); }
+.c-info .ct { color:var(--info); }
+.c-warn { background:var(--wash-warn); border-left-color:var(--warn); }
+.c-warn .ct { color:var(--warn); }
+.c-tip  { background:var(--wash-tip); border-left-color:var(--tip); }
+.c-tip  .ct { color:var(--tip); }
 
 /* ── D-day 배지 ── */
 .dday {
-  display:flex; align-items:center; gap:14px;
-  background:$PANEL; border:1px solid $RULE; border-left:6px solid $SEAL;
-  border-radius:8px; padding:10px 16px;
+  display:flex; align-items:center; gap:16px;
+  background:var(--panel); border:1px solid var(--rule); border-left:6px solid var(--seal);
+  border-radius:8px; padding:12px 16px;
 }
-.dday svg.ic { font-size:36px; color:$SEAL; stroke-width:1.6; }
-.dday .n { font-size:36px; font-weight:700; line-height:1; color:$SEAL; letter-spacing:-.01em; }
-.dday .s { font-size:17px; color:$MUTED; margin-top:5px; }
+.dday svg.ic { font-size:36px; color:var(--seal); stroke-width:1.6; }
+.dday .n { font-size:36px; font-weight:700; line-height:1; color:var(--seal); letter-spacing:-.01em; }
+.dday .s { font-size:17px; color:var(--muted); margin-top:4px; }
 
 /* 달력 일러스트: 스프링 바인딩 + 빨간 월 머리 + 큰 일자 */
 .cal {
-  width:56px; flex:0 0 56px; background:#fff; border:1.5px solid $SEAL;
+  width:56px; flex:0 0 56px; background:var(--face-card); border:1.5px solid var(--seal);
   border-radius:9px; overflow:hidden; text-align:center; line-height:1;
 }
 .cal .rings {
-  display:flex; justify-content:space-evenly; background:$SEAL; height:8px;
+  display:flex; justify-content:space-evenly; background:var(--seal); height:8px;
 }
 .cal .rings span {
-  width:8px; height:8px; margin-top:3px; background:$PAPER;
-  border:1.5px solid $SEAL; border-radius:50%;
+  width:8px; height:8px; margin-top:4px; background:var(--paper);
+  border:1.5px solid var(--seal); border-radius:50%;
 }
 .cal .cm {
-  background:$SEAL; color:#fff; font-size:12px; font-weight:700;
-  letter-spacing:.06em; padding:1px 0 6px;
+  background:var(--seal); color:var(--face-card); font-size:12px; font-weight:700;
+  padding:0 0 8px;
 }
-.cal .cd { font-size:24px; font-weight:700; color:$INK; padding:6px 0 1px; }
-.cal .cy { font-size:11px; color:$MUTED; padding:0 0 7px; }
+.cal .cd { font-size:24px; font-weight:700; color:var(--ink); padding:8px 0 0; }
+.cal .cy { font-size:11px; color:var(--muted); padding:0 0 8px; }
 .cal.cal-sm { width:42px; flex-basis:42px; border-radius:7px; }
 .cal.cal-sm .rings { height:6px; }
-.cal.cal-sm .rings span { width:6px; height:6px; margin-top:2px; }
+.cal.cal-sm .rings span { width:6px; height:6px; margin-top:4px; }
 .cal.cal-sm .cm { font-size:10px; padding:0 0 4px; }
 .cal.cal-sm .cd { font-size:18px; padding:4px 0 0; }
-.cal.cal-sm .cy { font-size:9px; padding:0 0 5px; }
+.cal.cal-sm .cy { font-size:9px; padding:0 0 4px; }
 
 /* ── 아이콘 팩트 카드 ── */
-.cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.cards { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 .card {
-  background:$PANEL; border:1px solid rgba(139,111,71,.55); border-radius:8px;
-  padding:10px 14px 11px; display:flex; gap:10px; align-items:center; min-height:78px;
+  background:var(--panel); border:1px solid var(--line); border-radius:8px;
+  padding:12px 16px; display:flex; gap:12px; align-items:center; min-height:78px;
 }
 .card.has-cal { min-height:90px; }
-.card svg.ic { font-size:24px; color:$RULE; }
-.card .k { font-size:15px; font-weight:700; color:$RULE; letter-spacing:.08em; }
+.card svg.ic { font-size:24px; color:var(--rule); }
+.card .k { font-size:15px; font-weight:700; color:var(--rule); }
 .card .v { font-size:22px; font-weight:700; line-height:1.22; margin-top:4px; word-break:keep-all; }
 .card .v.sm { font-size:18px; line-height:1.28; }
 .card .v.nowrap { white-space:nowrap; }
 
 .urlbox {
-  background:$PANEL; border:1px solid rgba(139,111,71,.55); border-radius:8px;
-  padding:10px 14px; display:flex; gap:10px; align-items:center;
+  background:var(--panel); border:1px solid var(--line); border-radius:8px;
+  padding:12px 16px; display:flex; gap:12px; align-items:center;
 }
-.urlbox svg.ic { font-size:20px; color:$RULE; }
+.urlbox svg.ic { font-size:20px; color:var(--rule); }
 .urlbox .u { font-size:16px; line-height:1.4; word-break:keep-all; }
 
 /* 원문 발췌가 없는 공고는 콜아웃이 남는 세로 공간을 나눠 갖는다. */
@@ -310,24 +378,24 @@ body.noquote .lower { flex:0 0 128px; }
 /* ── 하단: 원문 발췌 + 순서도 | QR. 높이를 고정해 발췌가 잘리거나 QR과 겹치지 않게. */
 .lower {
   display:flex; gap:16px; align-items:stretch;
-  margin-top:12px; flex:0 0 258px; min-height:0;
+  margin-top:12px; flex:0 0 256px; min-height:0;
 }
-.lower-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; min-height:0; }
+.lower-main { flex:1; min-width:0; display:flex; flex-direction:column; gap:12px; min-height:0; }
 
 /* ── 원문 발췌: 제목/본문 세로 배치, 4줄 말줄임 ── */
 .quote {
   flex:1 1 auto; min-height:0; max-height:148px;
-  display:flex; flex-direction:column; gap:6px;
-  border-left:6px solid rgba(139,111,71,.55);
-  background:rgba(139,111,71,.07); border-radius:0 8px 8px 0;
-  padding:10px 16px 12px 16px; overflow:hidden;
+  display:flex; flex-direction:column; gap:8px;
+  border-left:6px solid var(--line);
+  background:var(--wash-quote); border-radius:0 8px 8px 0;
+  padding:12px 16px; overflow:hidden;
 }
 .quote .qh {
   flex:0 0 auto; display:flex; align-items:center; gap:8px;
-  font-size:15px; font-weight:700; color:$RULE; letter-spacing:.14em;
+  font-size:15px; font-weight:700; color:var(--rule);
 }
 .quote .qt {
-  margin:0; font-size:17px; line-height:1.5; color:$INK;
+  margin:0; font-size:17px; line-height:1.5; color:var(--ink);
   overflow:hidden; overflow-wrap:anywhere; word-break:break-word;
   display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4;
 }
@@ -335,38 +403,38 @@ body.noquote .lower { flex:0 0 128px; }
 /* ── 진행 순서도 ── */
 .flow { display:flex; align-items:stretch; margin:0; flex:0 0 auto; }
 .step {
-  flex:1; min-width:0; background:$PANEL; border:1px solid rgba(139,111,71,.55);
-  border-radius:8px; padding:10px 12px; display:flex; gap:10px; align-items:center;
+  flex:1; min-width:0; background:var(--panel); border:1px solid var(--line);
+  border-radius:8px; padding:12px; display:flex; gap:12px; align-items:center;
 }
-.step svg.ic { font-size:22px; color:$RULE; flex:0 0 auto; }
+.step svg.ic { font-size:22px; color:var(--rule); flex:0 0 auto; }
 .step .t { font-size:18px; font-weight:700; line-height:1.2; }
-.step .d { font-size:15px; color:$MUTED; margin-top:4px; }
-.step .d.date { display:flex; align-items:center; gap:8px; margin-top:5px; }
-.step .d.date span { font-size:14px; color:$MUTED; }
+.step .d { font-size:15px; color:var(--muted); margin-top:4px; }
+.step .d.date { display:flex; align-items:center; gap:8px; margin-top:4px; }
+.step .d.date span { font-size:14px; color:var(--muted); }
 .step.done { opacity:.62; }
-.step.done svg.ic { color:$GREEN; }
-.step.now { background:rgba(176,57,46,.10); border-color:$SEAL; border-width:2px; }
-.step.now svg.ic { color:$SEAL; }
-.step.now .t { color:$SEAL; }
+.step.done svg.ic { color:var(--tip); }
+.step.now { background:var(--wash-now); border-color:var(--seal); border-width:2px; }
+.step.now svg.ic { color:var(--seal); }
+.step.now .t { color:var(--seal); }
 .arrow { flex:0 0 36px; display:flex; align-items:center; justify-content:center;
-         font-size:22px; color:$RULE; opacity:.75; }
+         font-size:22px; color:var(--rule); opacity:.75; }
 .seal {
   flex:0 0 88px; width:88px; height:88px; margin-left:12px; border-radius:50%;
-  border:3px solid $SEAL; color:$SEAL; display:flex; align-items:center;
+  border:3px solid var(--seal); color:var(--seal); display:flex; align-items:center;
   justify-content:center; font-size:30px; font-weight:700; transform:rotate(-8deg); opacity:.9;
   align-self:center;
 }
 .qrbox {
-  flex:0 0 196px; width:196px; align-self:stretch; background:#fff;
-  border:1px solid rgba(139,111,71,.55); border-radius:8px;
-  padding:10px 10px 8px; display:flex; flex-direction:column;
+  flex:0 0 196px; width:196px; align-self:stretch; background:var(--face-card);
+  border:1px solid var(--line); border-radius:8px;
+  padding:12px 12px 8px; display:flex; flex-direction:column;
   align-items:center; justify-content:center;
 }
 .qrbox img { width:176px; height:176px; display:block; image-rendering:pixelated; }
 .qrbox .ql {
-  margin-top:6px; font-size:15px; font-weight:700; color:$RULE; letter-spacing:.06em;
+  margin-top:8px; font-size:15px; font-weight:700; color:var(--rule);
 }
-.foot { display:flex; justify-content:space-between; font-size:16px; color:$MUTED; padding-top:8px; }
+.foot { display:flex; justify-content:space-between; font-size:16px; color:var(--muted); padding-top:8px; }
 ''')
 
 PAGE = Template('''<!DOCTYPE html>
@@ -406,7 +474,7 @@ $icons
   </div>
 
   <div class="rule thin" style="margin-top:10px"></div>
-  <div class="foot"><span>한국농어촌공사 · 글로벌사업</span><span>$footer</span></div>
+  <div class="foot"><span>한국농어촌공사 글로벌사업</span><span>$footer</span></div>
 </body></html>
 ''')
 
@@ -653,7 +721,8 @@ def normalize_notice(notice: dict) -> dict:
 
 # ── HTML 조각 ────────────────────────────────────────────────────────────────
 def _icon(name: str) -> str:
-    return f'<svg class="ic"><use href="#i-{name}"/></svg>'
+    # 아이콘은 옆 글자를 보조하는 장식이라 읽을 내용이 없다.
+    return f'<svg class="ic" aria-hidden="true"><use href="#i-{name}"/></svg>'
 
 
 def _tags(data: dict) -> str:
@@ -845,15 +914,15 @@ def _flow(data: dict) -> str:
 def build_slide_html(notice: dict) -> str:
     data = normalize_notice(notice)
     subtitle = f'<p class="subtitle">{escape(data["title_en"])}</p>' if data['title_en'] else ''
-    footer = f'출처 · {data["source"]}'
+    footer = f'{data["source"]}'
     if data.get('created_short') or data['created']:
-        footer += f'   |   수집일 {data.get("created_short") or data["created"]}'
+        footer += f' · {data.get("created_short") or data["created"]} 수집'
     client_line = ''
     if data['client_line']:
         client_line = f'<div class="client">발주처  {escape(data["client_line"])}</div>'
     return PAGE.substitute(
         bodycls='' if data['excerpt'] else 'noquote',
-        css=CSS.substitute({**PALETTE, **_source_theme(data['source_key'])}),
+        css=CSS.substitute({**PALETTE, **_theme_vars(data['source_key'])}),
         icons=ICONS,
         issuer=escape(data['issuer']),
         client_line=client_line,
