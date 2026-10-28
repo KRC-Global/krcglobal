@@ -1291,9 +1291,11 @@ def _fetch_adb_detail(source_url: str) -> dict:
     try:
         r = req.get(source_url, timeout=25, headers=hdrs, allow_redirects=True)
         if r.status_code != 200:
+            globals()['_PDF_LAST_ERROR'] = f'HTTP {r.status_code} ({source_url[-45:]})'
             print(f'[ADB-detail] HTTP {r.status_code}: {source_url}')
             return {}
     except req.RequestException as e:
+        globals()['_PDF_LAST_ERROR'] = f'요청 실패: {str(e)[:90]}'
         print(f'[ADB-detail] 요청 실패: {e}')
         return {}
 
@@ -1329,6 +1331,8 @@ def _fetch_adb_detail(source_url: str) -> dict:
                 print(f'[ADB-detail] 첨부 PDF 실패: {e}')
 
     if not plain:
+        if not _PDF_LAST_ERROR:
+            globals()['_PDF_LAST_ERROR'] = f'본문 비어 있음 (content-type={ctype[:30]})'
         return {}
 
     # 문서 URL 슬러그의 국가코드 — /projects/documents/bhu-58041-001-pp → Bhutan
