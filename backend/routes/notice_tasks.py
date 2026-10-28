@@ -739,3 +739,84 @@ def fail_kakao_delivery(did: int):
         'data': delivery.to_dict(include_notice=True),
         'requeued': requeued,
     })
+
+
+# ── ADB 본문 보강 (로컬 워커 경유) ───────────────────────────────────────────
+#
+# ADB 는 데이터센터 IP 를 차단해 Vercel 에서 공고 PDF 를 받을 수 없다
+# (HTTP 403). 반면 사내 맥에서는 정상 접근된다. 그래서 수집은 서버가 하고,
+# 본문 보강만 로컬 워커(scripts/adb_enrich.py)가 대신 받아서 올린다.
+
+@notice_tasks_bp.route('/enrich-pending', methods=['GET'])
+@worker_required
+def list_enrich_pending():
+    """본문 보강이 필요한 공고 목록. 로컬 워커가 폴링한다."""
+    try:
+        limit = max(1, min(50, int(request.args.get('limit', 10))))
+    except ValueError:
+        limit = 10
+    source = (request.args.get('source') or 'adb').strip()
+
+    rows = (BidNotice.query
+            .filter(BidNotice.source == source)
+            .filter(BidNotice.archived_at.is_(None))
+            .order_by(BidNotice.id.desc())
+            .limit(limit * 4)
+            .all())
+
+    pending = []
+    detail_key = f'{source}_details'
+    for n in rows:
+        rd = n.raw_data if isinstance(n.raw_data, dict) else {}
+        if detail_key in rd:
+            continue
+        pending.append({'id': n.id, 'sourceUrl': n.source_url, 'title': n.title})
+        if len(pending) >= limit:
+            break
+
+    return jsonify({'success': True, 'data': pending, 'count': len(pending)})
+
+
+@notice_tasks_bp.route('/<int:notice_id>/enrich', methods=['POST'])
+@worker_required
+def submit_enrichment(notice_id):
+    """로컬 워커가 추출한 본문·마감일·금액을 반영한다.
+
+    비어 있는 필드만 채운다 — 수집기가 이미 얻은 값을 덮어쓰지 않는다.
+    본문이 새로 생겼으면 요약을 다시 만들어야 하므로 재번역을 큐에 넣는다.
+    """
+    notice = db.session.get(BidNotice, notice_id)
+    if not notice:
+        return jsonify({'success': False, 'message': '공고를 찾을 수 없습니다.'}), 404
+
+    payload = request.get_json(silent=True) or {}
+    details = payload.get('details')
+    if not isinstance(details, dict) or not details:
+        return jsonify({'success': False, 'message': 'details 가 필요합니다.'}), 400
+
+    rd = dict(notice.raw_data) if isinstance(notice.raw_data, dict) else {}
+    rd[f'{notice.source}_details'] = details
+    notice.raw_data = rd
+
+    if details.get('deadline') and not notice.deadline:
+        notice.deadline = str(details['deadline'])[:50]
+    if details.get('contract_value') and not notice.contract_value:
+        notice.contract_value = str(details['contract_value'])[:100]
+    if details.get('country') and not notice.country:
+        notice.country = str(details['country'])[:100]
+
+    requeued = 0
+    if details.get('text_excerpt'):
+        try:
+            from services.notice_pipeline import requeue_translation
+            requeued = requeue_translation([notice.id])
+        except Exception as e:
+            print(f'[enrich-api] 재번역 큐 실패: {e}')
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'저장 실패: {e}'}), 500
+
+    return jsonify({'success': True, 'noticeId': notice.id, 'requeued': requeued})
