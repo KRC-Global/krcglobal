@@ -1251,13 +1251,19 @@ def _normalize_date_str(raw: str) -> str:
     return raw[:10]
 
 
+_PDF_LAST_ERROR = ''
+
+
 def _pdf_text(content: bytes, max_pages: int = 3) -> str:
     """PDF 바이트에서 앞 몇 쪽의 텍스트를 뽑는다. 실패하면 빈 문자열."""
+    global _PDF_LAST_ERROR
     if not content or content[:4] != b'%PDF':
+        _PDF_LAST_ERROR = 'PDF 아님'
         return ''
     try:
         import pdfplumber
-    except ImportError:
+    except ImportError as e:
+        _PDF_LAST_ERROR = f'pdfplumber 미설치: {e}'
         print('[pdf] pdfplumber 미설치 — 본문 추출 건너뜀')
         return ''
     import io as _io
@@ -1266,6 +1272,7 @@ def _pdf_text(content: bytes, max_pages: int = 3) -> str:
             parts = [(page.extract_text() or '') for page in pdf.pages[:max_pages]]
         return ' '.join(' '.join(parts).split())
     except Exception as e:
+        _PDF_LAST_ERROR = f'파싱 실패: {e}'
         print(f'[pdf] 추출 실패: {e}')
         return ''
 
@@ -1488,6 +1495,9 @@ def _enrich_pending_notices(limit: int = 15) -> dict:
     if not pending:
         return {'attempted': 0, 'enriched': 0}
 
+    global _PDF_LAST_ERROR
+    _PDF_LAST_ERROR = ''
+
     enriched = 0
     enriched_ids = []
     for n in pending:
@@ -1539,7 +1549,8 @@ def _enrich_pending_notices(limit: int = 15) -> dict:
             return {'attempted': len(pending), 'enriched': 0, 'error': str(e)}
 
     print(f'[enrich] {enriched}/{len(pending)} 보강 완료')
-    return {'attempted': len(pending), 'enriched': enriched}
+    return {'attempted': len(pending), 'enriched': enriched,
+            'pdf_error': _PDF_LAST_ERROR}
 
 
 # ── Tier 2: KOICA / data.go.kr ──────────────────────────────────────────────
