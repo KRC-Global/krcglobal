@@ -926,6 +926,12 @@ def _adb_country_from_title(title: str) -> str:
 # 문서 섹션에서 받아들일 유형 — 발주 예고 성격인 조달계획만.
 _ADB_PLAN_RX = re.compile(r'procurement\s+plan', re.I)
 
+# 문서 URL 끝 슬러그가 종류를 알려준다. 발주와 무관한 것은 제목 표기가
+# 달라도 여기서 걸러진다 — apfs(감사재무제표)·tar(TA보고서)·
+# iee/eia(환경영향)·rp(이주계획)·ssa(세이프가드) 등.
+_ADB_NON_TENDER_SLUG_RX = re.compile(
+    r'-(?:apfs|tar|iee|eia|emp|rp|rf|ipp|ippf|ssa|pam|rrp|fam)(?:-\d+)?$', re.I)
+
 
 def _parse_adb_alert_html(html: str) -> list:
     """ADB 알림 메일 HTML → [{'title','url','section'}] 목록.
@@ -1150,15 +1156,24 @@ def _collect_adb() -> list:
             # 이 섹션은 발주 예고에 해당하는 조달계획만 받는다.
             if item['section'] == 'project_doc' and not _ADB_PLAN_RX.search(title):
                 continue
+            if _ADB_NON_TENDER_SLUG_RX.search(url):
+                continue
 
             if not _is_agri(title) and not _is_consulting(title):
                 continue
 
             seen_urls.add(url)
+            # 문서 URL 슬러그에 국가코드가 들어있다 — 제목에 없을 때 보완한다.
+            #   /projects/documents/bhu-58041-001-pp → Bhutan
+            country = _adb_country_from_title(title)
+            if not country:
+                um = re.search(r'/documents/([a-z]{3})-\d', url)
+                if um:
+                    country = _ADB_COUNTRY_CODES.get(um.group(1).upper(), '')
             results.append({
                 'source': 'adb',
                 'title': title[:500],
-                'country': _adb_country_from_title(title),
+                'country': country,
                 'client': 'ADB',
                 'sector': ('consulting' if _is_consulting(title) and not _is_agri(title)
                            else 'agriculture'),
