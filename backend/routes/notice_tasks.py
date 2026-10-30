@@ -804,6 +804,12 @@ def submit_enrichment(notice_id):
         notice.contract_value = str(details['contract_value'])[:100]
     if details.get('country') and not notice.country:
         notice.country = str(details['country'])[:100]
+    # 발주처는 수집 단계에서 기관명('ADB'/'AfDB')을 임시로 넣어 둔다.
+    # 그건 자금 공여처이고 실제 발주처는 차주(부처·정부)다. 상세에서
+    # 차주를 뽑았으면 그 자리표시자만 바꾼다 — 서버 보강 경로
+    # (_enrich_pending_notices)와 같은 규칙으로 맞춘다.
+    if details.get('client') and (notice.client or '').strip() in ('', 'ADB', 'AfDB'):
+        notice.client = str(details['client'])[:200]
 
     requeued = 0
     if details.get('text_excerpt'):
