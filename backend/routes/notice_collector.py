@@ -17,7 +17,7 @@ from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import or_
 from models import db, BidNotice, ScrapingRun
 from services.krc_fitness import (GRADE_HIGH, GRADE_MID, REASON_RURAL,
-                                  classify_krc_fit)
+                                  classify_krc_fit, fold_accents)
 from services.g2b_koica_plan import (
     SOURCE as KOICA_PLAN_SOURCE,
     collect_koica_g2b_plans,
@@ -41,6 +41,17 @@ AGRI_KEYWORDS = [
     # 관개·댐·용수 (2026-08 보강)
     'canal', 'weir', 'barrage', 'polder', 'flood control',
     'water supply', 'water treatment', 'hydropower',
+    # 프랑스어 — AfDB 는 영·불 병행 공고다 (2026-10 추가).
+    # 매칭 전에 악센트를 벗기므로(_fold) 악센트 없이 적는다.
+    'agricole', 'agriculture', 'agro-industriel', 'agroindustriel',
+    'irrigue', 'perimetre irrigue', 'hydro-agricole', 'hydroagricole',
+    'hydraulique', 'bas-fond', 'bas-fonds',
+    'eau', 'eaux', 'eau potable', 'adduction', 'ressources en eau',
+    'elevage', 'peche', 'peches', 'foret', 'forets', 'forestier',
+    'riz', 'riziculture', 'rizicole', 'semence', 'betail', 'pastoral',
+    'securite alimentaire', 'filiere', 'cooperative agricole',
+    'retenue', 'digue', 'seuil', 'inondation', 'climat',
+    'amenagement hydro-agricole', 'rurale',
 ]
 
 CONSULTING_KEYWORDS = [
@@ -49,6 +60,13 @@ CONSULTING_KEYWORDS = [
     'f/s', 'capacity building', 'assessment', 'planning',
     'engineering services', 'detailed design', 'design review',
     'design and supervision', 'preliminary design',
+    # 프랑스어 (2026-10 추가) — 악센트는 벗긴 형태로 적는다
+    'etude', 'etudes', 'etudes techniques', 'faisabilite',
+    'assistance technique', 'bureau de controle', 'controle',
+    'maitrise d', 'surveillance', 'supervision des travaux',
+    'consultant', 'consultante', 'ingenieur', 'ingenieur-conseil',
+    'renforcement des capacites', 'appui institutionnel',
+    'avant-projet', 'suivi-evaluation', 'audit',
 ]
 
 # 한국어 키워드 (KOICA nebid 등 국문 공고용)
@@ -94,11 +112,11 @@ _CONSULTING_RE = re.compile(
 
 # ── 공통 유틸 ────────────────────────────────────────────────────────────────
 def _is_agri(text: str) -> bool:
-    return bool(_AGRI_RE.search(text or ''))
+    return bool(_AGRI_RE.search(fold_accents(text or '')))
 
 
 def _is_consulting(text: str) -> bool:
-    return bool(_CONSULTING_RE.search(text or ''))
+    return bool(_CONSULTING_RE.search(fold_accents(text or '')))
 
 
 def _parse_value_usd(value_str: str) -> float:
@@ -215,6 +233,12 @@ SOURCE_HEALTH_LOOKBACK = 30  # 이력 조회 범위(run 수)
 # 상시 공고가 없는 것이 정상인 소스는 감시 대상에서 제외한다.
 # (현재는 없음 — 전 소스가 꾸준히 공고를 내보내는 기관)
 SOURCE_SILENT_EXEMPT: set = set()
+
+# AfDB 는 사내 맥 워커가 밀어 넣는 구조라 COLLECTORS 순회에 안 걸린다.
+# 워커가 꺼져 있거나 Chrome 이 깨져도 서버 쪽은 조용하므로, 마지막 유입
+# 시점을 따로 본다. launchd 가 30분마다 돌리니 하루가 넘으면 비정상이다.
+AFDB_WORKER_STALE_HOURS = 26
+AFDB_RUN_TRIGGER = 'afdb-worker'
 
 
 def _is_stale_date(date_str: str, days: int = DEFAULT_FRESHNESS_DAYS) -> bool:
@@ -2265,6 +2289,178 @@ def _collect_edcf() -> list:
     return results
 
 
+# ── AfDB (아프리카개발은행) ──────────────────────────────────────────────────
+#
+# afdb.org 는 Cloudflare 봇 차단 뒤에 있다. 2026-10 실측:
+#   - 조달 RSS 없음 (채용·뉴스·민간부문 피드만 제공, /en/rss-feeds 확인)
+#   - 일반 HTTP 요청은 UA·헤더를 갖춰도 403 'Just a moment...' (JS 챌린지)
+#   - 실제 브라우저(헤드리스 Chrome)로는 정상 열림
+# 그래서 ADB 본문 보강과 같은 역할 분담을 쓴다:
+#   사내 맥 워커(scripts/afdb_scrape.py)  목록 페이지를 Chrome 으로 긁어 전송
+#   서버(Vercel)                          필터·적합도·카드·카카오 큐
+# 판정 규칙을 서버에만 두어야 워커를 다시 배포하지 않고 기준을 바꿀 수 있다.
+# 그래서 워커는 거른 결과가 아니라 '목록 원본'을 그대로 올린다.
+
+AFDB_SOURCE = 'afdb'
+AFDB_BASE = 'https://www.afdb.org'
+
+# 긁어올 목록 페이지. contract-awards(낙찰 결과)와 procurement-plans 는
+# 발주 '예정/진행' 공고가 아니므로 제외한다.
+AFDB_LISTS = (
+    ('spn',  '/en/documents/project-related-procurement/procurement-notices/specific-procurement-notices'),
+    ('reoi', '/en/documents/project-related-procurement/procurement-notices/request-for-expression-of-interest'),
+    ('ifb',  '/en/documents/project-related-procurement/procurement-notices/invitation-for-bids'),
+    ('gpn',  '/en/documents/project-related-procurement/procurement-notices/general-procurement-notices'),
+)
+
+# 제목 앞머리의 공고 유형 약어. AfDB 는 영·불 병행이라 둘 다 온다.
+#   SPN/AOI/AON/AAO  입찰공고   EOI/AMI  관심표명요청   GPN/AGPM  일반조달공고
+_AFDB_KINDS = {
+    'SPN': ('입찰공고', 'tender'),
+    'IFB': ('입찰공고', 'tender'),
+    'AOI': ('입찰공고', 'tender'),      # Avis d'Appel d'Offres International
+    'AON': ('입찰공고', 'tender'),      # ... National
+    'AAO': ('입찰공고', 'tender'),      # Avis d'Appel d'Offres
+    'EOI': ('관심표명요청', 'eoi'),
+    'AMI': ('관심표명요청', 'eoi'),      # Avis a Manifestation d'Interet
+    'REOI': ('관심표명요청', 'eoi'),
+    'GPN': ('일반조달공고', 'gpn'),
+    'AGPM': ('일반조달공고', 'gpn'),     # Avis General de Passation des Marches
+}
+
+# 불어·약어 국가명 → 영문. 저장은 영문으로 통일한다(다른 소스와 동일).
+_AFDB_COUNTRY_FIX = {
+    'tunisie': 'Tunisia', 'cameroun': 'Cameroon', 'tchad': 'Chad',
+    'rdc': 'Democratic Republic of Congo',
+    'rca': 'Central African Republic',
+    'cote d ivoire': "Côte d'Ivoire", 'cote divoire': "Côte d'Ivoire",
+    'guinee': 'Guinea', 'guinee bissau': 'Guinea-Bissau',
+    'guinee equatoriale': 'Equatorial Guinea',
+    'maroc': 'Morocco', 'egypte': 'Egypt', 'algerie': 'Algeria',
+    'mauritanie': 'Mauritania', 'senegal': 'Senegal', 'soudan': 'Sudan',
+    'ethiopie': 'Ethiopia', 'comores': 'Comoros', 'zambie': 'Zambia',
+    'tanzanie': 'Tanzania', 'ouganda': 'Uganda', 'kenya': 'Kenya',
+    'madagascar': 'Madagascar', 'maurice': 'Mauritius',
+    'afrique du sud': 'South Africa', 'cap vert': 'Cabo Verde',
+    'republique du congo': 'Congo', 'congo': 'Congo',
+    'burkina': 'Burkina Faso', 'benin': 'Benin', 'togo': 'Togo',
+    'niger': 'Niger', 'nigeria': 'Nigeria', 'mali': 'Mali',
+    'gambie': 'Gambia', 'ghana': 'Ghana', 'liberia': 'Liberia',
+    'sierra leone': 'Sierra Leone', 'malawi': 'Malawi',
+    'mozambique': 'Mozambique', 'angola': 'Angola',
+    'zimbabwe': 'Zimbabwe', 'botswana': 'Botswana', 'lesotho': 'Lesotho',
+    'eswatini': 'Eswatini', 'namibie': 'Namibia', 'burundi': 'Burundi',
+    'rwanda': 'Rwanda', 'djibouti': 'Djibouti', 'somalie': 'Somalia',
+    'erythree': 'Eritrea', 'soudan du sud': 'South Sudan',
+    'sao tome': 'Sao Tome and Principe', 'seychelles': 'Seychelles',
+    'gabon': 'Gabon', 'libye': 'Libya',
+    'multinational': 'Multinational', 'multinationale': 'Multinational',
+}
+
+
+def _afdb_country(raw: str) -> str:
+    """'Tunisie' / 'RDC' / "Côte d’Ivoire" → 영문 국가명."""
+    s = ' '.join((raw or '').split())
+    if not s:
+        return ''
+    key = re.sub(r"[^a-z ]", ' ', fold_accents(s).lower())
+    key = ' '.join(key.split())
+    return _AFDB_COUNTRY_FIX.get(key, s)
+
+
+def _parse_afdb_listing(html: str) -> list:
+    """AfDB 조달 목록 페이지(Drupal views) → [{title, url, posted}].
+
+    서버와 맥 워커가 같은 함수를 쓴다. 구조:
+      div.views-field-field-publication-date > span[content="2026-10-26T..."]
+      div.views-field-title > span.field-content > a[href="/en/documents/..."]
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html or '', 'html.parser')
+    grid = soup.select_one('.views-bootstrap-grid-plugin-style') or soup
+    rows = []
+    for cell in grid.select('div[class*=col-]'):
+        anchor = cell.select_one('.views-field-title a[href]')
+        if not anchor:
+            continue
+        title = ' '.join(anchor.get_text(' ', strip=True).split())
+        href = anchor.get('href') or ''
+        if not title or not href:
+            continue
+        url = href if href.startswith('http') else AFDB_BASE + href
+        date_el = cell.select_one('.views-field-field-publication-date span[content]')
+        posted = (date_el.get('content') or '')[:10] if date_el else ''
+        rows.append({'title': title, 'url': url, 'posted': posted})
+    return rows
+
+
+def _afdb_item(row: dict) -> dict | None:
+    """목록 1행 → 수집 파이프라인 공통 item. 관심 없는 건은 None.
+
+    제목 형식이 'SPN - Uganda - <내용> - <사업명>' 으로 고정돼 있어
+    유형·국가를 제목에서 바로 뽑는다.
+    """
+    title = ' '.join((row.get('title') or '').split())
+    url = (row.get('url') or '').strip()
+    if not title or not url:
+        return None
+
+    parts = [p.strip() for p in title.split(' - ')]
+    kind_ko, kind_slug = '', ''
+    country = ''
+    if parts:
+        abbr = re.sub(r'[^A-Za-z]', '', parts[0]).upper()
+        if abbr in _AFDB_KINDS:
+            kind_ko, kind_slug = _AFDB_KINDS[abbr]
+            if len(parts) > 1:
+                country = _afdb_country(parts[1])
+
+    if not _is_agri(title) and not _is_consulting(title):
+        return None
+
+    # 제목 끝에 유형을 붙여 카드에서 공고 성격이 바로 보이게 한다
+    # (다른 소스도 '[입찰공고]' 식으로 통일돼 있다).
+    display = title
+    if kind_ko and f'[{kind_ko}]' not in display:
+        display = f'{display} [{kind_ko}]'
+
+    return {
+        'source': AFDB_SOURCE,
+        'title': display[:500],
+        'country': country,
+        'client': 'AfDB',
+        'sector': ('consulting' if _is_consulting(title) and not _is_agri(title)
+                   else 'agriculture'),
+        'contract_value': '',
+        # 마감일은 목록에 없다. 상세(대부분 PDF)에만 있어 보강 단계에서 채운다.
+        'deadline': '',
+        'source_url': url,
+        'raw_data': {
+            'afdb_kind': kind_slug,
+            'afdb_kind_ko': kind_ko,
+            'posted_date': row.get('posted') or '',
+            'list_title': title,
+        },
+    }
+
+
+def _collect_afdb_from_rows(rows: list) -> list:
+    """맥 워커가 올린 목록 원본 행들을 공통 item 으로 변환(중복 제거 포함)."""
+    results = []
+    seen = set()
+    for row in rows or []:
+        item = _afdb_item(row if isinstance(row, dict) else {})
+        if not item:
+            continue
+        if item['source_url'] in seen:
+            continue
+        seen.add(item['source_url'])
+        results.append(item)
+    print(f'[AfDB] {len(results)} agri/consulting items from {len(rows or [])} rows')
+    return results
+
+
 # ── 수집 실행 ────────────────────────────────────────────────────────────────
 COLLECTORS = {
     'worldbank': _collect_worldbank,
@@ -2279,6 +2475,10 @@ COLLECTORS = {
 SOURCE_DISPLAY = {
     'worldbank': 'World Bank',
     'adb':       'ADB',
+    # AfDB 는 COLLECTORS 에 없다 — Cloudflare 때문에 서버에서 afdb.org 에
+    # 접근할 수 없어 사내 맥 워커가 /collect/afdb-rows 로 올린다.
+    # 표시·건강도 집계에는 다른 소스와 동일하게 들어가야 한다.
+    'afdb':      'AfDB',
     'aiib':      'AIIB',
     'isdb':      'IsDB',
     'koica':     'KOICA',
@@ -2579,6 +2779,110 @@ def _check_collect_auth() -> tuple[bool, str]:
     return False, 'denied'
 
 
+def _check_afdb_ingest_auth() -> bool:
+    """AfDB 워커 유입 인증 — WORKER_SECRET 또는 기존 수집 인증(cron/admin)."""
+    worker_secret = os.environ.get('WORKER_SECRET', '').strip()
+    auth_header = request.headers.get('Authorization', '')
+    token = auth_header[7:] if auth_header.startswith('Bearer ') else ''
+    if worker_secret and token and token == worker_secret:
+        return True
+    ok, _mode = _check_collect_auth()
+    return ok
+
+
+@collector_bp.route('/collect/afdb-rows', methods=['POST'])
+def ingest_afdb_rows():
+    """사내 맥 워커가 긁어온 AfDB 목록 원본을 받아 수집 파이프라인에 넣는다.
+
+    afdb.org 는 Cloudflare JS 챌린지 때문에 서버에서 열 수 없다(403).
+    워커(scripts/afdb_scrape.py)가 헤드리스 Chrome 으로 목록을 읽어
+    {"rows": [{"title","url","posted"}, ...]} 를 그대로 올린다.
+    필터·적합도·카드·카카오 큐는 전부 여기(서버)에서 돈다.
+
+    _sync_db_to_latest 는 부르지 않는다. 워커는 최신 1페이지만 보내므로
+    "이번에 안 올라온 건"을 지우면 기존 AfDB 공고가 통째로 아카이브된다
+    (KOICA 발주계획과 같은 이유).
+    """
+    global _existing_fingerprints_cache, _new_notices_in_run
+    global _reactivated_notices_in_run, _revived_with_new_doc_ids
+
+    if not _check_afdb_ingest_auth():
+        return jsonify({'success': False, 'message': '인증 실패'}), 401
+
+    body = request.get_json(silent=True) or {}
+    rows = body.get('rows')
+    if not isinstance(rows, list):
+        return jsonify({'success': False,
+                        'message': 'rows 배열이 필요합니다'}), 400
+    if len(rows) > 500:
+        return jsonify({'success': False,
+                        'message': f'rows 가 너무 많습니다({len(rows)} > 500)'}), 400
+
+    _existing_fingerprints_cache = None
+    _new_notices_in_run = []
+    _reactivated_notices_in_run = []
+    _revived_with_new_doc_ids = []
+
+    try:
+        items = _collect_afdb_from_rows(rows)
+        _build_fingerprint_cache()
+        stats = _save_collected_items(items)
+
+        # 워커가 돌았다는 기록 — _check_afdb_worker_health 가 이걸 본다.
+        # 0건이어도 남겨야 '워커는 살아있고 신규 공고가 없음'과
+        # '워커가 죽음'을 구분할 수 있다.
+        db.session.add(ScrapingRun(
+            trigger=AFDB_RUN_TRIGGER,
+            total_found=len(rows),
+            total_created=stats['created'],
+            total_skipped=stats['skipped'],
+            sources=[{'name': SOURCE_DISPLAY[AFDB_SOURCE],
+                      'count': stats['fetched_by_source'].get(AFDB_SOURCE, 0),
+                      'error': None}],
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'AfDB 유입 실패: {e}'}), 500
+
+    # 번역·카드·카카오 큐 — 정기 수집과 동일한 후처리
+    pipeline_result = {'enqueued': 0, 'notified': 0}
+    try:
+        new_ids = [n.id for n in _new_notices_in_run if getattr(n, 'id', None)]
+        seen_ids = set(new_ids)
+        revived_ids = []
+        for n in _reactivated_notices_in_run:
+            nid = getattr(n, 'id', None)
+            if not nid or nid in seen_ids or n.archived_at is not None:
+                continue
+            seen_ids.add(nid)
+            revived_ids.append(nid)
+        if new_ids or revived_ids:
+            from services.notice_pipeline import post_collect_hook, requeue_translation
+            revived_set = set(revived_ids)
+            requeued = requeue_translation(
+                [i for i in _revived_with_new_doc_ids if i in revived_set]
+            )
+            pipeline_result = post_collect_hook(new_ids + revived_ids)
+            pipeline_result['requeued'] = requeued
+    except Exception as e:
+        print(f'[afdb-ingest] post_collect_hook 예외 (유입은 성공): {e}')
+
+    return jsonify({
+        'success': True,
+        'rows_received': len(rows),
+        'matched': len(items),
+        'created': stats['created'],
+        'skipped': stats['skipped'],
+        'skip_reasons': stats['skip_reasons'],
+        'archived_by_fit': stats['archived_by_fit'],
+        'pipeline': pipeline_result,
+        'ingested_at': datetime.utcnow().isoformat() + 'Z',
+    })
+
+
 @collector_bp.route('/collect', methods=['GET', 'POST'])
 def collect_notices():
     """
@@ -2654,6 +2958,129 @@ def _check_source_health(fetched_by_source: dict, errors: dict) -> dict:
     return {'silent': silent, 'checked': len(COLLECTORS)}
 
 
+def _save_collected_items(items: list) -> dict:
+    """공통 item 목록을 KRC 적합도 판정 후 DB 에 저장.
+
+    정기 수집(_do_collect)과 맥 워커 유입(AfDB)이 같은 함수를 쓴다.
+    판정·아카이브 규칙이 두 곳으로 갈라지면 소스마다 기준이 달라진다.
+
+    Returns: {created, skipped, archived_by_fit, skip_reasons,
+              created_by_source, fetched_by_source}
+    """
+    created = 0
+    skipped = 0
+    archived_by_fit = 0   # 기준 변경으로 제외된 기존 활성 공고
+    skip_reasons = {}     # (source, 사유) → 건수. 필터 튜닝 근거
+    created_by_source = {}
+    fetched_by_source = {}
+
+    for item in items:
+        src = item['source']
+        fetched_by_source[src] = fetched_by_source.get(src, 0) + 1
+        raw = item.get('raw_data')
+        item_kind = ''
+        if isinstance(raw, dict):
+            item_kind = str(raw.get('item_kind') or '')
+        grade, reason = classify_krc_fit(
+            _fit_text(item.get('title', ''), item.get('country', ''),
+                      item.get('client', ''), raw),
+            item_kind=item_kind,
+        )
+        if not _krc_fit_passes(src, grade, title=item.get('title') or '',
+                               item_kind=item_kind, reason=reason):
+            skipped += 1
+            print(f'[krc-fit] {grade} skip ({reason}): {(item.get("title") or "")[:80]}')
+            rk = f'{src}:{grade}:{reason}'
+            skip_reasons[rk] = skip_reasons.get(rk, 0) + 1
+            # 적합도 기준이 바뀌어 이제 제외되는 공고가 게시판에 활성으로 남아
+            # 있으면 기준과 화면이 어긋난다. _sync_db_to_latest 는 "소스에 아직
+            # 있는" 공고로 보고 그대로 두므로 여기서 직접 아카이브한다.
+            existing = (_existing_fingerprints_cache or ({}, {}))[1].get(
+                item.get('source_url') or '')
+            if existing is not None and existing.archived_at is None:
+                existing.archived_at = datetime.utcnow()
+                existing.archive_reason = 'krc_fit_excluded'
+                archived_by_fit += 1
+                print(f'  └ 기존 활성 공고 #{existing.id} 아카이브 ({reason})')
+            continue
+        if isinstance(raw, dict):
+            raw = {**raw, 'krc_fit': grade, 'krc_fit_reason': reason}
+        saved = _save_notice(
+            source=src,
+            title=item['title'],
+            country=item.get('country', ''),
+            client=item.get('client', ''),
+            sector=item.get('sector', ''),
+            contract_value=item.get('contract_value', ''),
+            deadline=item.get('deadline', ''),
+            source_url=item['source_url'],
+            raw_data=raw,
+        )
+        if saved:
+            created += 1
+            created_by_source[src] = created_by_source.get(src, 0) + 1
+        else:
+            skipped += 1
+
+    return {
+        'created': created,
+        'skipped': skipped,
+        'archived_by_fit': archived_by_fit,
+        'skip_reasons': skip_reasons,
+        'created_by_source': created_by_source,
+        'fetched_by_source': fetched_by_source,
+    }
+
+
+def _check_afdb_worker_health() -> dict:
+    """AfDB 맥 워커가 살아 있는지 — 마지막 유입 시점으로 판정.
+
+    Returns: {'stale': bool, 'hours': float|None, 'last_at': str|None}
+    """
+    try:
+        last = (ScrapingRun.query
+                .filter(ScrapingRun.trigger == AFDB_RUN_TRIGGER)
+                .order_by(ScrapingRun.id.desc())
+                .first())
+    except Exception as e:
+        print(f'[health] AfDB 워커 이력 조회 실패: {e}')
+        return {'stale': False, 'hours': None, 'last_at': None}
+
+    if last is None:
+        # 아직 한 번도 안 올라옴 — 설치 직후일 수 있어 경보하지 않는다.
+        return {'stale': False, 'hours': None, 'last_at': None}
+
+    started = getattr(last, 'run_at', None)
+    if not started:
+        return {'stale': False, 'hours': None, 'last_at': None}
+    hours = (datetime.utcnow() - started).total_seconds() / 3600.0
+    return {
+        'stale': hours >= AFDB_WORKER_STALE_HOURS,
+        'hours': round(hours, 1),
+        'last_at': started.isoformat() + 'Z',
+    }
+
+
+def _notify_afdb_worker_health(status: dict) -> bool:
+    """AfDB 워커 중단을 Discord 로 알린다. best-effort."""
+    if not status.get('stale'):
+        return False
+    try:
+        from services.notifier import get_notifier
+        return get_notifier().send(
+            title='[발주공고] AfDB 수집 워커 중단 의심',
+            body=(f'AfDB 목록이 {status["hours"]}시간 동안 올라오지 않았습니다 '
+                  f'(마지막 {status["last_at"]}).\n\n'
+                  'afdb.org 는 Cloudflare 차단 때문에 사내 맥의 헤드리스 '
+                  'Chrome 워커만 접근할 수 있습니다. 맥이 꺼져 있거나 '
+                  'launchd 서비스(com.krcglobal.afdb-scrape)가 멈췄는지 '
+                  '확인하세요.'),
+        )
+    except Exception as e:
+        print(f'[health] AfDB 워커 알림 실패: {e}')
+        return False
+
+
 def _notify_source_health(health: dict) -> bool:
     """무수집 소스를 Discord 로 알린다. best-effort — 실패해도 수집은 성공."""
     silent = health.get('silent') or []
@@ -2711,60 +3138,13 @@ def _do_collect():
         deduped.append(it)
     all_items = deduped
 
-    created = 0
-    skipped = 0
-    archived_by_fit = 0   # 기준 변경으로 제외된 기존 활성 공고
-    skip_reasons = {}     # (source, 사유) → 건수. 필터 튜닝 근거
-    created_by_source = {}
-    fetched_by_source = {}
-
-    for item in all_items:
-        src = item['source']
-        fetched_by_source[src] = fetched_by_source.get(src, 0) + 1
-        raw = item.get('raw_data')
-        item_kind = ''
-        if isinstance(raw, dict):
-            item_kind = str(raw.get('item_kind') or '')
-        grade, reason = classify_krc_fit(
-            _fit_text(item.get('title', ''), item.get('country', ''),
-                      item.get('client', ''), raw),
-            item_kind=item_kind,
-        )
-        if not _krc_fit_passes(src, grade, title=item.get('title') or '',
-                               item_kind=item_kind, reason=reason):
-            skipped += 1
-            print(f'[krc-fit] {grade} skip ({reason}): {(item.get("title") or "")[:80]}')
-            rk = f'{src}:{grade}:{reason}'
-            skip_reasons[rk] = skip_reasons.get(rk, 0) + 1
-            # 적합도 기준이 바뀌어 이제 제외되는 공고가 게시판에 활성으로 남아
-            # 있으면 기준과 화면이 어긋난다. _sync_db_to_latest 는 "소스에 아직
-            # 있는" 공고로 보고 그대로 두므로 여기서 직접 아카이브한다.
-            existing = (_existing_fingerprints_cache or ({}, {}))[1].get(
-                item.get('source_url') or '')
-            if existing is not None and existing.archived_at is None:
-                existing.archived_at = datetime.utcnow()
-                existing.archive_reason = 'krc_fit_excluded'
-                archived_by_fit += 1
-                print(f'  └ 기존 활성 공고 #{existing.id} 아카이브 ({reason})')
-            continue
-        if isinstance(raw, dict):
-            raw = {**raw, 'krc_fit': grade, 'krc_fit_reason': reason}
-        saved = _save_notice(
-            source=src,
-            title=item['title'],
-            country=item.get('country', ''),
-            client=item.get('client', ''),
-            sector=item.get('sector', ''),
-            contract_value=item.get('contract_value', ''),
-            deadline=item.get('deadline', ''),
-            source_url=item['source_url'],
-            raw_data=raw,
-        )
-        if saved:
-            created += 1
-            created_by_source[src] = created_by_source.get(src, 0) + 1
-        else:
-            skipped += 1
+    stats = _save_collected_items(all_items)
+    created = stats['created']
+    skipped = stats['skipped']
+    archived_by_fit = stats['archived_by_fit']
+    skip_reasons = stats['skip_reasons']
+    created_by_source = stats['created_by_source']
+    fetched_by_source = stats['fetched_by_source']
 
     # 실행 이력 기록 — Vercel Cron / 관리자 수동 모두 이 경로
     trigger = (request.args.get('trigger') or 'scheduled').strip()[:20]
@@ -2811,6 +3191,13 @@ def _do_collect():
     if health.get('silent'):
         for s in health['silent']:
             print(f'[health] {s["display"]}: {s["runs"]}회 연속 무수집')
+
+    # AfDB 는 맥 워커 경유라 위 순회에 안 걸린다 — 유입 중단을 따로 본다
+    afdb_health = _check_afdb_worker_health()
+    afdb_health['notified'] = _notify_afdb_worker_health(afdb_health)
+    if afdb_health.get('stale'):
+        print(f'[health] AfDB 워커 {afdb_health["hours"]}시간 무유입')
+    health['afdb_worker'] = afdb_health
 
     # 번역 작업 큐잉 + Discord 알림 (인포그래픽은 번역 완료 시 서버가 직접 생성)
     pipeline_result = {'enqueued': 0, 'notified': 0}
