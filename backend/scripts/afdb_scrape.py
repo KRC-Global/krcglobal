@@ -141,7 +141,64 @@ def push(api_base: str, secret: str, rows: list, timeout: float) -> dict:
     return r.json() or {}
 
 
-def run_once(api_base: str, secret: str, pages: int,
+def enrich(chrome: str, api_base: str, secret: str, limit: int,
+           dom_timeout: float, http_timeout: float) -> dict:
+    """마감일·금액이 빈 AfDB 공고의 상세 페이지를 Chrome 으로 받아 올린다.
+
+    상세 페이지도 Cloudflare 챌린지가 걸려 있어 requests 로는 403 이다.
+    목록 수집과 같은 이유로 이 역할이 맥에 있다. 추출 규칙은 서버 코드
+    (_parse_afdb_detail)를 import 해 쓴다 — 규칙이 갈라지지 않도록.
+    """
+    import requests as req
+    from routes.notice_collector import _parse_afdb_detail
+
+    session = req.Session()
+    session.headers.update({'Authorization': f'Bearer {secret}'})
+
+    r = session.get(f'{api_base}/api/notices/enrich-pending',
+                    params={'source': 'afdb', 'limit': limit},
+                    timeout=http_timeout)
+    r.raise_for_status()
+    pending = (r.json() or {}).get('data') or []
+    if not pending:
+        return {'pending': 0, 'enriched': 0, 'failed': 0}
+
+    enriched = failed = 0
+    for item in pending:
+        nid, url = item.get('id'), item.get('sourceUrl') or ''
+        if not nid or not url:
+            continue
+        try:
+            details = _parse_afdb_detail(fetch_dom(chrome, url, dom_timeout))
+        except Exception as e:
+            print(f'  #{nid} 상세 실패: {str(e)[:90]}', flush=True)
+            details = {}
+
+        if not details:
+            # 실패도 서버에 알려 같은 건을 매 주기 다시 집지 않게 한다.
+            details = {'text_excerpt': '', 'enrich_failed': True}
+            failed += 1
+        else:
+            enriched += 1
+            got = [k for k in ('deadline', 'contract_value', 'client') if details.get(k)]
+            print(f'  #{nid} 보강: {", ".join(got) or "본문만"} '
+                  f'({len(details.get("text_excerpt") or "")}자)', flush=True)
+
+        try:
+            pr = session.post(f'{api_base}/api/notices/{nid}/enrich',
+                              json={'details': details}, timeout=http_timeout)
+            if pr.status_code != 200:
+                print(f'  #{nid} 전송 실패: HTTP {pr.status_code} {pr.text[:90]}',
+                      flush=True)
+        except Exception as e:
+            print(f'  #{nid} 전송 예외: {str(e)[:90]}', flush=True)
+
+        time.sleep(1.0)   # AfDB 측 부하 배려
+
+    return {'pending': len(pending), 'enriched': enriched, 'failed': failed}
+
+
+def run_once(api_base: str, secret: str, pages: int, enrich_limit: int,
              dom_timeout: float, http_timeout: float) -> dict:
     chrome = find_chrome()
     rows, errors = scrape(chrome, pages, dom_timeout)
@@ -152,6 +209,16 @@ def run_once(api_base: str, secret: str, pages: int,
     res = push(api_base, secret, rows, http_timeout)
     res['rows'] = len(rows)
     res['scrape_errors'] = errors
+
+    # 목록에는 마감일·금액이 없다 — 상세를 받아 채운다.
+    # 수집이 성공했을 때만 돈다(차단 상태면 상세도 막혀 있다).
+    if enrich_limit > 0:
+        try:
+            res['enrich'] = enrich(chrome, api_base, secret, enrich_limit,
+                                   dom_timeout, http_timeout)
+        except Exception as e:
+            print(f'[afdb] 보강 단계 실패: {str(e)[:140]}', flush=True)
+            res['enrich'] = {'error': str(e)[:140]}
     return res
 
 
@@ -161,6 +228,8 @@ def main() -> int:
     ap.add_argument('--once', action='store_true', help='1회만 실행')
     ap.add_argument('--pages', type=int, default=1,
                     help='목록당 긁을 페이지 수(1페이지 = 18건). 기본 1')
+    ap.add_argument('--enrich-limit', type=int, default=6,
+                    help='1회에 상세 보강할 건수. 0 이면 보강 생략. 기본 6')
     ap.add_argument('--interval', type=float, default=1800,
                     help='주기 실행 간격(초)')
     args = ap.parse_args()
@@ -176,10 +245,17 @@ def main() -> int:
 
     while True:
         try:
-            res = run_once(api_base, secret, args.pages, dom_timeout, http_timeout)
+            res = run_once(api_base, secret, args.pages, args.enrich_limit,
+                           dom_timeout, http_timeout)
             print(f'[afdb] 행 {res.get("rows")} / 매칭 {res.get("matched")} '
                   f'/ 신규 {res.get("created")} / 제외 {res.get("skipped")}',
                   flush=True)
+            en = res.get('enrich') or {}
+            if en:
+                print(f'[afdb] 보강 대상 {en.get("pending", 0)} '
+                      f'/ 성공 {en.get("enriched", 0)} / 실패 {en.get("failed", 0)}'
+                      + (f' / 오류 {en["error"]}' if en.get('error') else ''),
+                      flush=True)
             if res.get('scrape_errors'):
                 print(f'[afdb] 일부 목록 실패: {res["scrape_errors"]}', flush=True)
         except Exception as e:

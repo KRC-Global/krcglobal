@@ -1432,41 +1432,90 @@ def _fetch_adb_detail(source_url: str) -> dict:
     return details
 
 
-def _fetch_afdb_detail(source_url: str) -> dict:
-    """AfDB 공고 상세 페이지에서 마감일·금액·국가·조달방식 등 추출.
+def _parse_afdb_detail(html: str) -> dict:
+    """AfDB 공고 상세 HTML 에서 마감일·금액·국가·조달방식 등 추출.
 
-    AfDB는 Drupal/Liferay 기반 — .field-items, .content-body, meta 태그 등 탐색.
+    가져오기와 분리해 둔다 — afdb.org 는 상세 페이지까지 Cloudflare JS
+    챌린지가 걸려 있어(2026-10 실측: 목록·상세 모두 403) requests 로는
+    서버에서도 맥에서도 못 받는다. 맥 워커가 헤드리스 Chrome 으로 받은
+    HTML 을 이 함수에 넣는다. 파싱 규칙은 한 곳에만 둔다.
     """
-    import requests as req
-
-    if not source_url:
-        return {}
-    try:
-        r = req.get(source_url, timeout=12,
-                    headers=_browser_headers(referer='https://www.afdb.org/en/'))
-        if r.status_code != 200:
-            print(f'[AfDB-detail] HTTP {r.status_code}: {source_url}')
-            return {}
-    except req.RequestException as e:
-        print(f'[AfDB-detail] 요청 실패: {e}')
-        return {}
-
     try:
         from bs4 import BeautifulSoup
     except ImportError:
         return {}
+    if not html:
+        return {}
 
-    soup = BeautifulSoup(r.text, 'html.parser')
-    plain = soup.get_text(' ', strip=True)
+    # Cloudflare 챌린지 페이지를 본문으로 저장하면 카드에 'Just a moment...'
+    # 가 찍히고, afdb_details 키가 생겨 재시도 대상에서도 빠진다.
+    low = html[:3000].lower()
+    if 'just a moment' in low or 'cf-browser-verification' in low:
+        print('[AfDB-detail] Cloudflare 챌린지 페이지 — 파싱하지 않음')
+        return {}
+
+    soup = BeautifulSoup(html, 'html.parser')
+
+    # 페이지 전체 텍스트를 쓰면 'Skip to main content Follow us on X ...' 같은
+    # 네비게이션이 본문 발췌로 들어간다. Drupal 본문 영역만 좁혀 본다.
+    body_el = None
+    for sel in ('.field-name-body', '.field-type-text-with-summary',
+                '#block-system-main', '.region-content'):
+        body_el = soup.select_one(sel)
+        if body_el:
+            break
+    plain = ' '.join((body_el or soup).get_text(' ', strip=True).split())
     details = {}
+
+    # 첨부 PDF — 마감일·입찰서류는 여기에만 있다. afdb.org 는 PDF 까지
+    # Cloudflare 가 막아(TLS 지문 검사) 본문 추출이 불가하므로, 주소만
+    # 남겨 카드에서 원문으로 바로 갈 수 있게 한다.
+    for a in soup.find_all('a', href=True):
+        href = a['href']
+        if '.pdf' in href.lower() and 'project-related-procurement' in href:
+            details['attachment_url'] = (
+                href if href.startswith('http') else 'https://www.afdb.org' + href)
+            break
+
+    # 발주처 — AfDB 공고 본문은 거의 항상 '차주가 재원을 받았다'로 시작한다.
+    #   The Ministry of Agriculture ... has received financing from ...
+    #   The Government of Sierra Leone has received a loan ... from ...
+    #   Le Gouvernement Tunisien a beneficie d'un financement ... (불어)
+    ag = re.search(
+        r'(?:The\s+)?([A-Z][^.;]{6,120}?)\s+(?:has\s+)?received\s+'
+        r'(?:a|an|the)?\s*(?:financing|loan|grant|credit)',
+        plain) or re.search(
+        r'(?:Le|La|L.)\s*([A-ZÀ-Ý][^.;]{6,120}?)\s+a\s+'
+        r'(?:re[çc]u|b[eé]n[eé]fici[eé]|obtenu)\s+'
+        r'(?:d.un|un|d.une|une)\s+(?:financement|pr[eê]t|don|cr[eé]dit)',
+        plain)
+    if ag:
+        details['client'] = ag.group(1).strip()[:200]
+
+    # 금액 — 'has received a loan in the amount of UA 2,500,000' 형태.
+    # 통화코드가 숫자 바로 앞에 붙은 경우만 본다. 불어 공고의
+    # 'pret N° : 2000200004401' 은 차관 번호라 금액으로 읽으면 안 된다.
+    am = re.search(
+        rf'(?:financing|loan|grant|credit|financement|pr[eê]t|don)'
+        rf'[^.;]{{0,60}}?({_CURRENCY_CODES})\s*([\d]{{1,3}}(?:,\d{{3}})+|[\d]+\.\d+)\s*'
+        rf'(million|billion|mln|bn|M|B|K)?',
+        plain, re.IGNORECASE)
+    if am:
+        val = _format_compact_money(am.group(1), am.group(2), am.group(3),
+                                    min_threshold=_MIN_CONTRACT_USD_THRESHOLD)
+        if val:
+            details['contract_value'] = val
 
     # 마감일
     deadline = _extract_labeled_date(plain, _DEADLINE_LABELS)
     if deadline:
         details['deadline'] = deadline
 
-    # 금액
+    # 금액 — 라벨형('Estimated amount: USD 1,200,000') 보조 경로.
+    # 위 문장형에서 못 찾았을 때만 본다.
     for label_rx in _AMOUNT_LABELS:
+        if details.get('contract_value'):
+            break
         m = re.search(
             rf'{label_rx}\s*[:\-–]?\s*({_CURRENCY_CODES})\s*([\d,]+(?:\.\d+)?)\s*'
             rf'(million|billion|mln|bn|M|B|K)?',
@@ -1486,7 +1535,7 @@ def _fetch_afdb_detail(source_url: str) -> dict:
 
     # 발주처
     ea = re.search(r'(?:Executing\s+Agency|Borrower|Client|Agence\s+d.ex[ée]cution)\s*[:\-–]\s*([^\n<;]{3,200})', plain)
-    if ea:
+    if ea and not details.get('client'):   # 'has received financing' 쪽이 더 정확
         details['client'] = ea.group(1).strip()[:200]
 
     # 조달방식
@@ -1506,22 +1555,51 @@ def _fetch_afdb_detail(source_url: str) -> dict:
     return details
 
 
-def _enrich_pending_notices(limit: int = 15) -> dict:
-    """ADB/AfDB 공고 중 상세 정보가 없는 건을 source_url 방문으로 보강.
+def _fetch_afdb_detail(source_url: str) -> dict:
+    """AfDB 상세 페이지를 받아 파싱 — 호출자가 HTML 을 못 구할 때만 쓴다.
 
-    raw_data 에 adb_details/afdb_details 키가 없는 건을 대상으로
-    상세 페이지를 fetch 해 마감일·금액·발주처 등을 채운다.
+    afdb.org 는 Cloudflare JS 챌린지 때문에 requests 로는 403 이다
+    (서버·맥 공통, 2026-10 실측). 그래서 이 경로는 사실상 쓰이지 않고,
+    실제 보강은 맥 워커가 Chrome 으로 받은 HTML 을 _parse_afdb_detail 에
+    넣는 방식으로 돈다. 남겨 두는 이유는 차단이 풀리면 바로 쓰기 위함이다.
+    """
+    import requests as req
+
+    if not source_url:
+        return {}
+    try:
+        r = req.get(source_url, timeout=12,
+                    headers=_browser_headers(referer='https://www.afdb.org/en/'))
+        if r.status_code != 200:
+            print(f'[AfDB-detail] HTTP {r.status_code}: {source_url}')
+            return {}
+    except req.RequestException as e:
+        print(f'[AfDB-detail] 요청 실패: {e}')
+        return {}
+    return _parse_afdb_detail(r.text)
+
+
+# 서버에서 상세를 받을 수 없는 소스 — 보강은 사내 맥 워커가 담당한다.
+# afdb: 목록·상세 모두 Cloudflare JS 챌린지(403). requests 로는 불가.
+# 서버가 매 run 마다 헛되이 때려 타임아웃만 쌓는 것을 막는다.
+ENRICH_WORKER_ONLY_SOURCES = {'afdb'}
+
+
+def _enrich_pending_notices(limit: int = 15) -> dict:
+    """ADB 공고 중 상세 정보가 없는 건을 source_url 방문으로 보강.
+
+    raw_data 에 adb_details 키가 없는 건을 대상으로 상세 페이지를 fetch 해
+    마감일·금액·발주처 등을 채운다. AfDB 는 서버에서 접근 자체가 막혀
+    (ENRICH_WORKER_ONLY_SOURCES) 맥 워커가 따로 처리한다.
     """
     import time as t
 
     detail_fetchers = {
         'adb': _fetch_adb_detail,
-        'afdb': _fetch_afdb_detail,
     }
 
-    # adb/afdb 이면서 details 키가 없는 건
     candidates = (BidNotice.query
-                  .filter(BidNotice.source.in_(['adb', 'afdb']))
+                  .filter(BidNotice.source.in_(list(detail_fetchers)))
                   .order_by(BidNotice.created_at.desc())
                   .limit(limit * 3)  # details 있는 건도 포함되므로 여유 있게
                   .all())
