@@ -649,7 +649,8 @@ def _save_notice(source, title, country, client, sector,
     if isinstance(raw_data, dict):
         item_kind = str(raw_data.get('item_kind') or '')
     fit_text = _fit_text(title, country, client, raw_data, sector)
-    grade, reason = classify_krc_fit(fit_text, item_kind=item_kind)
+    grade, reason = classify_krc_fit(fit_text, item_kind=item_kind,
+                                     subject=title or '')
     if not _krc_fit_passes(source, grade, title=title, item_kind=item_kind,
                            reason=reason):
         print(f'[krc-fit] {grade} 저장안함 ({reason}): {(title or "")[:80]}')
@@ -3063,6 +3064,7 @@ def _save_collected_items(items: list) -> dict:
             _fit_text(item.get('title', ''), item.get('country', ''),
                       item.get('client', ''), raw),
             item_kind=item_kind,
+            subject=item.get('title', ''),
         )
         if not _krc_fit_passes(src, grade, title=item.get('title') or '',
                                item_kind=item_kind, reason=reason):

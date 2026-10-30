@@ -100,11 +100,12 @@ _STAFFING_FR = re.compile(
     re.I,
 )
 _RURAL_FR = re.compile(
-    r'\b(?:agricoles?|agriculture|agro\w*|rural\w*|elevage|'
+    # elevage/betail 은 _LOW_FR 로 이동(2026-10 제외 대상)
+    r'\b(?:agricoles?|agriculture|agro\w*|rural\w*|'
     r'peches?|peche\s+artisanale|forets?|forestiers?|sylvicoles?|'
     r'securite\s+alimentaire|filieres?|semences?|'
     r'cultures?|cooperatives?\s+agricoles?|'
-    r'riz|riziculture|rizicoles?|betail|pastoral\w*)\b',
+    r'riz|riziculture|rizicoles?|pastoral\w*)\b',
     re.I,
 )
 _WATER_CLIMATE_FR = re.compile(
@@ -135,6 +136,60 @@ _GOODS_EN = re.compile(
     r'supply of (?:goods|equipment|furniture|inputs))\b',
     re.I,
 )
+
+# ── 사업 성격이 KRC 와 다른 분야 (2026-10 추가) ────────────────────────────
+# 축산·낙농 : 농업이지만 KRC 는 농업생산기반(관개·용수·경지) 기관이다
+# 전력·전기화: 농촌 전력화는 에너지 사업이다
+# 수문관측   : 관측망 구축은 수자원 조사이지 관개 시설 사업이 아니다
+#
+# 위 _LOW_* 와 달리 '제목'에서만 본다. 긴 설명문에는 관련 분야가 한 번씩
+# 스쳐 지나가기 마련이라, 본문 전체로 판정하면 관개 사업이 설명문의
+# 'elevage' 한 단어에 날아간다(실측: #311 부룬디 구릉지 기후회복력,
+# #222 아프리카의 뿔 지하수, #401 RCRP2 — 셋 다 제목엔 없고 본문에만 있었다).
+# 사업의 성격은 제목이 말해 준다.
+_OFFSCOPE_KO = (
+    '축산', '낙농', '양돈', '양계', '가축',
+    '전기화', '전력 접근', '농촌 전력', '송전', '배전', '변전',
+    '수문관측', '수문 관측', '관측소',
+)
+_OFFSCOPE_EN = re.compile(
+    # 'power' 단독은 넣지 않는다 — 'Solar Powered Irrigation System'
+    # (관개 설비의 동력원)까지 걸려 버린다.
+    r'\b(?:electrification|transmission\s+lines?|substations?|power\s+grid|'
+    r'rural\s+electric\w*|'
+    r'livestock|dairy|poultry|cattle|abattoirs?|'
+    r'hydrometric|hydrological\s+stations?|gauging\s+stations?)\b',
+    re.I,
+)
+_OFFSCOPE_FR = re.compile(
+    r'\b(?:elevage|betail|laiti\w*|volailles?|abattoirs?|'
+    r'electrification|lignes?\s+de\s+transport|postes?\s+electriques?|'
+    r'stations?\s+hydrom\w*|hydrometriques?)\b',
+    re.I,
+)
+_OFFSCOPE_REASONS = (
+    (('축산', '낙농', '양돈', '양계', '가축'),
+     r'\b(?:livestock|dairy|poultry|cattle|abattoirs?|elevage|betail|laiti\w*|volailles?)\b',
+     '축산·낙농 분야'),
+    (('전기화', '전력 접근', '농촌 전력', '송전', '배전', '변전'),
+     r'\b(?:electrification|transmission\s+lines?|substations?|power\s+grid|'
+     r'rural\s+electric\w*|lignes?\s+de\s+transport|postes?\s+electriques?)\b',
+     '전력·에너지 분야'),
+    (('수문관측', '수문 관측', '관측소'),
+     r'\b(?:hydrometric|hydrological\s+stations?|gauging\s+stations?|'
+     r'stations?\s+hydrom\w*|hydrometriques?)\b',
+     '수문관측 시설'),
+)
+
+
+def _offscope(subject: str) -> str:
+    """제목이 KRC 분야 밖이면 사유를, 아니면 빈 문자열을 반환."""
+    if not subject:
+        return ''
+    for ko_words, en_rx, reason in _OFFSCOPE_REASONS:
+        if any(w in subject for w in ko_words) or re.search(en_rx, subject, re.I):
+            return reason
+    return ''
 
 # ── 발송 제외 유형 ──────────────────────────────────────────────────────────
 # 단순 인력파견·물품구매는 KRC 가 기관으로 수주할 사업이 아니다.
@@ -187,12 +242,14 @@ def excluded_procurement(text: str, item_kind: str = '') -> tuple[bool, str]:
 #        확인되지 않으면 수집하지 않는다.
 # (가)를 먼저 보므로 'Rural Water Supply' 처럼 둘 다 걸리는 건 농촌개발로 본다.
 _RURAL_KO = (
-    '농업', '농촌', '식량', '농민', '가치사슬', '작물', '축산',
+    # '축산' 은 2026-10 부터 제외 대상이라 여기서 뺐다(_LOW_KO 로 이동).
+    '농업', '농촌', '식량', '농민', '가치사슬', '작물',
     '산림', '농식품', '영농', '농가', '임업', '수산',
 )
 _RURAL_EN = re.compile(
     r'\b(?:agricultur\w*|rural|agro\w*|farm(?:er|ing|land)?s?|'
-    r'food security|livelihood|value chain|forestry|livestock|'
+    # livestock 은 _LOW_EN 으로 이동(2026-10 제외 대상)
+    r'food security|livelihood|value chain|forestry|'
     r'fisher(?:y|ies)|crop|horticultur\w*)\b',
     re.I,
 )
@@ -233,8 +290,15 @@ def _norm(text: str) -> str:
     return unicodedata.normalize('NFC', ''.join(out))
 
 
-def classify_krc_fit(text: str, *, item_kind: str = '') -> tuple[str, str]:
-    """KRC 주력(농업관개) 적합도를 (상|중|하, 이유)로 반환."""
+def classify_krc_fit(text: str, *, item_kind: str = '',
+                     subject: str = '') -> tuple[str, str]:
+    """KRC 주력(농업관개) 적합도를 (상|중|하, 이유)로 반환.
+
+    subject 는 '제목만' 담은 문자열이다. 축산·전력·수문관측처럼 사업의
+    성격 자체가 KRC 와 다른 분야는 제목으로 판정해야 한다(_offscope 주석 참조).
+    넘기지 않으면 text 를 제목으로 본다 — 제목만 넘기는 호출자(테스트,
+    KOICA 발주계획)에서는 둘이 같다.
+    """
     blob = _norm(f'{text} {item_kind}')
     kind = (item_kind or '').strip()
 
@@ -242,6 +306,11 @@ def classify_krc_fit(text: str, *, item_kind: str = '') -> tuple[str, str]:
     is_excluded, why = excluded_procurement(text, item_kind)
     if is_excluded:
         return GRADE_LOW, why
+
+    # 분야 자체가 다른 사업 — 제목 기준
+    off = _offscope(_norm(subject) if subject else blob)
+    if off:
+        return GRADE_LOW, off
 
     if (any(k in blob for k in _LOW_KO) or _LOW_EN.search(blob)
             or _GOODS_EN.search(blob)

@@ -766,11 +766,39 @@ def _delivery_age_hours(delivery: dict) -> float:
     return (datetime.now(timezone.utc) - created).total_seconds() / 3600.0
 
 
+def _hold_until(source: str):
+    """소스별 발송 보류 시각. KAKAO_HOLD_UNTIL='afdb:2026-11-01T10:00+09:00'.
+
+    쉼표로 여러 소스를 적을 수 있다. 시간대를 빼면 KST 로 읽는다.
+    새 소스를 붙인 직후처럼 '수집은 하되 당분간 보내지 않는' 구간에 쓴다.
+    """
+    raw = (os.environ.get('KAKAO_HOLD_UNTIL') or '').strip()
+    if not raw or not source:
+        return None
+    for part in raw.split(','):
+        src, sep, when = part.strip().partition(':')
+        if not sep or src.strip().lower() != source:
+            continue
+        try:
+            dt = datetime.fromisoformat(when.strip())
+        except ValueError:
+            LOG.warning('KAKAO_HOLD_UNTIL 값을 읽을 수 없습니다: %s', part.strip())
+            return None
+        return dt if dt.tzinfo else dt.replace(tzinfo=KST)
+    return None
+
+
 def _should_send_now(delivery: dict, notice: dict) -> tuple[bool, str]:
     """지금 보낼지 판단. (보낼지, 사유)."""
     source = str(notice.get('source') or '').strip().lower()
     age = _delivery_age_hours(delivery)
     stale_h = _env_int('KAKAO_STALE_SEND_HOURS', 24)
+
+    # 보류가 가장 먼저다 — 아래 '24시간 지연 발송' 규칙보다 뒤에 두면
+    # 하루 지난 건이 보류를 뚫고 나간다.
+    hold = _hold_until(source)
+    if hold and datetime.now(KST) < hold:
+        return False, f'{hold.strftime("%m-%d %H:%M")} KST 까지 발송 보류'
 
     if source in _immediate_sources():
         hold_h = _env_int('KAKAO_ADB_ENRICH_WAIT_HOURS', 6)

@@ -1119,6 +1119,34 @@ def _pil_wrap(draw, text: str, font, max_width: int, max_lines: int) -> list[str
     return lines[:max_lines]
 
 
+def _pil_fit_title(draw, text: str, max_width: int, *,
+                   max_lines: int = 2, size_from: int = 46, size_min: int = 26):
+    """제목이 다 보이도록 글자 크기를 줄여 맞춘다. (font, lines, size) 반환.
+
+    _pil_wrap 은 max_lines 를 넘기면 '…' 로 잘라내므로, 그 결과로 '맞는지'를
+    판정하면 언제나 맞는 것처럼 보인다(종전 코드가 그래서 46pt 에서 한 번도
+    줄지 않았다). 넉넉한 줄 수로 먼저 감싸 '진짜 필요한 줄 수'를 센 다음
+    크기를 내린다.
+
+    size_min 까지 줄여도 max_lines 안에 안 들어가면 한 줄을 더 허용한다.
+    그래도 안 되면 그때만 잘라낸다 — 제목이 통째로 사라지는 것보다 낫다.
+    """
+    probe_lines = max(max_lines + 6, 10)
+    for size in range(size_from, size_min - 1, -2):
+        font = _pil_font(size, bold=True)
+        lines = _pil_wrap(draw, text, font, max_width, probe_lines)
+        if len(lines) <= max_lines:
+            return font, lines, size
+    # 한 줄 더 허용 — 콜아웃 영역이 title_end 기준으로 줄어들며 흡수한다
+    for size in range(size_from, size_min - 1, -2):
+        font = _pil_font(size, bold=True)
+        lines = _pil_wrap(draw, text, font, max_width, probe_lines)
+        if len(lines) <= max_lines + 1:
+            return font, lines, size
+    font = _pil_font(size_min, bold=True)
+    return font, _pil_wrap(draw, text, font, max_width, max_lines + 1), size_min
+
+
 def _pil_draw_lines(draw, xy: tuple[int, int], lines: list[str], font, fill: str,
                     *, spacing: int) -> int:
     x, y = xy
@@ -1298,15 +1326,9 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
 
     left_x, left_w = margin, 1210
     right_x, right_w = 1314, 542
-    title_size = 46
-    while title_size > 34:
-        title_font = _pil_font(title_size, bold=True)
-        title_lines = _pil_wrap(draw, data['title'], title_font, left_w, 2)
-        if len(title_lines) <= 2 and all(_pil_text_width(draw, line, title_font) <= left_w for line in title_lines):
-            break
-        title_size -= 2
+    title_font, title_lines, title_size = _pil_fit_title(
+        draw, data['title'], left_w, max_lines=2, size_from=50, size_min=26)
     title_y = rule_y + 22
-    title_lines = _pil_wrap(draw, data['title'], title_font, left_w, 2)
     title_end = _pil_draw_lines(draw, (left_x, title_y), title_lines, title_font,
                                 pal['INK'], spacing=title_size + 12)
     if data['title_en'] and data['title_en'] != data['title']:
@@ -1333,15 +1355,33 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
     # 글자를 키우면 같은 문장이 더 많은 줄을 차지한다. 세 블록을 똑같이
     # 3등분하면 내용이 많은 개요·확인 필요가 잘리고 KRC 검토만 빈다.
     # 필요한 줄 수를 먼저 세고 그 비율로 높이를 나눈다.
-    line_h = 31                       # 23px 본문의 줄 간격
     head_h = 45 + 8                   # 머리말 + 아래 여백
+    total_gap = gap * (len(groups) - 1)
+
+    # 제목과 같은 원칙 — 넘치면 자르지 말고 글자를 줄여 다 보이게 한다.
+    # 23px 로 시작해 전부 들어가는 가장 큰 크기를 고른다. 19px 까지
+    # 줄여도 안 들어가면 그때는 종전처럼 아래에서 잘린다.
+    body_size, body_font, line_h = 23, regular19, 31
+    for size in (23, 22, 21, 20, 19):
+        font = _pil_font(size)
+        lh = size + 8
+        counts = []
+        for _, _, _, body in groups:
+            cnt = 0
+            for line in body:
+                cnt += len(_pil_wrap(draw, f'• {line}', font, left_w - 44, 40))
+            counts.append(max(1, cnt))
+        want = sum(max(84, head_h + c * lh) for c in counts) + total_gap
+        body_size, body_font, line_h = size, font, lh
+        if want <= available:
+            break
+
     need = []
     for _, _, _, body in groups:
         lines = 0
         for line in body:
-            lines += len(_pil_wrap(draw, f'• {line}', regular19, left_w - 44, 12))
+            lines += len(_pil_wrap(draw, f'• {line}', body_font, left_w - 44, 40))
         need.append(max(1, lines))
-    total_gap = gap * (len(groups) - 1)
     usable = max(180, available - total_gap)
     fixed = head_h * len(groups)
     text_room = max(len(groups) * line_h, usable - fixed)
@@ -1373,12 +1413,12 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
         max_body_lines = max(1, (bottom - text_y - 8) // line_h)
         body_lines: list[str] = []
         for line in body:
-            wrapped = _pil_wrap(draw, f'• {line}', regular19, left_w - 44,
+            wrapped = _pil_wrap(draw, f'• {line}', body_font, left_w - 44,
                                 max_body_lines - len(body_lines))
             body_lines.extend(wrapped)
             if len(body_lines) >= max_body_lines:
                 break
-        _pil_draw_lines(draw, (left_x + 22, text_y), body_lines, regular19,
+        _pil_draw_lines(draw, (left_x + 22, text_y), body_lines, body_font,
                         pal['INK'], spacing=line_h)
         callout_y = bottom + gap
 
@@ -1434,10 +1474,23 @@ def _render_slide_png_pillow(notice: dict, out_path: Path) -> Path:
                       _pil_ellipsize(draw, str(value), value_font, value_width),
                       font=value_font, fill=pal['INK'])
         else:
-            value_font = bold22 if len(str(value)) <= 16 else bold17
-            value_lines = _pil_wrap(draw, value, value_font, value_width, 2)
+            # 발주처 이름이 길면 'Ministry of Agriculture of the…' 처럼 잘렸다.
+            # 제목·콜아웃과 같은 원칙으로 두 줄 안에 들어갈 때까지 줄인다.
+            value_font, value_lines, vsize = None, [], 0
+            for size in (25, 23, 21, 19, 17, 15, 14):
+                if len(str(value)) <= 16 and size > 25:
+                    continue
+                font = _pil_font(size, bold=True)
+                lines = _pil_wrap(draw, value, font, value_width, 6)
+                if len(lines) <= 2:
+                    value_font, value_lines, vsize = font, lines, size
+                    break
+            if value_font is None:
+                vsize = 14
+                value_font = _pil_font(vsize, bold=True)
+                value_lines = _pil_wrap(draw, value, value_font, value_width, 2)
             _pil_draw_lines(draw, (text_x, y + 42), value_lines, value_font,
-                            pal['INK'], spacing=24)
+                            pal['INK'], spacing=vsize + 3)
 
     if data['url']:
         url_y = card_start + 3 * (card_h + card_gap)
