@@ -701,6 +701,14 @@ def _process_delivery(
             receipts.save(delivery_id, {'state': 'attempting', 'kind': kind})
             attempted_send = True
             kmsg.send_link(message)
+        elif kind == 'digest':
+            # 주간 브리핑 — 특정 공고에 묶이지 않아 본문이 payload 에 들어 있다.
+            message = (claimed.get('payload') or '').strip()
+            if not message:
+                raise RuntimeError('digest 전송인데 payload 가 비어 있습니다.')
+            receipts.save(delivery_id, {'state': 'attempting', 'kind': kind})
+            attempted_send = True
+            kmsg.send_link(message)
         else:
             raise RuntimeError(f'지원하지 않는 카카오 전송 종류: {kind}')
 
@@ -793,6 +801,11 @@ def _should_send_now(delivery: dict, notice: dict) -> tuple[bool, str]:
     source = str(notice.get('source') or '').strip().lower()
     age = _delivery_age_hours(delivery)
     stale_h = _env_int('KAKAO_STALE_SEND_HOURS', 24)
+
+    # 주간 다이제스트는 특정 공고에 묶이지 않고, 큐에 들어가는 시각(주간 cron)이
+    # 곧 발송 시각이다. 일일 발송 창을 기다리면 하루 밀린다.
+    if str(delivery.get('kind') or '') == 'digest':
+        return True, '주간 다이제스트'
 
     # 보류가 가장 먼저다 — 아래 '24시간 지연 발송' 규칙보다 뒤에 두면
     # 하루 지난 건이 보류를 뚫고 나간다.

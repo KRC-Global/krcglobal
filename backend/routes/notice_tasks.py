@@ -613,7 +613,7 @@ def download_infographic(nid: int):
 
 
 # ── 10. Mac 카카오톡 릴레이 전용 큐 ─────────────────────────────────────────
-KAKAO_DELIVERY_KINDS = {'image', 'link'}
+KAKAO_DELIVERY_KINDS = {'image', 'link', 'digest'}
 
 
 @notice_tasks_bp.route('/kakao-deliveries', methods=['GET'])

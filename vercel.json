@@ -12,6 +12,18 @@
     {
       "path": "/api/notices/collect",
       "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/notices/ai/enrich",
+      "schedule": "30 1 * * *"
+    },
+    {
+      "path": "/api/notices/ai/enrich",
+      "schedule": "30 13 * * *"
+    },
+    {
+      "path": "/api/notices/ai/digest",
+      "schedule": "0 1 * * 5"
     }
   ],
   "builds": [

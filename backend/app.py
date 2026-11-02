@@ -81,6 +81,9 @@ def _run_migrations():
         "ALTER TABLE consulting_projects ADD COLUMN pds_narrative_description_en TEXT",
         "ALTER TABLE consulting_projects ADD COLUMN pds_services_description_en TEXT",
         "ALTER TABLE consulting_projects ADD COLUMN pds_extracted_at TIMESTAMP",
+        # 주간 다이제스트 — 특정 공고에 묶이지 않는 전송 건
+        "ALTER TABLE kakao_deliveries ADD COLUMN payload TEXT",
+        "ALTER TABLE kakao_deliveries ALTER COLUMN notice_id DROP NOT NULL",
     ]
     with db.engine.connect() as conn:
         for sql in migrations:
@@ -119,6 +122,7 @@ from routes.cn_analysis import cn_bp
 from routes.webhook import webhook_bp
 from routes.notice_collector import collector_bp
 from routes.notice_tasks import notice_tasks_bp
+from routes.notice_ai_routes import notice_ai_bp
 from routes.flights import flights_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -150,6 +154,8 @@ app.register_blueprint(collector_bp, url_prefix='/api/notices')
 # notice_tasks_bp 는 자체 라우트에 /tasks, /<id>/tasks, /<id>/slides 등을 정의하므로
 # url_prefix 는 /api/notices 로 같이 둔다 (collector_bp 와 경로 충돌 없음).
 app.register_blueprint(notice_tasks_bp, url_prefix='/api/notices')
+# LLM 보강(요약·추출·적합도·연결)과 주간 다이제스트
+app.register_blueprint(notice_ai_bp, url_prefix='/api/notices')
 app.register_blueprint(flights_bp, url_prefix='/api/flights')
 
 

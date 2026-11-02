@@ -1806,13 +1806,15 @@ class KakaoDelivery(db.Model):
     __tablename__ = 'kakao_deliveries'
 
     id           = db.Column(db.Integer, primary_key=True)
+    # 주간 다이제스트는 특정 공고에 속하지 않는다 → nullable
     notice_id    = db.Column(
         db.Integer,
         db.ForeignKey('bid_notices.id', ondelete='CASCADE'),
-        nullable=False,
+        nullable=True,
         index=True,
     )
-    kind         = db.Column(db.String(20), nullable=False, index=True)  # image | link
+    kind         = db.Column(db.String(20), nullable=False, index=True)  # image | link | digest
+    payload      = db.Column(db.Text)      # digest 본문 (kind='digest' 일 때)
     status       = db.Column(db.String(20), nullable=False, default='pending', index=True)
     attempts     = db.Column(db.Integer, nullable=False, default=0)
     max_attempts = db.Column(db.Integer, nullable=False, default=3)
@@ -1836,6 +1838,7 @@ class KakaoDelivery(db.Model):
             'id': self.id,
             'noticeId': self.notice_id,
             'kind': self.kind,
+            'payload': self.payload,
             'status': self.status,
             'attempts': self.attempts,
             'maxAttempts': self.max_attempts,
