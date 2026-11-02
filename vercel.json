@@ -14,11 +14,11 @@
       "schedule": "0 13 * * *"
     },
     {
-      "path": "/api/notices/ai/enrich",
+      "path": "/api/notices/ai/enrich?limit=2",
       "schedule": "30 1 * * *"
     },
     {
-      "path": "/api/notices/ai/enrich",
+      "path": "/api/notices/ai/enrich?limit=2",
       "schedule": "30 13 * * *"
     },
     {

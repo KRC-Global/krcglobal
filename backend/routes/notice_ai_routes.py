@@ -20,7 +20,9 @@ from services.notice_digest import build_digest
 
 notice_ai_bp = Blueprint('notice_ai', __name__)
 
-DEFAULT_LIMIT = 3
+# 공고 1건당 LLM 호출이 최대 4회다. 실측 2건 35초 — 서버리스 실행시간에
+# 여유를 두려고 기본을 2로 잡는다. 남은 건은 다음 주기가 가져간다.
+DEFAULT_LIMIT = 2
 MAX_LIMIT = 10
 ALL_STEPS = ('extract', 'fit', 'summary', 'link')
 
