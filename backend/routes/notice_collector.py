@@ -230,6 +230,20 @@ ARCHIVE_RETENTION_DAYS = 365
 SOURCE_SILENT_RUNS = 7       # 이 횟수만큼 연속 0건이면 경보
 SOURCE_HEALTH_LOOKBACK = 30  # 이력 조회 범위(run 수)
 
+# 소스가 '원본에서 본 건수'. 필터 통과 건수(count)와 구분해 기록한다.
+# count=0 은 두 가지 뜻이 될 수 있다 — 사이트가 막혔거나, 사이트는
+# 멀쩡한데 농업 관련 공고가 없거나. 둘을 섞으면 진짜 장애가 묻히고
+# 멀쩡한 소스에 헛경보가 뜬다(실측: EDCF 19회 연속 0건이었는데 실제로는
+# 교통·보건 공고만 올라와 있어 정상이었다).
+_raw_fetched: dict = {}
+
+
+def _note_raw(source: str, count: int) -> None:
+    """원본에서 본 건수를 누적한다. 한 소스가 여러 경로를 쓰기도 한다
+    (KOICA 는 nebid 게시판과 지역 공고 두 경로를 합친다)."""
+    _raw_fetched[source] = _raw_fetched.get(source, 0) + int(count or 0)
+
+
 # 상시 공고가 없는 것이 정상인 소스는 감시 대상에서 제외한다.
 # (현재는 없음 — 전 소스가 꾸준히 공고를 내보내는 기관)
 SOURCE_SILENT_EXEMPT: set = set()
@@ -884,6 +898,7 @@ def _collect_worldbank() -> list:
         if total and offset >= total:
             break
 
+    _note_raw('worldbank', offset)
     return results
 
 
@@ -1766,10 +1781,12 @@ def _collect_koica_local_bids() -> list:
             break
 
     print(f'[KOICA-local] {len(results)} agri items from {len(seen)} rows')
+    _note_raw('koica', len(seen))
     return results
 
 
 def _collect_koica() -> list:
+    _koica_seen = [0]     # 원본에서 본 공고 수(필터 전) — 건강도 판정용
     """KOICA — 현지입찰 + (API 키 있으면 data.go.kr) + 사전공고 HTML fallback"""
     service_key = os.environ.get('KOICA_API_KEY', '')
     extra_local = []
@@ -1875,6 +1892,7 @@ def _collect_koica() -> list:
         soup = BeautifulSoup(r.text, 'html.parser')
         rows = soup.select('tr.row[onclick]') or soup.select('tbody tr[onclick]')
         print(f'[KOICA-nebid] rows found: {len(rows)}')
+        _koica_seen[0] += len(rows)
 
         for row in rows:
             # 상세 URL: onclick="beffatPblancInfoDetailInqire('W202600009');"
@@ -1951,6 +1969,7 @@ def _collect_koica() -> list:
     if not results and not extra_local and attempts_errors:
         raise RuntimeError('KOICA 수집 실패: ' + ' | '.join(attempts_errors))
 
+    _note_raw('koica', _koica_seen[0])   # nebid 분 (local 분은 위에서 더해진다)
     return (results or []) + extra_local
 
 
@@ -2001,10 +2020,12 @@ def _collect_aiib() -> list:
     today = datetime.utcnow().date()
     stale_cutoff_days = DEFAULT_FRESHNESS_DAYS  # 공통 컷오프 — 최근 공고만
 
+    seen_raw = 0
     for obj_match in obj_rx.finditer(body):
         fields = {k: v for k, v in field_rx.findall(obj_match.group(1))}
         if not fields:
             continue
+        seen_raw += 1
 
         category = (fields.get('ct') or '').strip()
         # Contract Awards 는 농업 기술용역 기회가 아니므로 제외
@@ -2073,6 +2094,7 @@ def _collect_aiib() -> list:
             'raw_data': fields,
         })
 
+    _note_raw('aiib', seen_raw)
     return results
 
 
@@ -2086,6 +2108,7 @@ _ISDB_PAGES = [
 
 
 def _collect_isdb() -> list:
+    _isdb_seen = [0]      # 원본에서 본 공고 수(필터 전) — 건강도 판정용
     """IsDB — 카테고리 페이지(taxonomy term)에서 현재 활성 공고 수집.
 
     /project-procurement/tenders 기본 페이지는 2025년 마감된 EOI/PQN 위주라 부적합.
@@ -2121,6 +2144,7 @@ def _collect_isdb() -> list:
         # taxonomy 페이지는 간단한 링크 리스트 구조 — 모든 공고 링크 수집
         anchors = soup.select('a[href*="/project-procurement/tenders/"]')
         print(f'[IsDB-{default_type}] anchors: {len(anchors)}')
+        _isdb_seen[0] += len(anchors)
 
         for a in anchors:
             href = a.get('href', '')
@@ -2262,6 +2286,7 @@ def _collect_isdb() -> list:
     if not results and attempts_errors and len(attempts_errors) >= len(_ISDB_PAGES):
         raise RuntimeError('IsDB 전체 페이지 요청 실패: ' + ' | '.join(attempts_errors))
 
+    _note_raw('isdb', _isdb_seen[0])
     return results
 
 
@@ -2365,6 +2390,7 @@ def _collect_edcf() -> list:
             break
 
     print(f'[EDCF] {len(results)} agri/water items from {len(seen)} notices')
+    _note_raw('edcf', len(seen))
     return results
 
 
@@ -3012,6 +3038,10 @@ def _check_source_health(fetched_by_source: dict, errors: dict) -> dict:
         # 이번 run 이 1건이라도 건졌으면 건강한 소스
         if fetched_by_source.get(key, 0) > 0:
             continue
+        # 필터를 통과한 게 없어도 원본에서는 읽어 왔다면 정상이다.
+        # (EDCF 는 교통·보건 공고만 올라오는 기간이 길다)
+        if (_raw_fetched.get(key) or 0) > 0:
+            continue
 
         streak = 1  # 이번 run 포함
         for run in history:
@@ -3020,7 +3050,7 @@ def _check_source_health(fetched_by_source: dict, errors: dict) -> dict:
                         if display_to_key.get(r.get('name')) == key), None)
             if row is None:            # 그 시점엔 없던 소스 → 거기서 끊는다
                 break
-            if (row.get('count') or 0) > 0:
+            if (row.get('count') or 0) > 0 or (row.get('raw') or 0) > 0:
                 break
             streak += 1
 
@@ -3193,6 +3223,7 @@ def _do_collect():
     _reactivated_notices_in_run = []     # 재활성화 캡처 리스트도 리셋
     _revived_with_new_doc_ids = []       # 문서 교체 캡처 리스트도 리셋
 
+    _raw_fetched.clear()
     all_items, errors = _run_all_collectors()
 
     # 캐시 1회 빌드 — _save_notice 에서 매번 query.all() 안 하도록
@@ -3232,6 +3263,9 @@ def _do_collect():
         {
             'name':  SOURCE_DISPLAY.get(key, key),
             'count': fetched_by_source.get(key, 0),
+            # raw: 필터 전에 원본에서 본 건수. count=0 이어도 raw>0 이면
+            # 소스는 멀쩡하고 농업 관련 공고가 없었을 뿐이다.
+            'raw':   _raw_fetched.get(key),
             'error': errors.get(key),
         }
         for key in COLLECTORS.keys()
