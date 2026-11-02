@@ -1,0 +1,10 @@
+# 배포에 필요 없는 로컬 자료 — 업로드 용량만 키운다.
+# (배포 실패: "source code too large")
+PDS_연번별/
+notices/
+AIIB/
+sample/
+Profile/
+.venv-backend/
+*.docx
+*.xlsx
