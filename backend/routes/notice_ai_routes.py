@@ -25,7 +25,12 @@ MAX_LIMIT = 10
 ALL_STEPS = ('extract', 'fit', 'summary', 'link')
 
 # 적합도를 '바꿀' 때 요구하는 확신도. 기록은 항상 남기고 반영만 가린다.
-APPLY_CONFIDENCE = 0.75
+# 등급을 올리는 쪽(놓친 공고를 건지는 쪽)은 덜 위험하므로 기준이 낮다.
+PROMOTE_CONFIDENCE = 0.75
+# 내리는 쪽은 게시판에서 공고를 치우는 일이라 더 엄격히 본다. 실측으로
+# 산림투자사업(#434)이 0.85 로 제외됐는데, KRC 는 동티모르 산림복원 PMC 를
+# 수행한 이력이 있어 과잉 제외였다.
+DEMOTE_CONFIDENCE = 0.92
 # 아카이브된 공고를 되살릴 때는 더 엄격하게 본다.
 RESCUE_CONFIDENCE = 0.85
 RESCUE_WINDOW_DAYS = 14
@@ -120,9 +125,15 @@ def ai_enrich():
                 raw['krc_fit_llm'] = verdict
                 stats['judged'] += 1
                 # 키워드 판정과 다르고 확신이 높으면 반영한다.
-                if (verdict['grade'] != raw.get('krc_fit')
-                        and verdict['confidence'] >= APPLY_CONFIDENCE):
-                    before = raw.get('krc_fit')
+                before = raw.get('krc_fit')
+                demote = verdict['grade'] == '하' and before != '하'
+                bar = DEMOTE_CONFIDENCE if demote else PROMOTE_CONFIDENCE
+                # 이미 카카오로 나간 공고는 자동으로 치우지 않는다. 사람 손에
+                # 들어간 건을 게시판에서만 조용히 빼면 둘이 어긋난다.
+                if demote and _already_sent(n.id):
+                    bar = 2.0   # 반영하지 않고 기록만 남긴다
+                    raw['krc_fit_llm_note'] = '발송 완료 건이라 자동 제외하지 않음'
+                if (verdict['grade'] != before and verdict['confidence'] >= bar):
                     raw['krc_fit'] = verdict['grade']
                     raw['krc_fit_reason'] = verdict['reason']
                     stats['regraded'] += 1
@@ -170,6 +181,13 @@ def ai_enrich():
 
     return jsonify({'success': True, 'model': resolve_model(),
                     'steps': list(steps), **stats})
+
+
+def _already_sent(notice_id: int) -> bool:
+    """이 공고가 카카오로 이미 나갔는지."""
+    return bool(KakaoDelivery.query
+                .filter_by(notice_id=notice_id, status='done')
+                .first())
 
 
 def _cancel_pending(notice_id: int, reason: str) -> None:
